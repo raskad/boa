@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1635813742858,
+  "lastUpdate": 1636856131928,
   "repoUrl": "https://github.com/raskad/boa",
   "entries": {
     "Boa Benchmarks": [
@@ -335,6 +335,342 @@ window.BENCHMARK_DATA = {
             "name": "Mini js (Parser)",
             "value": 32.617,
             "range": "+/- 1.063",
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "distinct": true,
+          "id": "db520ebc46321f609ebdc93e54e9fe68eb0be811",
+          "message": "Bump copy-webpack-plugin from 9.0.1 to 9.1.0 (#1709)\n\nBumps [copy-webpack-plugin](https://github.com/webpack-contrib/copy-webpack-plugin) from 9.0.1 to 9.1.0.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/releases\">copy-webpack-plugin's releases</a>.</em></p>\n<blockquote>\n<h2>v9.1.0</h2>\n<h2><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/compare/v9.0.1...v9.1.0\">9.1.0</a> (2021-11-11)</h2>\n<h3>Features</h3>\n<ul>\n<li>output helpful descriptions and links on errors (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/625\">#625</a>) (<a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/396bed6a8ad12cea344e988fefb9a554bb9c7b1a\">396bed6</a>)</li>\n</ul>\n<h3>Bug Fixes</h3>\n<ul>\n<li>compatibility with Node.js 17 (<a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/20af0c7f1b06a7e597e6b498dbc2b432a4a6d0de\">20af0c7</a>)</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/blob/master/CHANGELOG.md\">copy-webpack-plugin's changelog</a>.</em></p>\n<blockquote>\n<h2><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/compare/v9.0.1...v9.1.0\">9.1.0</a> (2021-11-11)</h2>\n<h3>Features</h3>\n<ul>\n<li>output helpful descriptions and links on errors (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/625\">#625</a>) (<a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/396bed6a8ad12cea344e988fefb9a554bb9c7b1a\">396bed6</a>)</li>\n</ul>\n<h3>Bug Fixes</h3>\n<ul>\n<li>compatibility with Node.js 17 (<a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/20af0c7f1b06a7e597e6b498dbc2b432a4a6d0de\">20af0c7</a>)</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/fbea73d5f6c0242c537dbb048c065ccdb9be54bf\"><code>fbea73d</code></a> chore(release): 9.1.0</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/73bce86adba080dea1cfa08fa4384fd093f3e2d5\"><code>73bce86</code></a> refactor: reduce deps (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/639\">#639</a>)</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/20af0c7f1b06a7e597e6b498dbc2b432a4a6d0de\"><code>20af0c7</code></a> fix: compatibility with Node.js 17</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/fcab69bc68c113c14ac4e8bf8b38cb457c465578\"><code>fcab69b</code></a> chore(deps): update (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/637\">#637</a>)</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/cc5af2f4321b606d8ac1e0de4f3384a0d144ab6b\"><code>cc5af2f</code></a> chore: fix typo (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/636\">#636</a>)</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/5ddd582a318b635a0f187f572cf2f3ed9185eb02\"><code>5ddd582</code></a> docs: update bug report template (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/624\">#624</a>)</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/396bed6a8ad12cea344e988fefb9a554bb9c7b1a\"><code>396bed6</code></a> feat: output helpful descriptions and links on errors (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/625\">#625</a>)</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/6669609c1c70f591adb8f0c74b350e21a2496108\"><code>6669609</code></a> docs: update README (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/626\">#626</a>)</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/b8c08da103b364695d00c33869945a16a1d3012b\"><code>b8c08da</code></a> chore: fix lint (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/622\">#622</a>)</li>\n<li><a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/commit/67cdcf11a55240475103fc611d32a8b06f1cf7b6\"><code>67cdcf1</code></a> docs: add options table (<a href=\"https://github-redirect.dependabot.com/webpack-contrib/copy-webpack-plugin/issues/620\">#620</a>)</li>\n<li>Additional commits viewable in <a href=\"https://github.com/webpack-contrib/copy-webpack-plugin/compare/v9.0.1...v9.1.0\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=copy-webpack-plugin&package-manager=npm_and_yarn&previous-version=9.0.1&new-version=9.1.0)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it\n- `@dependabot merge` will merge this PR after your CI passes on it\n- `@dependabot squash and merge` will squash and merge this PR after your CI passes on it\n- `@dependabot cancel merge` will cancel a previously requested merge and block automerging\n- `@dependabot reopen` will reopen this PR if it is closed\n- `@dependabot close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually\n- `@dependabot ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself)\n\n\n</details>",
+          "timestamp": "2021-11-12T16:32:02Z",
+          "tree_id": "188e742f05fc8806e902f8ed36c30380034da0fe",
+          "url": "https://github.com/raskad/boa/commit/db520ebc46321f609ebdc93e54e9fe68eb0be811"
+        },
+        "date": 1636856128528,
+        "tool": "criterion",
+        "benches": [
+          {
+            "name": "Create Realm",
+            "value": 343.06,
+            "range": "+/- 0.030",
+            "unit": "ns"
+          },
+          {
+            "name": "Symbols (Execution)",
+            "value": 4.2337,
+            "range": "+/- 0.001",
+            "unit": "us"
+          },
+          {
+            "name": "For loop (Execution)",
+            "value": 18.463,
+            "range": "+/- 0.010",
+            "unit": "us"
+          },
+          {
+            "name": "Fibonacci (Execution)",
+            "value": 2.2312,
+            "range": "+/- 0.003",
+            "unit": "ms"
+          },
+          {
+            "name": "",
+            "value": 6.83,
+            "range": "+/- 0.005",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 2.5601,
+            "range": "+/- 0.002",
+            "unit": "ms"
+          },
+          {
+            "name": "Array pop (Execution)",
+            "value": 811.62,
+            "range": "+/- 0.390",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.2258,
+            "range": "+/- 0.005",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.4403,
+            "range": "+/- 0.009",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.8602,
+            "range": "+/- 0.007",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 9.2081,
+            "range": "+/- 0.008",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Execution)",
+            "value": 8.149,
+            "range": "+/- 0.006",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 10.844,
+            "range": "+/- 0.010",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Execution) #2",
+            "value": 12.233,
+            "range": "+/- 0.010",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.6953,
+            "range": "+/- 0.003",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 6.1213,
+            "range": "+/- 0.006",
+            "unit": "us"
+          },
+          {
+            "name": "String copy (Execution)",
+            "value": 4.1769,
+            "range": "+/- 0.005",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 2.9415,
+            "range": "+/- 0.002",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 4.178,
+            "range": "+/- 0.002",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.5331,
+            "range": "+/- 0.003",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 199.88,
+            "range": "+/- 0.100",
+            "unit": "ns"
+          },
+          {
+            "name": "Clean js (Execution)",
+            "value": 593.96,
+            "range": "+/- 0.640",
+            "unit": "us"
+          },
+          {
+            "name": "Mini js (Execution)",
+            "value": 545.8,
+            "range": "+/- 1.000",
+            "unit": "us"
+          },
+          {
+            "name": "Symbols (Full)",
+            "value": 343.18,
+            "range": "+/- 0.280",
+            "unit": "us"
+          },
+          {
+            "name": "For loop (Full)",
+            "value": 377.78,
+            "range": "+/- 0.250",
+            "unit": "us"
+          },
+          {
+            "name": "Fibonacci (Full)",
+            "value": 2.6843,
+            "range": "+/- 0.001",
+            "unit": "ms"
+          },
+          {
+            "name": "Array access (Full)",
+            "value": 373.34,
+            "range": "+/- 0.310",
+            "unit": "us"
+          },
+          {
+            "name": "Array creation (Full)",
+            "value": 2.9948,
+            "range": "+/- 0.007",
+            "unit": "ms"
+          },
+          {
+            "name": "Array pop (Full)",
+            "value": 1.3515,
+            "range": "+/- 0.000",
+            "unit": "ms"
+          },
+          {
+            "name": "Object Creation (Full)",
+            "value": 322.5,
+            "range": "+/- 0.250",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 324.6,
+            "range": "+/- 0.520",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 367.35,
+            "range": "+/- 0.280",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 367.4,
+            "range": "+/- 0.470",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Full)",
+            "value": 364.9,
+            "range": "+/- 0.150",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp Literal (Full)",
+            "value": 376.19,
+            "range": "+/- 0.150",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Full) #2",
+            "value": 382.51,
+            "range": "+/- 0.270",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 359.52,
+            "range": "+/- 0.160",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 359.82,
+            "range": "+/- 0.180",
+            "unit": "us"
+          },
+          {
+            "name": "String copy (Full)",
+            "value": 351.39,
+            "range": "+/- 0.260",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 351.94,
+            "range": "+/- 0.140",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 354.34,
+            "range": "+/- 0.230",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 360.3,
+            "range": "+/- 0.290",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 335.97,
+            "range": "+/- 0.150",
+            "unit": "us"
+          },
+          {
+            "name": "Clean js (Full)",
+            "value": 1.0688,
+            "range": "+/- 0.002",
+            "unit": "ms"
+          },
+          {
+            "name": "Mini js (Full)",
+            "value": 1.01,
+            "range": "+/- 0.001",
+            "unit": "ms"
+          },
+          {
+            "name": "Expression (Parser)",
+            "value": 5.3316,
+            "range": "+/- 0.001",
+            "unit": "us"
+          },
+          {
+            "name": "Hello World (Parser)",
+            "value": 3.0661,
+            "range": "+/- 0.001",
+            "unit": "us"
+          },
+          {
+            "name": "For loop (Parser)",
+            "value": 15.062,
+            "range": "+/- 0.046",
+            "unit": "us"
+          },
+          {
+            "name": "Long file (Parser)",
+            "value": 732.5,
+            "range": "+/- 0.210",
+            "unit": "ns"
+          },
+          {
+            "name": "Goal Symbols (Parser)",
+            "value": 11.069,
+            "range": "+/- 0.005",
+            "unit": "us"
+          },
+          {
+            "name": "Clean js (Parser)",
+            "value": 31.609,
+            "range": "+/- 0.010",
+            "unit": "us"
+          },
+          {
+            "name": "Mini js (Parser)",
+            "value": 27.665,
+            "range": "+/- 0.009",
             "unit": "us"
           }
         ]
