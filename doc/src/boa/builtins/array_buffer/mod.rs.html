@@ -790,7 +790,30 @@
 <span id="790">790</span>
 <span id="791">791</span>
 <span id="792">792</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">crate</span>::{
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+</pre><pre class="rust"><code><span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">tests</span>;
+
+<span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">builtins</span>::{<span class="ident">typed_array::TypedArrayName</span>, <span class="ident">BuiltIn</span>, <span class="ident">JsArgs</span>},
     <span class="ident">context::StandardObjects</span>,
     <span class="ident">gc</span>::{<span class="ident">Finalize</span>, <span class="ident">Trace</span>},
@@ -815,7 +838,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">ArrayBuffer</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">array_buffer_byte_length</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">array_buffer_byte_length</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">array_buffer_byte_length</span>
     }
 }
@@ -827,7 +850,7 @@
         .<span class="ident">union</span>(<span class="ident">Attribute::NON_ENUMERABLE</span>)
         .<span class="ident">union</span>(<span class="ident">Attribute::CONFIGURABLE</span>);
 
-    <span class="kw">fn</span> <span class="ident">init</span>(<span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsValue</span> {
+    <span class="kw">fn</span> <span class="ident">init</span>(<span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) -&gt; <span class="ident">JsValue</span> {
         <span class="kw">let</span> <span class="ident">_timer</span> <span class="op">=</span> <span class="ident">BoaProfiler::global</span>().<span class="ident">start_event</span>(<span class="ident"><span class="self">Self</span>::NAME</span>, <span class="string">&quot;init&quot;</span>);
 
         <span class="kw">let</span> <span class="ident">get_species</span> <span class="op">=</span> <span class="ident">FunctionBuilder::native</span>(<span class="ident">context</span>, <span class="ident"><span class="self">Self</span>::get_species</span>)
@@ -874,7 +897,7 @@
         <span class="ident">new_target</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>,
         <span class="ident">args</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>],
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
         <span class="comment">// 1. If NewTarget is undefined, throw a TypeError exception.</span>
         <span class="kw">if</span> <span class="ident">new_target</span>.<span class="ident">is_undefined</span>() {
             <span class="kw">return</span> <span class="ident">context</span>
@@ -894,7 +917,7 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-get-arraybuffer-@@species</span>
-    <span class="kw">fn</span> <span class="ident">get_species</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">get_species</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
         <span class="comment">// 1. Return the this value.</span>
         <span class="prelude-val">Ok</span>(<span class="ident">this</span>.<span class="ident">clone</span>())
     }
@@ -905,7 +928,7 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-arraybuffer.isview</span>
-    <span class="kw">fn</span> <span class="ident">is_view</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="ident">args</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="ident">_context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">is_view</span>(<span class="kw">_</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="ident">args</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="ident">_context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
         <span class="comment">// 1. If Type(arg) is not Object, return false.</span>
         <span class="comment">// 2. If arg has a [[ViewedArrayBuffer]] internal slot, return true.</span>
         <span class="comment">// 3. Return false.</span>
@@ -923,7 +946,7 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-get-arraybuffer.prototype.bytelength</span>
-    <span class="kw">fn</span> <span class="ident">byte_length</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="ident">_args</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">byte_length</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="ident">_args</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
         <span class="comment">// 1. Let O be the this value.</span>
         <span class="comment">// 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).</span>
         <span class="kw">let</span> <span class="ident">obj</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">obj</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">as_object</span>() {
@@ -957,7 +980,7 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-arraybuffer.prototype.slice</span>
-    <span class="kw">fn</span> <span class="ident">slice</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="ident">args</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">slice</span>(<span class="ident">this</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>, <span class="ident">args</span>: <span class="kw-2">&amp;</span>[<span class="ident">JsValue</span>], <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
         <span class="comment">// 1. Let O be the this value.</span>
         <span class="comment">// 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).</span>
         <span class="kw">let</span> <span class="ident">obj</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">obj</span>) <span class="op">=</span> <span class="ident">this</span>.<span class="ident">as_object</span>() {
@@ -988,12 +1011,12 @@
 
         <span class="kw">let</span> <span class="ident">first</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">relative_start</span> {
             <span class="comment">// 7. If relativeStart is -∞, let first be 0.</span>
-            <span class="ident">IntegerOrInfinity::NegativeInfinity</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">0</span>,
+            <span class="ident">IntegerOrInfinity::NegativeInfinity</span> =&gt; <span class="number">0</span>,
             <span class="comment">// 8. Else if relativeStart &lt; 0, let first be max(len + relativeStart, 0).</span>
-            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) <span class="kw">if</span> <span class="ident">i</span> <span class="op">&lt;</span> <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">std::cmp::max</span>(<span class="ident">len</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">0</span>),
+            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) <span class="kw">if</span> <span class="ident">i</span> <span class="op">&lt;</span> <span class="number">0</span> =&gt; <span class="ident">std::cmp::max</span>(<span class="ident">len</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">0</span>),
             <span class="comment">// 9. Else, let first be min(relativeStart, len).</span>
-            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">std::cmp::min</span>(<span class="ident">i</span>, <span class="ident">len</span>),
-            <span class="ident">IntegerOrInfinity::PositiveInfinity</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">len</span>,
+            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) =&gt; <span class="ident">std::cmp::min</span>(<span class="ident">i</span>, <span class="ident">len</span>),
+            <span class="ident">IntegerOrInfinity::PositiveInfinity</span> =&gt; <span class="ident">len</span>,
         };
 
         <span class="comment">// 10. If end is undefined, let relativeEnd be len; else let relativeEnd be ? ToIntegerOrInfinity(end).</span>
@@ -1006,12 +1029,12 @@
 
         <span class="kw">let</span> <span class="ident">r#final</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">relative_end</span> {
             <span class="comment">// 11. If relativeEnd is -∞, let final be 0.</span>
-            <span class="ident">IntegerOrInfinity::NegativeInfinity</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">0</span>,
+            <span class="ident">IntegerOrInfinity::NegativeInfinity</span> =&gt; <span class="number">0</span>,
             <span class="comment">// 12. Else if relativeEnd &lt; 0, let final be max(len + relativeEnd, 0).</span>
-            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) <span class="kw">if</span> <span class="ident">i</span> <span class="op">&lt;</span> <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">std::cmp::max</span>(<span class="ident">len</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">0</span>),
+            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) <span class="kw">if</span> <span class="ident">i</span> <span class="op">&lt;</span> <span class="number">0</span> =&gt; <span class="ident">std::cmp::max</span>(<span class="ident">len</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">0</span>),
             <span class="comment">// 13. Else, let final be min(relativeEnd, len).</span>
-            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">std::cmp::min</span>(<span class="ident">i</span>, <span class="ident">len</span>),
-            <span class="ident">IntegerOrInfinity::PositiveInfinity</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">len</span>,
+            <span class="ident">IntegerOrInfinity::Integer</span>(<span class="ident">i</span>) =&gt; <span class="ident">std::cmp::min</span>(<span class="ident">i</span>, <span class="ident">len</span>),
+            <span class="ident">IntegerOrInfinity::PositiveInfinity</span> =&gt; <span class="ident">len</span>,
         };
 
         <span class="comment">// 14. Let newLen be max(final - first, 0).</span>
@@ -1094,7 +1117,7 @@
         <span class="ident">constructor</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>,
         <span class="ident">byte_length</span>: <span class="ident">usize</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsObject</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsObject</span><span class="op">&gt;</span> {
         <span class="comment">// 1. Let obj be ? OrdinaryCreateFromConstructor(constructor, &quot;%ArrayBuffer.prototype%&quot;, « [[ArrayBufferData]], [[ArrayBufferByteLength]], [[ArrayBufferDetachKey]] »).</span>
         <span class="kw">let</span> <span class="ident">prototype</span> <span class="op">=</span> <span class="ident">get_prototype_from_constructor</span>(
             <span class="ident">constructor</span>,
@@ -1105,11 +1128,7 @@
         <span class="ident">obj</span>.<span class="ident">set_prototype</span>(<span class="ident">prototype</span>.<span class="ident">into</span>());
 
         <span class="comment">// 2. Let block be ? CreateByteDataBlock(byteLength).</span>
-        <span class="comment">// TODO: for now just a arbitrary limit to not OOM.</span>
-        <span class="kw">if</span> <span class="ident">byte_length</span> <span class="op">&gt;</span> <span class="number">8589934592</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">context</span>.<span class="ident">construct_range_error</span>(<span class="string">&quot;ArrayBuffer allocation failed&quot;</span>));
-        }
-        <span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0</span>; <span class="ident">byte_length</span>];
+        <span class="kw">let</span> <span class="ident">block</span> <span class="op">=</span> <span class="ident">create_byte_data_block</span>(<span class="ident">byte_length</span>, <span class="ident">context</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// 3. Set obj.[[ArrayBufferData]] to block.</span>
         <span class="comment">// 4. Set obj.[[ArrayBufferByteLength]] to byteLength.</span>
@@ -1129,7 +1148,7 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-isdetachedbuffer</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_detached_buffer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_detached_buffer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="comment">// 1. If arrayBuffer.[[ArrayBufferData]] is null, return true.</span>
         <span class="comment">// 2. Return false.</span>
         <span class="self">self</span>.<span class="ident">array_buffer_data</span>.<span class="ident">is_none</span>()
@@ -1147,7 +1166,7 @@
         <span class="ident">src_length</span>: <span class="ident">usize</span>,
         <span class="ident">clone_constructor</span>: <span class="kw-2">&amp;</span><span class="ident">JsValue</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsObject</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsObject</span><span class="op">&gt;</span> {
         <span class="comment">// 1. Let targetBuffer be ? AllocateArrayBuffer(cloneConstructor, srcLength).</span>
         <span class="kw">let</span> <span class="ident">target_buffer</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::allocate</span>(<span class="ident">clone_constructor</span>, <span class="ident">src_length</span>, <span class="ident">context</span>)<span class="question-mark">?</span>;
 
@@ -1156,7 +1175,7 @@
         <span class="kw">let</span> <span class="ident">src_block</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">b</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">array_buffer_data</span> {
             <span class="ident">b</span>
         } <span class="kw">else</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">context</span>.<span class="ident">construct_syntax_error</span>(<span class="string">&quot;Cannot clone detached array buffer&quot;</span>));
+            <span class="kw">return</span> <span class="ident">context</span>.<span class="ident">throw_syntax_error</span>(<span class="string">&quot;Cannot clone detached array buffer&quot;</span>);
         };
 
         {
@@ -1189,7 +1208,7 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-isunclampedintegerelementtype</span>
-    <span class="kw">fn</span> <span class="ident">is_unclamped_integer_element_type</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">is_unclamped_integer_element_type</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>) -&gt; <span class="ident">bool</span> {
         <span class="comment">// 1. If type is Int8, Uint8, Int16, Uint16, Int32, or Uint32, return true.</span>
         <span class="comment">// 2. Return false.</span>
         <span class="macro">matches!</span>(
@@ -1209,7 +1228,7 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-isbigintelementtype</span>
-    <span class="kw">fn</span> <span class="ident">is_big_int_element_type</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">is_big_int_element_type</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>) -&gt; <span class="ident">bool</span> {
         <span class="comment">// 1. If type is BigUint64 or BigInt64, return true.</span>
         <span class="comment">// 2. Return false.</span>
         <span class="macro">matches!</span>(
@@ -1226,7 +1245,7 @@
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-isnotearconfiguration</span>
     <span class="comment">// TODO: Allow unused function until shared array buffers are implemented.</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">is_no_tear_configuration</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>, <span class="ident">order</span>: <span class="ident">SharedMemoryOrder</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">is_no_tear_configuration</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>, <span class="ident">order</span>: <span class="ident">SharedMemoryOrder</span>) -&gt; <span class="ident">bool</span> {
         <span class="comment">// 1. If ! IsUnclampedIntegerElementType(type) is true, return true.</span>
         <span class="kw">if</span> <span class="ident"><span class="self">Self</span>::is_unclamped_integer_element_type</span>(<span class="ident">t</span>) {
             <span class="kw">return</span> <span class="bool-val">true</span>;
@@ -1252,23 +1271,23 @@
     <span class="doccomment">///  - [ECMAScript reference][spec]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-rawbytestonumeric</span>
-    <span class="kw">fn</span> <span class="ident">raw_bytes_to_numeric</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>, <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">is_little_endian</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsValue</span> {
+    <span class="kw">fn</span> <span class="ident">raw_bytes_to_numeric</span>(<span class="ident">t</span>: <span class="ident">TypedArrayName</span>, <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">is_little_endian</span>: <span class="ident">bool</span>) -&gt; <span class="ident">JsValue</span> {
         <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">Numeric</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">t</span> {
-            <span class="ident">TypedArrayName::Int8Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int8Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">i8::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>)).<span class="ident">into</span>()
                 } <span class="kw">else</span> {
                     <span class="ident">i8::from_be_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>)).<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::Uint8Array</span> <span class="op">|</span> <span class="ident">TypedArrayName::Uint8ClampedArray</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Uint8Array</span> <span class="op">|</span> <span class="ident">TypedArrayName::Uint8ClampedArray</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">u8::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>)).<span class="ident">into</span>()
                 } <span class="kw">else</span> {
                     <span class="ident">u8::from_be_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>)).<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::Int16Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int16Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">i16::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1277,7 +1296,7 @@
                         .<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::Uint16Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Uint16Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">u16::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1286,7 +1305,7 @@
                         .<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::Int32Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int32Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">i32::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1295,7 +1314,7 @@
                         .<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::Uint32Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Uint32Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">u32::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1304,7 +1323,7 @@
                         .<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::BigInt64Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::BigInt64Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">i64::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1313,7 +1332,7 @@
                         .<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::BigUint64Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::BigUint64Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">u64::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1322,7 +1341,7 @@
                         .<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::Float32Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Float32Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">f32::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1331,7 +1350,7 @@
                         .<span class="ident">into</span>()
                 }
             }
-            <span class="ident">TypedArrayName::Float64Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Float64Array</span> =&gt; {
                 <span class="kw">if</span> <span class="ident">is_little_endian</span> {
                     <span class="ident">f64::from_le_bytes</span>(<span class="ident">bytes</span>.<span class="ident">try_into</span>().<span class="ident">expect</span>(<span class="string">&quot;slice with incorrect length&quot;</span>))
                         .<span class="ident">into</span>()
@@ -1358,7 +1377,7 @@
         <span class="ident">_is_typed_array</span>: <span class="ident">bool</span>,
         <span class="ident">_order</span>: <span class="ident">SharedMemoryOrder</span>,
         <span class="ident">is_little_endian</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsValue</span> {
+    ) -&gt; <span class="ident">JsValue</span> {
         <span class="comment">// 1. Assert: IsDetachedBuffer(arrayBuffer) is false.</span>
         <span class="comment">// 2. Assert: There are sufficient bytes in arrayBuffer starting at byteIndex to represent a value of type.</span>
         <span class="comment">// 3. Let block be arrayBuffer.[[ArrayBufferData]].</span>
@@ -1396,39 +1415,39 @@
         <span class="ident">value</span>: <span class="ident">JsValue</span>,
         <span class="ident">is_little_endian</span>: <span class="ident">bool</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">t</span> {
-            <span class="ident">TypedArrayName::Int8Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int8Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_int8</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Int8Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>.<span class="ident">to_int8</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::Uint8Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int8Array</span> =&gt; <span class="ident">value</span>.<span class="ident">to_int8</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::Uint8Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_uint8</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Uint8Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>.<span class="ident">to_uint8</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::Uint8ClampedArray</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Uint8Array</span> =&gt; <span class="ident">value</span>.<span class="ident">to_uint8</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::Uint8ClampedArray</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_uint8_clamp</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Uint8ClampedArray</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Uint8ClampedArray</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_uint8_clamp</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Int16Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int16Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_int16</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Int16Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>.<span class="ident">to_int16</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::Uint16Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int16Array</span> =&gt; <span class="ident">value</span>.<span class="ident">to_int16</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::Uint16Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_uint16</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Uint16Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>.<span class="ident">to_uint16</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::Int32Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Uint16Array</span> =&gt; <span class="ident">value</span>.<span class="ident">to_uint16</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::Int32Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_i32</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Int32Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>.<span class="ident">to_i32</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::Uint32Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Int32Array</span> =&gt; <span class="ident">value</span>.<span class="ident">to_i32</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::Uint32Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="ident">value</span>.<span class="ident">to_u32</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::Uint32Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>.<span class="ident">to_u32</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::BigInt64Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::Uint32Array</span> =&gt; <span class="ident">value</span>.<span class="ident">to_u32</span>(<span class="ident">context</span>)<span class="question-mark">?</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::BigInt64Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; {
                 <span class="kw">let</span> <span class="ident">big_int</span> <span class="op">=</span> <span class="ident">value</span>.<span class="ident">to_big_int64</span>(<span class="ident">context</span>)<span class="question-mark">?</span>;
                 <span class="ident">big_int</span>
                     .<span class="ident">to_i64</span>()
@@ -1442,7 +1461,7 @@
                     .<span class="ident">to_le_bytes</span>()
                     .<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::BigInt64Array</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">TypedArrayName::BigInt64Array</span> =&gt; {
                 <span class="kw">let</span> <span class="ident">big_int</span> <span class="op">=</span> <span class="ident">value</span>.<span class="ident">to_big_int64</span>(<span class="ident">context</span>)<span class="question-mark">?</span>;
                 <span class="ident">big_int</span>
                     .<span class="ident">to_i64</span>()
@@ -1456,25 +1475,25 @@
                     .<span class="ident">to_be_bytes</span>()
                     .<span class="ident">to_vec</span>()
             }
-            <span class="ident">TypedArrayName::BigUint64Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>
+            <span class="ident">TypedArrayName::BigUint64Array</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; <span class="ident">value</span>
                 .<span class="ident">to_big_uint64</span>(<span class="ident">context</span>)<span class="question-mark">?</span>
                 .<span class="ident">to_u64</span>()
                 .<span class="ident">unwrap_or</span>(<span class="ident">u64::MAX</span>)
                 .<span class="ident">to_le_bytes</span>()
                 .<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::BigUint64Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>
+            <span class="ident">TypedArrayName::BigUint64Array</span> =&gt; <span class="ident">value</span>
                 .<span class="ident">to_big_uint64</span>(<span class="ident">context</span>)<span class="question-mark">?</span>
                 .<span class="ident">to_u64</span>()
                 .<span class="ident">unwrap_or</span>(<span class="ident">u64::MAX</span>)
                 .<span class="ident">to_be_bytes</span>()
                 .<span class="ident">to_vec</span>(),
-            <span class="ident">TypedArrayName::Float32Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="ident">value</span>.<span class="ident">to_number</span>(<span class="ident">context</span>)<span class="question-mark">?</span> {
-                <span class="ident">f</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">f</span> <span class="kw">as</span> <span class="ident">f32</span>).<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>(),
-                <span class="ident">f</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">f</span> <span class="kw">as</span> <span class="ident">f32</span>).<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::Float32Array</span> =&gt; <span class="kw">match</span> <span class="ident">value</span>.<span class="ident">to_number</span>(<span class="ident">context</span>)<span class="question-mark">?</span> {
+                <span class="ident">f</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; (<span class="ident">f</span> <span class="kw">as</span> <span class="ident">f32</span>).<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>(),
+                <span class="ident">f</span> =&gt; (<span class="ident">f</span> <span class="kw">as</span> <span class="ident">f32</span>).<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
             },
-            <span class="ident">TypedArrayName::Float64Array</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="ident">value</span>.<span class="ident">to_number</span>(<span class="ident">context</span>)<span class="question-mark">?</span> {
-                <span class="ident">f</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">f</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>(),
-                <span class="ident">f</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">f</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
+            <span class="ident">TypedArrayName::Float64Array</span> =&gt; <span class="kw">match</span> <span class="ident">value</span>.<span class="ident">to_number</span>(<span class="ident">context</span>)<span class="question-mark">?</span> {
+                <span class="ident">f</span> <span class="kw">if</span> <span class="ident">is_little_endian</span> =&gt; <span class="ident">f</span>.<span class="ident">to_le_bytes</span>().<span class="ident">to_vec</span>(),
+                <span class="ident">f</span> =&gt; <span class="ident">f</span>.<span class="ident">to_be_bytes</span>().<span class="ident">to_vec</span>(),
             },
         })
     }
@@ -1493,7 +1512,7 @@
         <span class="ident">_order</span>: <span class="ident">SharedMemoryOrder</span>,
         <span class="ident">is_little_endian</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span> {
         <span class="comment">// 1. Assert: IsDetachedBuffer(arrayBuffer) is false.</span>
         <span class="comment">// 2. Assert: There are sufficient bytes in arrayBuffer starting at byteIndex to represent a value of type.</span>
         <span class="comment">// 3. Assert: Type(value) is BigInt if ! IsBigIntElementType(type) is true; otherwise, Type(value) is Number.</span>
@@ -1523,6 +1542,27 @@
         <span class="comment">// 10. Return NormalCompletion(undefined).</span>
         <span class="prelude-val">Ok</span>(<span class="ident">JsValue::undefined</span>())
     }
+}
+
+<span class="doccomment">/// `CreateByteDataBlock ( size )` abstract operation.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The abstract operation `CreateByteDataBlock` takes argument `size` (a non-negative</span>
+<span class="doccomment">/// integer). For more information, check the [spec][spec].</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// [spec]: https://tc39.es/ecma262/#sec-createbytedatablock</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_byte_data_block</span>(<span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span>) -&gt; <span class="ident">JsResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="comment">// 1. Let db be a new Data Block value consisting of size bytes. If it is impossible to</span>
+    <span class="comment">//    create such a Data Block, throw a RangeError exception.</span>
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data_block</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+    <span class="ident">data_block</span>.<span class="ident">try_reserve</span>(<span class="ident">size</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+        <span class="ident">context</span>.<span class="ident">construct_range_error</span>(<span class="macro">format!</span>(<span class="string">&quot;couldn&#39;t allocate the data block: {}&quot;</span>, <span class="ident">e</span>))
+    })<span class="question-mark">?</span>;
+
+    <span class="comment">// 2. Set all of the bytes of db to 0.</span>
+    <span class="ident">data_block</span>.<span class="ident">resize</span>(<span class="ident">size</span>, <span class="number">0</span>);
+
+    <span class="comment">// 3. Return db.</span>
+    <span class="prelude-val">Ok</span>(<span class="ident">data_block</span>)
 }
 
 <span class="doccomment">/// `6.2.8.3 CopyDataBlockBytes ( toBlock, toIndex, fromBlock, fromIndex, count )`</span>
