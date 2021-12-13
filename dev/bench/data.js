@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1638829564913,
+  "lastUpdate": 1639435337274,
   "repoUrl": "https://github.com/raskad/boa",
   "entries": {
     "Boa Benchmarks": [
@@ -1679,6 +1679,342 @@ window.BENCHMARK_DATA = {
             "name": "Mini js (Parser)",
             "value": 33.825,
             "range": "+/- 0.632",
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "distinct": true,
+          "id": "6cb93cfe1c7ad119129db74d2d6d535b94b529a1",
+          "message": "Bump serde_yaml from 0.8.21 to 0.8.23 (#1740)\n\nBumps [serde_yaml](https://github.com/dtolnay/serde-yaml) from 0.8.21 to 0.8.23.\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/dtolnay/serde-yaml/releases\">serde_yaml's releases</a>.</em></p>\n<blockquote>\n<h2>0.8.23</h2>\n<ul>\n<li>Fix handling of YAML 1.1-style octals that begin with <code>+</code> or <code>-</code> sign (<a href=\"https://github-redirect.dependabot.com/dtolnay/serde-yaml/issues/228\">#228</a>)</li>\n</ul>\n<h2>0.8.22</h2>\n<ul>\n<li>Switch float serializer to use the same float formatting library as serde_json</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/44ba87954d502651689ac1cc3026effa91785a95\"><code>44ba879</code></a> Release 0.8.23</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/f850da3d4ba2260fe9d991e684cf12d30157679c\"><code>f850da3</code></a> Merge pull request <a href=\"https://github-redirect.dependabot.com/dtolnay/serde-yaml/issues/228\">#228</a> from dtolnay/octal</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/983b5b3f5fd255225acd4cab07672608b86a642d\"><code>983b5b3</code></a> Suppress blocks_in_if_conditions clippy lint</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/57f2e661b8db22491b404f0e515c362bc6d8a235\"><code>57f2e66</code></a> Treat YAML 1.1 style octals with sign as string, not base 10 number</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/f424a15c74794c0c9f5834d976db81a45e00d300\"><code>f424a15</code></a> Add test of cases that are NOT supposed to be numbers</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/75a43c4dbc882cd8c588a35f27989667778dbe90\"><code>75a43c4</code></a> Merge pull request <a href=\"https://github-redirect.dependabot.com/dtolnay/serde-yaml/issues/218\">#218</a> from rukai/add_unit_struct_test</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/1db8fdbb8560ef2e63b3e9a1295b193f405c742b\"><code>1db8fdb</code></a> Release 0.8.22</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/6b836037b58ebb359e7c485fc6002b1e8214bd6c\"><code>6b83603</code></a> Switch float serializer from dtoa to ryu</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/7a02d7377051e3afc07c4db628d76fdc64e8b2c2\"><code>7a02d73</code></a> Delete disabled borrowed string deserializer test</li>\n<li><a href=\"https://github.com/dtolnay/serde-yaml/commit/eb31d62693057ca34e24a983354a96d145c8477f\"><code>eb31d62</code></a> Update from dtoa 0.4 to 1.0</li>\n<li>Additional commits viewable in <a href=\"https://github.com/dtolnay/serde-yaml/compare/0.8.21...0.8.23\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\n[![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=serde_yaml&package-manager=cargo&previous-version=0.8.21&new-version=0.8.23)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it\n- `@dependabot merge` will merge this PR after your CI passes on it\n- `@dependabot squash and merge` will squash and merge this PR after your CI passes on it\n- `@dependabot cancel merge` will cancel a previously requested merge and block automerging\n- `@dependabot reopen` will reopen this PR if it is closed\n- `@dependabot close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually\n- `@dependabot ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself)\n- `@dependabot ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself)\n\n\n</details>",
+          "timestamp": "2021-12-13T17:28:29Z",
+          "tree_id": "70cf4ba927d3e50da03b17619885f26b4ed579e2",
+          "url": "https://github.com/raskad/boa/commit/6cb93cfe1c7ad119129db74d2d6d535b94b529a1"
+        },
+        "date": 1639435329186,
+        "tool": "criterion",
+        "benches": [
+          {
+            "name": "Create Realm",
+            "value": 347.34,
+            "range": "+/- 0.500",
+            "unit": "ns"
+          },
+          {
+            "name": "Symbols (Execution)",
+            "value": 4.2431,
+            "range": "+/- 0.002",
+            "unit": "us"
+          },
+          {
+            "name": "For loop (Execution)",
+            "value": 18.052,
+            "range": "+/- 0.011",
+            "unit": "us"
+          },
+          {
+            "name": "Fibonacci (Execution)",
+            "value": 2.256,
+            "range": "+/- 0.001",
+            "unit": "ms"
+          },
+          {
+            "name": "",
+            "value": 6.7018,
+            "range": "+/- 0.005",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 2.5069,
+            "range": "+/- 0.002",
+            "unit": "ms"
+          },
+          {
+            "name": "Array pop (Execution)",
+            "value": 804.01,
+            "range": "+/- 0.330",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.1963,
+            "range": "+/- 0.003",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.3775,
+            "range": "+/- 0.004",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.8507,
+            "range": "+/- 0.005",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 9.5246,
+            "range": "+/- 0.004",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Execution)",
+            "value": 9.5267,
+            "range": "+/- 0.005",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 12.55,
+            "range": "+/- 0.011",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Execution) #2",
+            "value": 12.53,
+            "range": "+/- 0.011",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 5.5746,
+            "range": "+/- 0.003",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 6.9227,
+            "range": "+/- 0.003",
+            "unit": "us"
+          },
+          {
+            "name": "String copy (Execution)",
+            "value": 4.6992,
+            "range": "+/- 0.003",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 3.2086,
+            "range": "+/- 0.002",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 4.1934,
+            "range": "+/- 0.002",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 6.1965,
+            "range": "+/- 0.002",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 228.97,
+            "range": "+/- 0.060",
+            "unit": "ns"
+          },
+          {
+            "name": "Clean js (Execution)",
+            "value": 663.46,
+            "range": "+/- 0.900",
+            "unit": "us"
+          },
+          {
+            "name": "Mini js (Execution)",
+            "value": 609.34,
+            "range": "+/- 0.900",
+            "unit": "us"
+          },
+          {
+            "name": "Symbols (Full)",
+            "value": 342.98,
+            "range": "+/- 0.190",
+            "unit": "us"
+          },
+          {
+            "name": "For loop (Full)",
+            "value": 377.86,
+            "range": "+/- 1.530",
+            "unit": "us"
+          },
+          {
+            "name": "Fibonacci (Full)",
+            "value": 2.6848,
+            "range": "+/- 0.001",
+            "unit": "ms"
+          },
+          {
+            "name": "Array access (Full)",
+            "value": 371.77,
+            "range": "+/- 0.250",
+            "unit": "us"
+          },
+          {
+            "name": "Array creation (Full)",
+            "value": 2.9309,
+            "range": "+/- 0.001",
+            "unit": "ms"
+          },
+          {
+            "name": "Array pop (Full)",
+            "value": 1.3312,
+            "range": "+/- 0.001",
+            "unit": "ms"
+          },
+          {
+            "name": "Object Creation (Full)",
+            "value": 363.43,
+            "range": "+/- 0.200",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 358.34,
+            "range": "+/- 0.150",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 364.74,
+            "range": "+/- 0.910",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 364.27,
+            "range": "+/- 0.220",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Full)",
+            "value": 367.76,
+            "range": "+/- 1.290",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp Literal (Full)",
+            "value": 379.44,
+            "range": "+/- 0.210",
+            "unit": "us"
+          },
+          {
+            "name": "RegExp (Full) #2",
+            "value": 378.32,
+            "range": "+/- 0.260",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 356.75,
+            "range": "+/- 0.110",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 365.41,
+            "range": "+/- 0.430",
+            "unit": "us"
+          },
+          {
+            "name": "String copy (Full)",
+            "value": 354.08,
+            "range": "+/- 0.210",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 353.89,
+            "range": "+/- 0.150",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 356.63,
+            "range": "+/- 0.200",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 361.11,
+            "range": "+/- 0.160",
+            "unit": "us"
+          },
+          {
+            "name": "",
+            "value": 340.76,
+            "range": "+/- 0.250",
+            "unit": "us"
+          },
+          {
+            "name": "Clean js (Full)",
+            "value": 1.0554,
+            "range": "+/- 0.001",
+            "unit": "ms"
+          },
+          {
+            "name": "Mini js (Full)",
+            "value": 996.08,
+            "range": "+/- 1.330",
+            "unit": "us"
+          },
+          {
+            "name": "Expression (Parser)",
+            "value": 5.2597,
+            "range": "+/- 0.001",
+            "unit": "us"
+          },
+          {
+            "name": "Hello World (Parser)",
+            "value": 3.1716,
+            "range": "+/- 0.004",
+            "unit": "us"
+          },
+          {
+            "name": "For loop (Parser)",
+            "value": 15.06,
+            "range": "+/- 0.008",
+            "unit": "us"
+          },
+          {
+            "name": "Long file (Parser)",
+            "value": 727.84,
+            "range": "+/- 0.150",
+            "unit": "ns"
+          },
+          {
+            "name": "Goal Symbols (Parser)",
+            "value": 11.19,
+            "range": "+/- 0.007",
+            "unit": "us"
+          },
+          {
+            "name": "Clean js (Parser)",
+            "value": 31.911,
+            "range": "+/- 0.013",
+            "unit": "us"
+          },
+          {
+            "name": "Mini js (Parser)",
+            "value": 28.065,
+            "range": "+/- 0.021",
             "unit": "us"
           }
         ]
