@@ -28,6 +28,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use boa_interner::Sym;
 pub use jsobject::{JsObject, RecursionLimiter, Ref, RefMut};
 pub use operations::IntegrityLevel;
 pub use property_map::*;
@@ -1182,7 +1183,7 @@ impl Object {
 /// and the `N` is the function name.
 #[derive(Debug, Clone)]
 pub struct FunctionBinding {
-    binding: PropertyKey,
+    binding: Option<PropertyKey>,
     name: JsString,
 }
 
@@ -1192,33 +1193,33 @@ impl From<&str> for FunctionBinding {
         let name: JsString = name.into();
 
         Self {
-            binding: name.clone().into(),
+            binding: None,
             name,
         }
     }
 }
 
-impl From<String> for FunctionBinding {
-    #[inline]
-    fn from(name: String) -> Self {
-        let name: JsString = name.into();
+//impl From<String> for FunctionBinding {
+//    #[inline]
+//    fn from(name: String) -> Self {
+//        let name: JsString = name.into();
+//
+//        Self {
+//            binding: PropertyKey::from_str(name, context),
+//            name,
+//        }
+//    }
+//}
 
-        Self {
-            binding: name.clone().into(),
-            name,
-        }
-    }
-}
-
-impl From<JsString> for FunctionBinding {
-    #[inline]
-    fn from(name: JsString) -> Self {
-        Self {
-            binding: name.clone().into(),
-            name,
-        }
-    }
-}
+//impl From<JsString> for FunctionBinding {
+//    #[inline]
+//    fn from(name: JsString) -> Self {
+//        Self {
+//            binding: PropertyKey::from_str(name, context),
+//            name,
+//        }
+//    }
+//}
 
 impl<B, N> From<(B, N)> for FunctionBinding
 where
@@ -1228,7 +1229,7 @@ where
     #[inline]
     fn from((binding, name): (B, N)) -> Self {
         Self {
-            binding: binding.into(),
+            binding: Some(binding.into()),
             name: name.as_ref().into(),
         }
     }
@@ -1360,8 +1361,8 @@ impl<'context> FunctionBuilder<'context> {
             .writable(false)
             .enumerable(false)
             .configurable(true);
-        function.insert_property("length", property.clone().value(self.length));
-        function.insert_property("name", property.value(self.name.clone()));
+        function.insert_property(PropertyKey::String(Sym::LENGTH), property.clone().value(self.length));
+        function.insert_property(PropertyKey::String(Sym::NAME), property.value(self.name.clone()));
 
         function
     }
@@ -1376,8 +1377,8 @@ impl<'context> FunctionBuilder<'context> {
             .writable(false)
             .enumerable(false)
             .configurable(true);
-        object.insert_property("name", property.clone().value(self.name.clone()));
-        object.insert_property("length", property.value(self.length));
+        object.insert_property(PropertyKey::String(Sym::NAME), property.clone().value(self.name.clone()));
+        object.insert_property(PropertyKey::String(Sym::LENGTH), property.value(self.length));
     }
 }
 
@@ -1438,13 +1439,19 @@ impl<'context> ObjectInitializer<'context> {
     {
         let binding = binding.into();
         let function = FunctionBuilder::native(self.context, function)
-            .name(binding.name)
+            .name(&binding.name)
             .length(length)
             .constructor(false)
             .build();
 
+        let key = if let Some(key) = binding.binding {
+            key
+        } else {
+            PropertyKey::from_str(binding.name, self.context)
+        };
+
         self.object.borrow_mut().insert_property(
-            binding.binding,
+            key,
             PropertyDescriptor::builder()
                 .value(function)
                 .writable(true)
@@ -1560,13 +1567,19 @@ impl<'context> ConstructorBuilder<'context> {
     {
         let binding = binding.into();
         let function = FunctionBuilder::native(self.context, function)
-            .name(binding.name)
+            .name(&binding.name)
             .length(length)
             .constructor(false)
             .build();
 
+            let key = if let Some(key) = binding.binding {
+                key
+            } else {
+                PropertyKey::from_str(binding.name, self.context)
+            };
+
         self.prototype.borrow_mut().insert_property(
-            binding.binding,
+            key,
             PropertyDescriptor::builder()
                 .value(function)
                 .writable(true)
@@ -1589,13 +1602,19 @@ impl<'context> ConstructorBuilder<'context> {
     {
         let binding = binding.into();
         let function = FunctionBuilder::native(self.context, function)
-            .name(binding.name)
+            .name(&binding.name)
             .length(length)
             .constructor(false)
             .build();
 
+            let key = if let Some(key) = binding.binding {
+                key
+            } else {
+                PropertyKey::from_str(binding.name, self.context)
+            };
+
         self.constructor_object.borrow_mut().insert_property(
-            binding.binding,
+            key,
             PropertyDescriptor::builder()
                 .value(function)
                 .writable(true)
@@ -1797,8 +1816,8 @@ impl<'context> ConstructorBuilder<'context> {
         {
             let mut constructor = self.constructor_object.borrow_mut();
             constructor.data = ObjectData::function(function);
-            constructor.insert("length", length);
-            constructor.insert("name", name);
+            constructor.insert(PropertyKey::String(Sym::LENGTH), length);
+            constructor.insert(PropertyKey::String(Sym::NAME), name);
 
             if let Some(proto) = self.custom_prototype.take() {
                 constructor.set_prototype(proto);
@@ -1813,7 +1832,7 @@ impl<'context> ConstructorBuilder<'context> {
 
             if self.constructor_has_prototype {
                 constructor.insert_property(
-                    PROTOTYPE,
+                    PropertyKey::String(Sym::PROTOTYPE),
                     PropertyDescriptor::builder()
                         .value(self.prototype.clone())
                         .writable(false)
@@ -1826,7 +1845,7 @@ impl<'context> ConstructorBuilder<'context> {
         {
             let mut prototype = self.prototype.borrow_mut();
             prototype.insert_property(
-                "constructor",
+                PropertyKey::String(Sym::CONSTRUCTOR),
                 PropertyDescriptor::builder()
                     .value(self.constructor_object.clone())
                     .writable(true)

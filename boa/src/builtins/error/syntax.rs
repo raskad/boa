@@ -11,6 +11,8 @@
 //! [spec]: https://tc39.es/ecma262/#sec-native-error-types-used-in-this-standard-syntaxerror
 //! [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
 
+use boa_interner::Sym;
+
 use crate::{
     builtins::BuiltIn,
     context::StandardObjects,
@@ -18,7 +20,7 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, JsObject, ObjectData,
     },
     profiler::BoaProfiler,
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     Context, JsResult, JsValue,
 };
 
@@ -46,8 +48,8 @@ impl BuiltIn for SyntaxError {
         .name(Self::NAME)
         .length(Self::LENGTH)
         .inherit(error_prototype)
-        .property("name", Self::NAME, attribute)
-        .property("message", "", attribute)
+        .property(PropertyKey::String(Sym::NAME), Self::NAME, attribute)
+        .property(PropertyKey::String(Sym::MESSAGE), "", attribute)
         .build();
 
         syntax_error_object.into()
@@ -69,7 +71,7 @@ impl SyntaxError {
         let obj = JsObject::from_proto_and_data(prototype, ObjectData::error());
         if let Some(message) = args.get(0) {
             if !message.is_undefined() {
-                obj.set("message", message.to_string(context)?, false, context)?;
+                obj.set(PropertyKey::String(Sym::MESSAGE), message.to_string(context)?, false, context)?;
             }
         }
         Ok(obj.into())

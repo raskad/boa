@@ -10,6 +10,8 @@
 //! [spec]: https://tc39.es/ecma262/#sec-error-objects
 //! [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
 
+use boa_interner::Sym;
+
 use crate::{
     builtins::BuiltIn,
     context::StandardObjects,
@@ -17,7 +19,7 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, JsObject, ObjectData,
     },
     profiler::BoaProfiler,
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     Context, JsResult, JsValue,
 };
 
@@ -60,8 +62,8 @@ impl BuiltIn for Error {
         )
         .name(Self::NAME)
         .length(Self::LENGTH)
-        .property("name", Self::NAME, attribute)
-        .property("message", "", attribute)
+        .property(PropertyKey::String(Sym::NAME), Self::NAME, attribute)
+        .property(PropertyKey::String(Sym::MESSAGE), "", attribute)
         .method(Self::to_string, "toString", 0)
         .build();
 
@@ -86,7 +88,7 @@ impl Error {
         let obj = JsObject::from_proto_and_data(prototype, ObjectData::error());
         if let Some(message) = args.get(0) {
             if !message.is_undefined() {
-                obj.set("message", message.to_string(context)?, false, context)?;
+                obj.set(PropertyKey::String(Sym::MESSAGE), message.to_string(context)?, false, context)?;
             }
         }
         Ok(obj.into())
@@ -111,7 +113,7 @@ impl Error {
         if !this.is_object() {
             return context.throw_type_error("'this' is not an Object");
         }
-        let name = this.get_field("name", context)?;
+        let name = this.get_field(PropertyKey::String(Sym::NAME), context)?;
         let name_to_string;
         let name = if name.is_undefined() {
             "Error"
@@ -120,7 +122,7 @@ impl Error {
             name_to_string.as_str()
         };
 
-        let message = this.get_field("message", context)?;
+        let message = this.get_field(PropertyKey::String(Sym::MESSAGE), context)?;
         let message_to_string;
         let message = if message.is_undefined() {
             ""

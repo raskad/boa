@@ -19,11 +19,12 @@ use crate::{
         BuiltIn,
     },
     object::{JsObject, ObjectInitializer, RecursionLimiter},
-    property::{Attribute, PropertyNameKind},
+    property::{Attribute, PropertyNameKind, PropertyKey},
     symbol::WellKnownSymbols,
     value::IntegerOrInfinity,
     BoaProfiler, Context, JsResult, JsString, JsValue,
 };
+use boa_interner::Sym;
 use serde_json::{self, Value as JSONValue};
 
 use super::JsArgs;
@@ -104,7 +105,7 @@ impl Json {
 
             // b. Let rootName be the empty String.
             // c. Perform ! CreateDataPropertyOrThrow(root, rootName, unfiltered).
-            root.create_data_property_or_throw("", unfiltered, context)
+            root.create_data_property_or_throw(PropertyKey::String(Sym::EMPTY_STRING), unfiltered, context)
                 .expect("CreateDataPropertyOrThrow should never throw here");
 
             // d. Return ? InternalizeJSONProperty(root, rootName, reviver).
@@ -129,7 +130,7 @@ impl Json {
         context: &mut Context,
     ) -> JsResult<JsValue> {
         // 1. Let val be ? Get(holder, name).
-        let val = holder.get(name.clone(), context)?;
+        let val = holder.get(PropertyKey::from_str(name.clone(), context), context)?;
 
         // 2. If Type(val) is Object, then
         if let Some(obj) = val.as_object() {
@@ -139,9 +140,10 @@ impl Json {
                 // i. Let I be 0.
                 // ii. Let len be ? LengthOfArrayLike(val).
                 // iii. Repeat, while I < len,
-                let len = obj.length_of_array_like(context)? as i64;
+                let len = obj.length_of_array_like(context)?;
                 for i in 0..len {
                     // 1. Let prop be ! ToString(𝔽(I)).
+                    let prop = PropertyKey::from_usize(i, context);
                     // 2. Let newElement be ? InternalizeJSONProperty(val, prop, reviver).
                     let new_element = Self::internalize_json_property(
                         obj,
@@ -153,12 +155,12 @@ impl Json {
                     // 3. If newElement is undefined, then
                     if new_element.is_undefined() {
                         // a. Perform ? val.[[Delete]](prop).
-                        obj.__delete__(&i.into(), context)?;
+                        obj.__delete__(&prop, context)?;
                     }
                     // 4. Else,
                     else {
                         // a. Perform ? CreateDataProperty(val, prop, newElement).
-                        obj.create_data_property(i, new_element, context)?;
+                        obj.create_data_property(prop, new_element, context)?;
                     }
                 }
             }
@@ -179,12 +181,12 @@ impl Json {
                     // 2. If newElement is undefined, then
                     if new_element.is_undefined() {
                         // a. Perform ? val.[[Delete]](P).
-                        obj.__delete__(&p.clone().into(), context)?;
+                        obj.__delete__(&PropertyKey::from_str(p, context), context)?;
                     }
                     // 3. Else,
                     else {
                         // a. Perform ? CreateDataProperty(val, P, newElement).
-                        obj.create_data_property(p.as_str(), new_element, context)?;
+                        obj.create_data_property(PropertyKey::from_str(p, context), new_element, context)?;
                     }
                 }
             }
@@ -251,7 +253,7 @@ impl Json {
                     while k < len {
                         // a. Let prop be ! ToString(𝔽(k)).
                         // b. Let v be ? Get(replacer, prop).
-                        let v = replacer_obj.get(k, context)?;
+                        let v = replacer_obj.get(PropertyKey::from_usize(k, context), context)?;
 
                         // c. Let item be undefined.
                         // d. If Type(v) is String, set item to v.
@@ -333,7 +335,7 @@ impl Json {
 
         // 10. Perform ! CreateDataPropertyOrThrow(wrapper, the empty String, value).
         wrapper
-            .create_data_property_or_throw("", args.get_or_undefined(0).clone(), context)
+            .create_data_property_or_throw(PropertyKey::String(Sym::EMPTY_STRING), args.get_or_undefined(0).clone(), context)
             .expect("CreateDataPropertyOrThrow should never fail here");
 
         // 11. Let state be the Record { [[ReplacerFunction]]: ReplacerFunction, [[Stack]]: stack, [[Indent]]: indent, [[Gap]]: gap, [[PropertyList]]: PropertyList }.
@@ -366,12 +368,12 @@ impl Json {
         context: &mut Context,
     ) -> JsResult<Option<JsString>> {
         // 1. Let value be ? Get(holder, key).
-        let mut value = holder.get(key.clone(), context)?;
+        let mut value = holder.get(PropertyKey::from_str(key.clone(), context), context)?;
 
         // 2. If Type(value) is Object or BigInt, then
         if value.is_object() || value.is_bigint() {
             // a. Let toJSON be ? GetV(value, "toJSON").
-            let to_json = value.get_field("toJSON", context)?;
+            let to_json = value.get_field(PropertyKey::String(Sym::TO_JSON), context)?;
 
             // b. If IsCallable(toJSON) is true, then
             if let Some(obj) = to_json.as_object() {

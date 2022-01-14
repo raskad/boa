@@ -73,8 +73,8 @@ impl ForInIterator {
                 let keys = object.__own_property_keys__(context)?;
                 for k in keys {
                     match k {
-                        PropertyKey::String(ref k) => {
-                            iterator.remaining_keys.push_back(k.clone());
+                        PropertyKey::String(k) => {
+                            iterator.remaining_keys.push_back(context.interner().resolve(k).expect("string disappeared").into());
                         }
                         PropertyKey::Index(i) => {
                             iterator.remaining_keys.push_back(i.to_string().into());
@@ -87,7 +87,7 @@ impl ForInIterator {
             while let Some(r) = iterator.remaining_keys.pop_front() {
                 if !iterator.visited_keys.contains(&r) {
                     if let Some(desc) =
-                        object.__get_own_property__(&PropertyKey::from(r.clone()), context)?
+                        object.__get_own_property__(&PropertyKey::from_str(r.clone(), context), context)?
                     {
                         iterator.visited_keys.insert(r.clone());
                         if desc.expect_enumerable() {

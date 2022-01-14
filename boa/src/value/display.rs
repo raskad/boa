@@ -1,3 +1,5 @@
+use boa_interner::Sym;
+
 use crate::object::ObjectKind;
 
 use super::*;
@@ -54,7 +56,7 @@ macro_rules! print_obj_value {
                 let v = &val.expect_value();
                 format!(
                     "{:>width$}: {}",
-                    key,
+                    "TODO: key",
                     $display_fn(v, $encounters, $indent.wrapping_add(4), $print_internals),
                     width = $indent,
                 )
@@ -65,7 +67,7 @@ macro_rules! print_obj_value {
                     (false, true) => "Getter",
                     _ => "No Getter/Setter"
                 };
-               format!("{:>width$}: {}", key, display, width = $indent)
+               format!("{:>width$}: {}", "TODO: key", display, width = $indent)
             }
         })
     };
@@ -103,13 +105,13 @@ pub(crate) fn log_string_from(x: &JsValue, print_internals: bool, print_children
                     let len = v
                         .borrow()
                         .properties()
-                        .get(&PropertyKey::from("length"))
+                        .get(&PropertyKey::String(Sym::LENGTH))
                         // TODO: do this in a better way `unwrap`
                         .unwrap()
                         // FIXME: handle accessor descriptors
                         .expect_value()
                         .as_number()
-                        .map(|n| n as i32)
+                        .map(|n| n as u32)
                         .unwrap_or_default();
 
                     if print_children {
@@ -203,14 +205,14 @@ pub(crate) fn display_obj(v: &JsValue, print_internals: bool) -> String {
     if let JsValue::Object(object) = v {
         if object.borrow().is_error() {
             let name = v
-                .get_property("name")
+                .get_property(PropertyKey::String(Sym::NAME))
                 .as_ref()
                 .and_then(|d| d.value())
                 .unwrap_or(&JsValue::Undefined)
                 .display()
                 .to_string();
             let message = v
-                .get_property("message")
+                .get_property(PropertyKey::String(Sym::MESSAGE))
                 .as_ref()
                 .and_then(|d| d.value())
                 .unwrap_or(&JsValue::Undefined)

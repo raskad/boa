@@ -16,12 +16,13 @@
 
 use crate::{
     gc::{empty_trace, Finalize, Trace},
-    JsString, JsSymbol, JsValue,
+    JsSymbol, JsValue, Context,
 };
-use std::{convert::TryFrom, fmt};
+use std::convert::TryFrom;
 
 mod attribute;
 pub use attribute::Attribute;
+use boa_interner::Sym;
 
 /// This represents a JavaScript Property AKA The Property Descriptor.
 ///
@@ -474,104 +475,15 @@ impl From<PropertyDescriptorBuilder> for PropertyDescriptor {
 /// [spec]: https://tc39.es/ecma262/#sec-ispropertykey
 #[derive(Trace, Finalize, PartialEq, Debug, Clone, Eq, Hash)]
 pub enum PropertyKey {
-    String(JsString),
+    String(Sym),
     Symbol(JsSymbol),
     Index(u32),
-}
-
-impl From<JsString> for PropertyKey {
-    #[inline]
-    fn from(string: JsString) -> PropertyKey {
-        if let Ok(index) = string.parse() {
-            PropertyKey::Index(index)
-        } else {
-            PropertyKey::String(string)
-        }
-    }
-}
-
-impl From<&str> for PropertyKey {
-    #[inline]
-    fn from(string: &str) -> PropertyKey {
-        if let Ok(index) = string.parse() {
-            PropertyKey::Index(index)
-        } else {
-            PropertyKey::String(string.into())
-        }
-    }
-}
-
-impl From<String> for PropertyKey {
-    #[inline]
-    fn from(string: String) -> PropertyKey {
-        if let Ok(index) = string.parse() {
-            PropertyKey::Index(index)
-        } else {
-            PropertyKey::String(string.into())
-        }
-    }
-}
-
-impl From<Box<str>> for PropertyKey {
-    #[inline]
-    fn from(string: Box<str>) -> PropertyKey {
-        if let Ok(index) = string.parse() {
-            PropertyKey::Index(index)
-        } else {
-            PropertyKey::String(string.into())
-        }
-    }
 }
 
 impl From<JsSymbol> for PropertyKey {
     #[inline]
     fn from(symbol: JsSymbol) -> PropertyKey {
         PropertyKey::Symbol(symbol)
-    }
-}
-
-impl fmt::Display for PropertyKey {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PropertyKey::String(ref string) => string.fmt(f),
-            PropertyKey::Symbol(ref symbol) => symbol.fmt(f),
-            PropertyKey::Index(index) => index.fmt(f),
-        }
-    }
-}
-
-impl From<&PropertyKey> for JsValue {
-    #[inline]
-    fn from(property_key: &PropertyKey) -> JsValue {
-        match property_key {
-            PropertyKey::String(ref string) => string.clone().into(),
-            PropertyKey::Symbol(ref symbol) => symbol.clone().into(),
-            PropertyKey::Index(index) => {
-                if let Ok(integer) = i32::try_from(*index) {
-                    JsValue::new(integer)
-                } else {
-                    JsValue::new(*index)
-                }
-            }
-        }
-    }
-}
-
-impl From<PropertyKey> for JsValue {
-    #[inline]
-    fn from(property_key: PropertyKey) -> JsValue {
-        match property_key {
-            PropertyKey::String(ref string) => string.clone().into(),
-            PropertyKey::Symbol(ref symbol) => symbol.clone().into(),
-            PropertyKey::Index(index) => {
-                if let Ok(integer) = i32::try_from(index) {
-                    JsValue::new(integer)
-                } else {
-                    JsValue::new(index)
-                }
-            }
-        }
     }
 }
 
@@ -593,72 +505,63 @@ impl From<u32> for PropertyKey {
     }
 }
 
-impl From<usize> for PropertyKey {
-    fn from(value: usize) -> Self {
+impl PropertyKey {
+//impl From<&str> for PropertyKey {
+//    #[inline]
+//    fn from(string: &str) -> PropertyKey {
+//        if let Ok(index) = string.parse() {
+//            PropertyKey::Index(index)
+//        } else {
+//            PropertyKey::String(string.into())
+//        }
+//    }
+//}
+
+    pub(crate) fn from_str<S: AsRef<str>>(value: S, context: &mut Context) -> Self {
+        if let Ok(index) = value.as_ref().parse() {
+            PropertyKey::Index(index)
+        } else {
+            PropertyKey::String(context.interner_mut().get_or_intern(value.as_ref()))
+        }
+    }
+
+    pub(crate) fn from_usize(value: usize, context: &mut Context) -> Self {
         if let Ok(index) = u32::try_from(value) {
             PropertyKey::Index(index)
         } else {
-            PropertyKey::String(JsString::from(value.to_string()))
+            PropertyKey::String(context.interner_mut().get_or_intern(value.to_string()))
         }
     }
-}
 
-impl From<i64> for PropertyKey {
-    fn from(value: i64) -> Self {
+    pub(crate) fn from_u64(value: u64, context: &mut Context) -> Self {
         if let Ok(index) = u32::try_from(value) {
             PropertyKey::Index(index)
         } else {
-            PropertyKey::String(JsString::from(value.to_string()))
+            PropertyKey::String(context.interner_mut().get_or_intern(value.to_string()))
         }
     }
-}
 
-impl From<u64> for PropertyKey {
-    fn from(value: u64) -> Self {
+    pub(crate) fn from_i64(value: i64, context: &mut Context) -> Self {
         if let Ok(index) = u32::try_from(value) {
             PropertyKey::Index(index)
         } else {
-            PropertyKey::String(JsString::from(value.to_string()))
+            PropertyKey::String(context.interner_mut().get_or_intern(value.to_string()))
         }
     }
-}
 
-impl From<isize> for PropertyKey {
-    fn from(value: isize) -> Self {
-        if let Ok(index) = u32::try_from(value) {
-            PropertyKey::Index(index)
-        } else {
-            PropertyKey::String(JsString::from(value.to_string()))
-        }
-    }
-}
-
-impl From<i32> for PropertyKey {
-    fn from(value: i32) -> Self {
-        if let Ok(index) = u32::try_from(value) {
-            PropertyKey::Index(index)
-        } else {
-            PropertyKey::String(JsString::from(value.to_string()))
-        }
-    }
-}
-
-impl From<f64> for PropertyKey {
-    fn from(value: f64) -> Self {
-        use num_traits::cast::FromPrimitive;
-        if let Some(index) = u32::from_f64(value) {
-            return PropertyKey::Index(index);
-        }
-
-        PropertyKey::String(ryu_js::Buffer::new().format(value).into())
-    }
-}
-
-impl PartialEq<&str> for PropertyKey {
-    fn eq(&self, other: &&str) -> bool {
+    pub(crate) fn to_js_value(&self, context: &mut Context) -> JsValue {
         match self {
-            PropertyKey::String(ref string) => string == other,
-            _ => false,
+            PropertyKey::String(string) => context.interner().resolve(*string).expect("string disappeared").into(),
+            PropertyKey::Symbol(symbol) => symbol.clone().into(),
+            PropertyKey::Index(index) => JsValue::new(*index)
+        }
+    }
+
+    pub(crate) fn as_str(&self, context: &mut Context) -> String {
+        match self {
+            PropertyKey::String(string) => context.interner().resolve(*string).expect("string disappeared").to_owned(),
+            PropertyKey::Symbol(symbol) => symbol.as_str(),
+            PropertyKey::Index(index) => index.to_string(),
         }
     }
 }

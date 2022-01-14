@@ -15,13 +15,15 @@
 //! [spec]: https://tc39.es/ecma262/#sec-native-error-types-used-in-this-standard-typeerror
 //! [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
 
+use boa_interner::Sym;
+
 use crate::{
     builtins::BuiltIn,
     context::StandardObjects,
     object::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, JsObject, ObjectData,
     },
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     BoaProfiler, Context, JsResult, JsValue,
 };
 
@@ -49,8 +51,8 @@ impl BuiltIn for TypeError {
         .name(Self::NAME)
         .length(Self::LENGTH)
         .inherit(error_prototype)
-        .property("name", Self::NAME, attribute)
-        .property("message", "", attribute)
+        .property(PropertyKey::String(Sym::NAME), Self::NAME, attribute)
+        .property(PropertyKey::String(Sym::MESSAGE), "", attribute)
         .build();
 
         type_error_object.into()
@@ -72,7 +74,7 @@ impl TypeError {
         let obj = JsObject::from_proto_and_data(prototype, ObjectData::error());
         if let Some(message) = args.get(0) {
             if !message.is_undefined() {
-                obj.set("message", message.to_string(context)?, false, context)?;
+                obj.set(PropertyKey::String(Sym::MESSAGE), message.to_string(context)?, false, context)?;
             }
         }
         Ok(obj.into())

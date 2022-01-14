@@ -13,6 +13,8 @@ pub mod array_iterator;
 #[cfg(test)]
 mod tests;
 
+use boa_interner::Sym;
+
 use crate::{
     builtins::array::array_iterator::ArrayIterator,
     builtins::BuiltIn,
@@ -22,7 +24,7 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, FunctionBuilder,
         JsObject, ObjectData,
     },
-    property::{Attribute, PropertyDescriptor, PropertyNameKind},
+    property::{Attribute, PropertyDescriptor, PropertyKey, PropertyNameKind},
     symbol::WellKnownSymbols,
     value::{IntegerOrInfinity, JsValue},
     BoaProfiler, Context, JsResult, JsString,
@@ -68,12 +70,12 @@ impl BuiltIn for Array {
             Attribute::CONFIGURABLE,
         )
         .property(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             0,
             Attribute::WRITABLE | Attribute::NON_ENUMERABLE | Attribute::PERMANENT,
         )
         .property(
-            "values",
+            PropertyKey::String(Sym::VALUES),
             values_function.clone(),
             Attribute::WRITABLE | Attribute::NON_ENUMERABLE | Attribute::CONFIGURABLE,
         )
@@ -155,7 +157,7 @@ impl Array {
             let int_len = if !len.is_number() {
                 // i. Perform ! CreateDataPropertyOrThrow(array, "0", len).
                 array
-                    .create_data_property_or_throw(0, len, context)
+                    .create_data_property_or_throw(PropertyKey::Index(0), len, context)
                     .unwrap();
                 // ii. Let intLen be 1𝔽.
                 1
@@ -170,7 +172,7 @@ impl Array {
                 int_len
             };
             // e. Perform ! Set(array, "length", intLen, true).
-            array.set("length", int_len, true, context).unwrap();
+            array.set(PropertyKey::String(Sym::LENGTH), int_len, true, context).unwrap();
             // f. Return array.
             Ok(array.into())
         // 6. Else,
@@ -187,7 +189,11 @@ impl Array {
                 // ii. Let itemK be values[k].
                 // iii. Perform ! CreateDataPropertyOrThrow(array, Pk, itemK).
                 array
-                    .create_data_property_or_throw(i, item, context)
+                    .create_data_property_or_throw(
+                        PropertyKey::from_usize(i, context),
+                        item,
+                        context,
+                    )
                     .unwrap();
                 // iv. Set k to k + 1.
             }
@@ -226,7 +232,7 @@ impl Array {
         // 6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
         crate::object::internal_methods::ordinary_define_own_property(
             &array,
-            "length".into(),
+            PropertyKey::String(Sym::LENGTH),
             PropertyDescriptor::builder()
                 .value(length)
                 .writable(true)
@@ -258,7 +264,7 @@ impl Array {
         for (i, elem) in elements.into_iter().enumerate() {
             // a. Perform ! CreateDataPropertyOrThrow(array, ! ToString(𝔽(n)), e).
             array
-                .create_data_property_or_throw(i, elem, context)
+                .create_data_property_or_throw(PropertyKey::from_usize(i, context), elem, context)
                 .expect("new array must be extensible");
             // b. Set n to n + 1.
         }
@@ -327,7 +333,7 @@ impl Array {
             return Self::array_create(length, None, context);
         }
         // 3. Let C be ? Get(originalArray, "constructor").
-        let c = original_array.get("constructor", context)?;
+        let c = original_array.get(PropertyKey::String(Sym::CONSTRUCTOR), context)?;
 
         // 4. If IsConstructor(C) is true, then
         //     a. Let thisRealm be the current Realm Record.
@@ -376,12 +382,12 @@ impl Array {
         add_values: &[JsValue],
         context: &mut Context,
     ) -> JsResult<JsValue> {
-        let orig_length = array_ptr.get_field("length", context)?.to_length(context)?;
+        let orig_length = array_ptr.get_field(PropertyKey::String(Sym::LENGTH), context)?.to_length(context)?;
 
         for (n, value) in add_values.iter().enumerate() {
             let new_index = orig_length.wrapping_add(n);
             array_ptr.set_property(
-                new_index,
+                PropertyKey::from_usize(new_index, context),
                 PropertyDescriptor::builder()
                     .value(value)
                     .configurable(true)
@@ -391,7 +397,7 @@ impl Array {
         }
 
         array_ptr.set_field(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             JsValue::new(orig_length.wrapping_add(add_values.len())),
             false,
             context,
@@ -458,12 +464,12 @@ impl Array {
             // a. Let kValue be items[k].
             // b. Let Pk be ! ToString(𝔽(k)).
             // c. Perform ? CreateDataPropertyOrThrow(A, Pk, kValue).
-            a.create_data_property_or_throw(k, value, context)?;
+            a.create_data_property_or_throw(PropertyKey::from_usize(k, context), value, context)?;
             // d. Set k to k + 1.
         }
 
         // 8. Perform ? Set(A, "length", lenNumber, true).
-        a.set("length", len, true, context)?;
+        a.set(PropertyKey::String(Sym::LENGTH), len, true, context)?;
 
         // 9. Return A.
         Ok(a.into())
@@ -503,7 +509,7 @@ impl Array {
         //6. if k < 0  or k >= len,
         //handled by the above match guards
         //7. Return ? Get(O, !ToString(𝔽(k)))
-        obj.get(k, context)
+        obj.get(PropertyKey::from_i64(k, context), context)
     }
 
     /// `Array.prototype.concat(...arguments)`
@@ -551,14 +557,19 @@ impl Array {
                 // iv. Repeat, while k < len,
                 for k in 0..len {
                     // 1. Let P be ! ToString(𝔽(k)).
+                    let p = PropertyKey::from_usize(k, context);
                     // 2. Let exists be ? HasProperty(E, P).
-                    let exists = item.has_property(k, context)?;
+                    let exists = item.has_property(p.clone(), context)?;
                     // 3. If exists is true, then
                     if exists {
                         // a. Let subElement be ? Get(E, P).
-                        let sub_element = item.get(k, context)?;
+                        let sub_element = item.get(p, context)?;
                         // b. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), subElement).
-                        arr.create_data_property_or_throw(n, sub_element, context)?;
+                        arr.create_data_property_or_throw(
+                            PropertyKey::from_usize(n, context),
+                            sub_element,
+                            context,
+                        )?;
                     }
                     // 4. Set n to n + 1.
                     n += 1;
@@ -573,13 +584,17 @@ impl Array {
                     return context.throw_type_error("length exceeds the max safe integer limit");
                 }
                 // iii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), E).
-                arr.create_data_property_or_throw(n, item, context)?;
+                arr.create_data_property_or_throw(
+                    PropertyKey::from_usize(n, context),
+                    item,
+                    context,
+                )?;
                 // iv. Set n to n + 1.
                 n += 1
             }
         }
         // 6. Perform ? Set(A, "length", 𝔽(n), true).
-        arr.set("length", n, true, context)?;
+        arr.set(PropertyKey::String(Sym::LENGTH), n, true, context)?;
 
         // 7. Return A.
         Ok(JsValue::new(arr))
@@ -617,12 +632,12 @@ impl Array {
         // 5. For each element E of items, do
         for element in args.iter().cloned() {
             // a. Perform ? Set(O, ! ToString(𝔽(len)), E, true).
-            o.set(len, element, true, context)?;
+            o.set(PropertyKey::from_u64(len, context), element, true, context)?;
             // b. Set len to len + 1.
             len += 1;
         }
         // 6. Perform ? Set(O, "length", 𝔽(len), true).
-        o.set("length", len, true, context)?;
+        o.set(PropertyKey::String(Sym::LENGTH), len, true, context)?;
         // 7. Return 𝔽(len).
         Ok(len.into())
     }
@@ -645,7 +660,7 @@ impl Array {
         // 3. If len = 0, then
         if len == 0 {
             // a. Perform ? Set(O, "length", +0𝔽, true).
-            o.set("length", 0, true, context)?;
+            o.set(PropertyKey::String(Sym::LENGTH), 0, true, context)?;
             // b. Return undefined.
             Ok(JsValue::undefined())
         // 4. Else,
@@ -654,13 +669,13 @@ impl Array {
             // b. Let newLen be 𝔽(len - 1).
             let new_len = len - 1;
             // c. Let index be ! ToString(newLen).
-            let index = new_len;
+            let index = PropertyKey::from_usize(new_len, context);
             // d. Let element be ? Get(O, index).
-            let element = o.get(index, context)?;
+            let element = o.get(index.clone(), context)?;
             // e. Perform ? DeletePropertyOrThrow(O, index).
             o.delete_property_or_throw(index, context)?;
             // f. Perform ? Set(O, "length", newLen, true).
-            o.set("length", new_len, true, context)?;
+            o.set(PropertyKey::String(Sym::LENGTH), new_len, true, context)?;
             // g. Return element.
             Ok(element)
         }
@@ -693,9 +708,9 @@ impl Array {
         // 5. Repeat, while k < len,
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
-            let pk = k;
+            let pk = PropertyKey::from_usize(k, context);
             // b. Let kPresent be ? HasProperty(O, Pk).
-            let present = o.has_property(pk, context)?;
+            let present = o.has_property(pk.clone(), context)?;
             // c. If kPresent is true, then
             if present {
                 // i. Let kValue be ? Get(O, Pk).
@@ -750,7 +765,7 @@ impl Array {
                 r.push_str(&separator);
             }
             // b. Let element be ? Get(O, ! ToString(𝔽(k))).
-            let element = o.get(k, context)?;
+            let element = o.get(PropertyKey::from_usize(k, context), context)?;
             // c. If element is undefined or null, let next be the empty String; otherwise, let next be ? ToString(element).
             let next = if element.is_null_or_undefined() {
                 JsString::new("")
@@ -786,7 +801,7 @@ impl Array {
         // 1. Let array be ? ToObject(this value).
         let array = this.to_object(context)?;
         // 2. Let func be ? Get(array, "join").
-        let func = array.get("join", context)?;
+        let func = array.get(PropertyKey::String(Sym::JOIN), context)?;
         // 3. If IsCallable(func) is false, set func to the intrinsic function %Object.prototype.toString%.
         // 4. Return ? Call(func, array).
         if let Some(func) = func.as_callable() {
@@ -825,45 +840,47 @@ impl Array {
         while lower != middle {
             // a. Let upper be len - lower - 1.
             let upper = len - lower - 1;
-            // Skiped: b. Let upperP be ! ToString(𝔽(upper)).
-            // Skiped: c. Let lowerP be ! ToString(𝔽(lower)).
+            // b. Let upperP be ! ToString(𝔽(upper)).
+            let upper_p = PropertyKey::from_usize(upper, context);
+            // c. Let lowerP be ! ToString(𝔽(lower)).
+            let lower_p = PropertyKey::from_usize(lower, context);
             // d. Let lowerExists be ? HasProperty(O, lowerP).
-            let lower_exists = o.has_property(lower, context)?;
+            let lower_exists = o.has_property(lower_p.clone(), context)?;
             // e. If lowerExists is true, then
             let mut lower_value = JsValue::undefined();
             if lower_exists {
                 // i. Let lowerValue be ? Get(O, lowerP).
-                lower_value = o.get(lower, context)?;
+                lower_value = o.get(lower_p.clone(), context)?;
             }
             // f. Let upperExists be ? HasProperty(O, upperP).
-            let upper_exists = o.has_property(upper, context)?;
+            let upper_exists = o.has_property(upper_p.clone(), context)?;
             // g. If upperExists is true, then
             let mut upper_value = JsValue::undefined();
             if upper_exists {
                 // i. Let upperValue be ? Get(O, upperP).
-                upper_value = o.get(upper, context)?;
+                upper_value = o.get(upper_p.clone(), context)?;
             }
             match (lower_exists, upper_exists) {
                 // h. If lowerExists is true and upperExists is true, then
                 (true, true) => {
                     // i. Perform ? Set(O, lowerP, upperValue, true).
-                    o.set(lower, upper_value, true, context)?;
+                    o.set(lower_p, upper_value, true, context)?;
                     // ii. Perform ? Set(O, upperP, lowerValue, true).
-                    o.set(upper, lower_value, true, context)?;
+                    o.set(upper_p, lower_value, true, context)?;
                 }
                 // i. Else if lowerExists is false and upperExists is true, then
                 (false, true) => {
                     // i. Perform ? Set(O, lowerP, upperValue, true).
-                    o.set(lower, upper_value, true, context)?;
+                    o.set(lower_p, upper_value, true, context)?;
                     // ii. Perform ? DeletePropertyOrThrow(O, upperP).
-                    o.delete_property_or_throw(upper, context)?;
+                    o.delete_property_or_throw(upper_p, context)?;
                 }
                 // j. Else if lowerExists is true and upperExists is false, then
                 (true, false) => {
                     // i. Perform ? DeletePropertyOrThrow(O, lowerP).
-                    o.delete_property_or_throw(lower, context)?;
+                    o.delete_property_or_throw(lower_p, context)?;
                     // ii. Perform ? Set(O, upperP, lowerValue, true).
-                    o.set(upper, lower_value, true, context)?;
+                    o.set(upper_p, lower_value, true, context)?;
                 }
                 // k. Else,
                 (false, false) => {
@@ -897,21 +914,21 @@ impl Array {
         // 3. If len = 0, then
         if len == 0 {
             // a. Perform ? Set(O, "length", +0𝔽, true).
-            o.set("length", 0, true, context)?;
+            o.set(PropertyKey::String(Sym::LENGTH), 0, true, context)?;
             // b. Return undefined.
             return Ok(JsValue::undefined());
         }
         // 4. Let first be ? Get(O, "0").
-        let first = o.get(0, context)?;
+        let first = o.get(0u32, context)?;
         // 5. Let k be 1.
         // 6. Repeat, while k < len,
         for k in 1..len {
             // a. Let from be ! ToString(𝔽(k)).
-            let from = k;
+            let from = PropertyKey::from_usize(k, context);
             // b. Let to be ! ToString(𝔽(k - 1)).
-            let to = k - 1;
+            let to = PropertyKey::from_usize(k - 1, context);
             // c. Let fromPresent be ? HasProperty(O, from).
-            let from_present = o.has_property(from, context)?;
+            let from_present = o.has_property(from.clone(), context)?;
             // d. If fromPresent is true, then
             if from_present {
                 // i. Let fromVal be ? Get(O, from).
@@ -927,9 +944,9 @@ impl Array {
             // f. Set k to k + 1.
         }
         // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(𝔽(len - 1))).
-        o.delete_property_or_throw(len - 1, context)?;
+        o.delete_property_or_throw(PropertyKey::from_usize(len - 1, context), context)?;
         // 8. Perform ? Set(O, "length", 𝔽(len - 1), true).
-        o.set("length", len - 1, true, context)?;
+        o.set(PropertyKey::String(Sym::LENGTH), len - 1, true, context)?;
         // 9. Return first.
         Ok(first)
     }
@@ -970,11 +987,11 @@ impl Array {
             // c. Repeat, while k > 0,
             while k > 0 {
                 // i. Let from be ! ToString(𝔽(k - 1)).
-                let from = k - 1;
+                let from =  PropertyKey::from_u64(k - 1, context);
                 // ii. Let to be ! ToString(𝔽(k + argCount - 1)).
-                let to = k + arg_count - 1;
+                let to =  PropertyKey::from_u64(k + arg_count - 1, context);
                 // iii. Let fromPresent be ? HasProperty(O, from).
-                let from_present = o.has_property(from, context)?;
+                let from_present = o.has_property(from.clone(), context)?;
                 // iv. If fromPresent is true, then
                 if from_present {
                     // 1. Let fromValue be ? Get(O, from).
@@ -994,12 +1011,12 @@ impl Array {
             // e. For each element E of items, do
             for (j, e) in args.iter().enumerate() {
                 // i. Perform ? Set(O, ! ToString(j), E, true).
-                o.set(j, e, true, context)?;
+                o.set(PropertyKey::from_usize(j, context), e, true, context)?;
                 // ii. Set j to j + 1𝔽.
             }
         }
         // 5. Perform ? Set(O, "length", 𝔽(len + argCount), true).
-        o.set("length", len + arg_count, true, context)?;
+        o.set(PropertyKey::String(Sym::LENGTH), len + arg_count, true, context)?;
         // 6. Return 𝔽(len + argCount).
         Ok((len + arg_count).into())
     }
@@ -1037,12 +1054,13 @@ impl Array {
         // 5. Repeat, while k < len,
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
+            let pk = PropertyKey::from_usize(k, context);
             // b. Let kPresent be ? HasProperty(O, Pk).
-            let k_present = o.has_property(k, context)?;
+            let k_present = o.has_property(pk.clone(), context)?;
             // c. If kPresent is true, then
             if k_present {
                 // i. Let kValue be ? Get(O, Pk).
-                let k_value = o.get(k, context)?;
+                let k_value = o.get(pk, context)?;
                 // ii. Let testResult be ! ToBoolean(? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »)).
                 let test_result = callback
                     .call(this_arg, &[k_value, k.into(), o.clone().into()], context)?
@@ -1092,17 +1110,18 @@ impl Array {
         // 6. Repeat, while k < len,
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
+            let pk = PropertyKey::from_usize(k, context);
             // b. Let k_present be ? HasProperty(O, Pk).
-            let k_present = o.has_property(k, context)?;
+            let k_present = o.has_property(pk.clone(), context)?;
             // c. If k_present is true, then
             if k_present {
                 // i. Let kValue be ? Get(O, Pk).
-                let k_value = o.get(k, context)?;
+                let k_value = o.get(pk.clone(), context)?;
                 // ii. Let mappedValue be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
                 let mapped_value =
                     callback.call(this_arg, &[k_value, k.into(), this.into()], context)?;
                 // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
-                a.create_data_property_or_throw(k, mapped_value, context)?;
+                a.create_data_property_or_throw(pk, mapped_value, context)?;
             }
             // d. Set k to k + 1.
         }
@@ -1169,11 +1188,11 @@ impl Array {
         // 10. Repeat, while k < len,
         while k < len {
             // a. Let kPresent be ? HasProperty(O, ! ToString(𝔽(k))).
-            let k_present = o.has_property(k, context)?;
+            let k_present = o.has_property(PropertyKey::from_i64(k, context), context)?;
             // b. If kPresent is true, then
             if k_present {
                 // i. Let elementK be ? Get(O, ! ToString(𝔽(k))).
-                let element_k = o.get(k, context)?;
+                let element_k = o.get(PropertyKey::from_i64(k, context), context)?;
                 // ii. Let same be IsStrictlyEqual(searchElement, elementK).
                 // iii. If same is true, return 𝔽(k).
                 if search_element.strict_equals(&element_k) {
@@ -1245,11 +1264,11 @@ impl Array {
         // 8. Repeat, while k ≥ 0,
         while k >= 0 {
             // a. Let kPresent be ? HasProperty(O, ! ToString(𝔽(k))).
-            let k_present = o.has_property(k, context)?;
+            let k_present = o.has_property(PropertyKey::from_i64(k, context), context)?;
             // b. If kPresent is true, then
             if k_present {
                 // i. Let elementK be ? Get(O, ! ToString(𝔽(k))).
-                let element_k = o.get(k, context)?;
+                let element_k = o.get(PropertyKey::from_i64(k, context), context)?;
                 // ii. Let same be IsStrictlyEqual(searchElement, elementK).
                 // iii. If same is true, return 𝔽(k).
                 if JsValue::strict_equals(search_element, &element_k) {
@@ -1300,7 +1319,7 @@ impl Array {
             // a. Let Pk be ! ToString(𝔽(k)).
             let pk = k;
             // b. Let kValue be ? Get(O, Pk).
-            let k_value = o.get(pk, context)?;
+            let k_value = o.get(PropertyKey::from_usize(pk, context), context)?;
             // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
             let test_result = predicate
                 .call(
@@ -1357,7 +1376,7 @@ impl Array {
             // a. Let Pk be ! ToString(𝔽(k)).
             let pk = k;
             // b. Let kValue be ? Get(O, Pk).
-            let k_value = o.get(pk, context)?;
+            let k_value = o.get(PropertyKey::from_usize(pk, context), context)?;
             // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
             let test_result = predicate
                 .call(this_arg, &[k_value, k.into(), o.clone().into()], context)?
@@ -1406,7 +1425,7 @@ impl Array {
         for k in (0..len).rev() {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ? Get(O, Pk).
-            let k_value = o.get(k, context)?;
+            let k_value = o.get(PropertyKey::from_usize(k, context), context)?;
             // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
             let test_result = predicate
                 .call(
@@ -1458,7 +1477,7 @@ impl Array {
         for k in (0..len).rev() {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ? Get(O, Pk).
-            let k_value = o.get(k, context)?;
+            let k_value = o.get(PropertyKey::from_usize(k, context), context)?;
             // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
             let test_result = predicate
                 .call(this_arg, &[k_value, k.into(), this.clone()], context)?
@@ -1609,10 +1628,10 @@ impl Array {
         // 6. Repeat, while R(sourceIndex) < sourceLen
         while source_index < source_len {
             // a. Let P be ToString(sourceIndex)
-            let p = source_index;
+            let p = PropertyKey::from_u64(source_index, context);
 
             // b. Let exists be ? HasProperty(source, P).
-            let exists = source.has_property(p, context)?;
+            let exists = source.has_property(p.clone(), context)?;
             // c. If exists is true, then
             if exists {
                 // i. Let element be Get(source, P)
@@ -1674,7 +1693,7 @@ impl Array {
                     }
 
                     // 2. Perform ? CreateDataPropertyOrThrow(target, targetIndex, element)
-                    target.create_data_property_or_throw(target_index, element, context)?;
+                    target.create_data_property_or_throw(PropertyKey::from_u64(target_index, context), element, context)?;
 
                     // 3. Set targetIndex to targetIndex + 1
                     target_index += 1;
@@ -1727,7 +1746,7 @@ impl Array {
         // 11. Repeat, while k < final,
         while k < final_ {
             // a. Let Pk be ! ToString(𝔽(k)).
-            let pk = k;
+            let pk = PropertyKey::from_usize(k, context);
             // b. Perform ? Set(O, Pk, value, true).
             o.set(pk, value.clone(), true, context)?;
             // c. Set k to k + 1.
@@ -1798,7 +1817,7 @@ impl Array {
         // 10. Repeat, while k < len,
         while k < len {
             // a. Let elementK be ? Get(O, ! ToString(𝔽(k))).
-            let element_k = o.get(k, context)?;
+            let element_k = o.get(PropertyKey::from_i64(k, context), context)?;
             // b. If SameValueZero(searchElement, elementK) is true, return true.
             if JsValue::same_value_zero(search_element, &element_k) {
                 return Ok(JsValue::new(true));
@@ -1858,15 +1877,15 @@ impl Array {
         // 14. Repeat, while k < final,
         while k < final_ {
             // a. Let Pk be ! ToString(𝔽(k)).
-            let pk = k;
+            let pk = PropertyKey::from_usize(k, context);
             // b. Let kPresent be ? HasProperty(O, Pk).
-            let k_present = o.has_property(pk, context)?;
+            let k_present = o.has_property(pk.clone(), context)?;
             // c. If kPresent is true, then
             if k_present {
                 // i. Let kValue be ? Get(O, Pk).
                 let k_value = o.get(pk, context)?;
                 // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), kValue).
-                a.create_data_property_or_throw(n, k_value, context)?;
+                a.create_data_property_or_throw(PropertyKey::from_u64(n, context), k_value, context)?;
             }
             // d. Set k to k + 1.
             k += 1;
@@ -1875,7 +1894,7 @@ impl Array {
         }
 
         // 15. Perform ? Set(A, "length", 𝔽(n), true).
-        a.set("length", n, true, context)?;
+        a.set(PropertyKey::String(Sym::LENGTH), n, true, context)?;
 
         // 16. Return A.
         Ok(a.into())
@@ -1949,20 +1968,25 @@ impl Array {
         // 13. Repeat, while k < actualDeleteCount,
         for k in 0..actual_delete_count {
             // a. Let from be ! ToString(𝔽(actualStart + k)).
+            let from = PropertyKey::from_usize(actual_start + k, context);
             // b. Let fromPresent be ? HasProperty(O, from).
-            let from_present = o.has_property(actual_start + k, context)?;
+            let from_present = o.has_property(from.clone(), context)?;
             // c. If fromPresent is true, then
             if from_present {
                 // i. Let fromValue be ? Get(O, from).
-                let from_value = o.get(actual_start + k, context)?;
+                let from_value = o.get(from, context)?;
                 // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(k)), fromValue).
-                arr.create_data_property_or_throw(k, from_value, context)?;
+                arr.create_data_property_or_throw(
+                    PropertyKey::from_usize(k, context),
+                    from_value,
+                    context,
+                )?;
             }
             // d. Set k to k + 1.
         }
 
         // 14. Perform ? Set(A, "length", 𝔽(actualDeleteCount), true).
-        arr.set("length", actual_delete_count, true, context)?;
+        arr.set(PropertyKey::String(Sym::LENGTH), actual_delete_count, true, context)?;
 
         // 15. Let itemCount be the number of elements in items.
         let item_count = items.len();
@@ -1974,11 +1998,11 @@ impl Array {
                 //     b. Repeat, while k < (len - actualDeleteCount),
                 for k in actual_start..(len - actual_delete_count) {
                     // i. Let from be ! ToString(𝔽(k + actualDeleteCount)).
-                    let from = k + actual_delete_count;
+                    let from = PropertyKey::from_usize(k + actual_delete_count, context);
                     // ii. Let to be ! ToString(𝔽(k + itemCount)).
-                    let to = k + item_count;
+                    let to = PropertyKey::from_usize(k + item_count, context);
                     // iii. Let fromPresent be ? HasProperty(O, from).
-                    let from_present = o.has_property(from, context)?;
+                    let from_present = o.has_property(from.clone(), context)?;
                     // iv. If fromPresent is true, then
                     if from_present {
                         // 1. Let fromValue be ? Get(O, from).
@@ -1998,7 +2022,7 @@ impl Array {
                 // d. Repeat, while k > (len - actualDeleteCount + itemCount),
                 for k in ((len - actual_delete_count + item_count)..len).rev() {
                     // i. Perform ? DeletePropertyOrThrow(O, ! ToString(𝔽(k - 1))).
-                    o.delete_property_or_throw(k, context)?;
+                    o.delete_property_or_throw(PropertyKey::from_usize(k, context), context)?;
                     // ii. Set k to k - 1.
                 }
             }
@@ -2008,11 +2032,11 @@ impl Array {
                 // b. Repeat, while k > actualStart,
                 for k in (actual_start..len - actual_delete_count).rev() {
                     // i. Let from be ! ToString(𝔽(k + actualDeleteCount - 1)).
-                    let from = k + actual_delete_count;
+                    let from = PropertyKey::from_usize(k + actual_delete_count, context);
                     // ii. Let to be ! ToString(𝔽(k + itemCount - 1)).
-                    let to = k + item_count;
+                    let to = PropertyKey::from_usize(k + item_count, context);
                     // iii. Let fromPresent be ? HasProperty(O, from).
-                    let from_present = o.has_property(from, context)?;
+                    let from_present = o.has_property(from.clone(), context)?;
                     // iv. If fromPresent is true, then
                     if from_present {
                         // 1. Let fromValue be ? Get(O, from).
@@ -2041,14 +2065,14 @@ impl Array {
                 .map(|(i, val)| (i + actual_start, val))
             {
                 // a. Perform ? Set(O, ! ToString(𝔽(k)), E, true).
-                o.set(k, item, true, context)?;
+                o.set(PropertyKey::from_usize(k, context), item, true, context)?;
                 // b. Set k to k + 1.
             }
         }
 
         // 20. Perform ? Set(O, "length", 𝔽(len - actualDeleteCount + itemCount), true).
         o.set(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             len - actual_delete_count + item_count,
             true,
             context,
@@ -2097,11 +2121,12 @@ impl Array {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kPresent be ? HasProperty(O, Pk).
             // c. If kPresent is true, then
-            if o.has_property(idx, context)? {
+            let idx = PropertyKey::from_usize(idx, context);
+            if o.has_property(idx.clone(), context)? {
                 // i. Let kValue be ? Get(O, Pk).
-                let element = o.get(idx, context)?;
+                let element = o.get(idx.clone(), context)?;
 
-                let args = [element.clone(), JsValue::new(idx), JsValue::new(o.clone())];
+                let args = [element.clone(), idx.to_js_value(context), JsValue::new(o.clone())];
 
                 // ii. Let selected be ! ToBoolean(? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »)).
                 let selected = callback.call(this_arg, &args, context)?.to_boolean();
@@ -2154,15 +2179,16 @@ impl Array {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kPresent be ? HasProperty(O, Pk).
-            let k_present = o.has_property(k, context)?;
+            let k = PropertyKey::from_usize(k, context);
+            let k_present = o.has_property(k.clone(), context)?;
             // c. If kPresent is true, then
             if k_present {
                 // i. Let kValue be ? Get(O, Pk).
-                let k_value = o.get(k, context)?;
+                let k_value = o.get(k.clone(), context)?;
                 // ii. Let testResult be ! ToBoolean(? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »)).
                 let this_arg = args.get_or_undefined(1);
                 let test_result = callback
-                    .call(this_arg, &[k_value, k.into(), o.clone().into()], context)?
+                    .call(this_arg, &[k_value, k.to_js_value(context), o.clone().into()], context)?
                     .to_boolean();
                 // iii. If testResult is true, return true.
                 if test_result {
@@ -2263,7 +2289,8 @@ impl Array {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kPresent be ? HasProperty(obj, Pk).
             // c. If kPresent is true, then
-            if obj.has_property(k, context)? {
+            let k = PropertyKey::from_usize(k, context);
+            if obj.has_property(k.clone(), context)? {
                 // i. Let kValue be ? Get(obj, Pk).
                 let kval = obj.get(k, context)?;
                 // ii. Append kValue to items.
@@ -2295,14 +2322,14 @@ impl Array {
         // 10. Repeat, while j < itemCount,
         for (j, item) in items.into_iter().enumerate() {
             // a. Perform ? Set(obj, ! ToString(𝔽(j)), items[j], true).
-            obj.set(j, item, true, context)?;
+            obj.set(PropertyKey::from_usize(j, context), item, true, context)?;
             // b. Set j to j + 1.
         }
 
         // 11. Repeat, while j < len,
         for j in item_count..length {
             // a. Perform ? DeletePropertyOrThrow(obj, ! ToString(𝔽(j))).
-            obj.delete_property_or_throw(j, context)?;
+            obj.delete_property_or_throw(PropertyKey::from_usize(j, context), context)?;
             // b. Set j to j + 1.
         }
 
@@ -2358,9 +2385,9 @@ impl Array {
             // b. Repeat, while kPresent is false and k < len,
             while !k_present && k < len {
                 // i. Let Pk be ! ToString(𝔽(k)).
-                let pk = k;
+                let pk = PropertyKey::from_usize(k, context);
                 // ii. Set kPresent to ? HasProperty(O, Pk).
-                k_present = o.has_property(pk, context)?;
+                k_present = o.has_property(pk.clone(), context)?;
                 // iii. If kPresent is true, then
                 if k_present {
                     // 1. Set accumulator to ? Get(O, Pk).
@@ -2380,9 +2407,9 @@ impl Array {
         // 9. Repeat, while k < len,
         while k < len {
             // a. Let Pk be ! ToString(𝔽(k)).
-            let pk = k;
+            let pk = PropertyKey::from_usize(k, context);
             // b. Let kPresent be ? HasProperty(O, Pk).
-            let k_present = o.has_property(pk, context)?;
+            let k_present = o.has_property(pk.clone(), context)?;
             // c. If kPresent is true, then
             if k_present {
                 // i. Let kValue be ? Get(O, Pk).
@@ -2453,9 +2480,9 @@ impl Array {
             // b. Repeat, while kPresent is false and k ≥ 0,
             while !k_present && k >= 0 {
                 // i. Let Pk be ! ToString(𝔽(k)).
-                let pk = k;
+                let pk = PropertyKey::from_i64(k, context);
                 // ii. Set kPresent to ? HasProperty(O, Pk).
-                k_present = o.has_property(pk, context)?;
+                k_present = o.has_property(pk.clone(), context)?;
                 // iii. If kPresent is true, then
                 if k_present {
                     // 1. Set accumulator to ? Get(O, Pk).
@@ -2475,9 +2502,9 @@ impl Array {
         // 9. Repeat, while k ≥ 0,
         while k >= 0 {
             // a. Let Pk be ! ToString(𝔽(k)).
-            let pk = k;
+            let pk = PropertyKey::from_i64(k, context);
             // b. Let kPresent be ? HasProperty(O, Pk).
-            let k_present = o.has_property(pk, context)?;
+            let k_present = o.has_property(pk.clone(), context)?;
             // c. If kPresent is true, then
             if k_present {
                 // i. Let kValue be ? Get(O, Pk).
@@ -2558,13 +2585,13 @@ impl Array {
         // 18. Repeat, while count > 0,
         while count > 0 {
             // a. Let fromKey be ! ToString(𝔽(from)).
-            let from_key = from;
+            let from_key = PropertyKey::from_i64(from, context);
 
             // b. Let toKey be ! ToString(𝔽(to)).
-            let to_key = to;
+            let to_key = PropertyKey::from_i64(to, context);
 
             // c. Let fromPresent be ? HasProperty(O, fromKey).
-            let from_present = o.has_property(from_key, context)?;
+            let from_present = o.has_property(from_key.clone(), context)?;
             // d. If fromPresent is true, then
             if from_present {
                 // i. Let fromVal be ? Get(O, fromKey).

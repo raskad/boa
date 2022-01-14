@@ -9,13 +9,14 @@
 //!
 //! [spec]: https://tc39.es/ecma262/#sec-regexp-string-iterator-objects
 
+use boa_interner::Sym;
 use regexp::{advance_string_index, RegExp};
 
 use crate::{
     builtins::{function::make_builtin_fn, iterable::create_iter_result_object, regexp},
     gc::{Finalize, Trace},
     object::{JsObject, ObjectData},
-    property::PropertyDescriptor,
+    property::{PropertyDescriptor, PropertyKey},
     symbol::WellKnownSymbols,
     BoaProfiler, Context, JsResult, JsString, JsValue,
 };
@@ -104,14 +105,14 @@ impl RegExpStringIterator {
             }
 
             // iv. Let matchStr be ? ToString(? Get(match, "0")).
-            let m_str = m.get("0", context)?.to_string(context)?;
+            let m_str = m.get(0u32, context)?.to_string(context)?;
 
             // v. If matchStr is the empty String, then
             if m_str.is_empty() {
                 // 1. Let thisIndex be ℝ(? ToLength(? Get(R, "lastIndex"))).
                 let this_index = iterator
                     .matcher
-                    .get("lastIndex", context)?
+                    .get(PropertyKey::String(Sym::LAST_INDEX), context)?
                     .to_length(context)?;
 
                 // 2. Let nextIndex be ! AdvanceStringIndex(S, thisIndex, fullUnicode).
@@ -121,7 +122,7 @@ impl RegExpStringIterator {
                 // 3. Perform ? Set(R, "lastIndex", 𝔽(nextIndex), true).
                 iterator
                     .matcher
-                    .set("lastIndex", next_index, true, context)?;
+                    .set(PropertyKey::String(Sym::LAST_INDEX), next_index, true, context)?;
             }
 
             // vi. Perform ? Yield(match).

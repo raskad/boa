@@ -86,7 +86,7 @@ pub(crate) fn string_exotic_define_own_property(
 #[inline]
 pub(crate) fn string_exotic_own_property_keys(
     obj: &JsObject,
-    _context: &mut Context,
+    context: &mut Context,
 ) -> JsResult<Vec<PropertyKey>> {
     let obj = obj.borrow();
 
@@ -103,7 +103,7 @@ pub(crate) fn string_exotic_own_property_keys(
 
     // 5. For each integer i starting with 0 such that i < len, in ascending order, do
     // a. Add ! ToString(𝔽(i)) as the last element of keys.
-    keys.extend((0..len).into_iter().map(|idx| idx.into()));
+    keys.extend((0..len).into_iter().map(|idx| PropertyKey::from_usize(idx, context)));
 
     // 6. For each own property key P of O such that P is an array index
     // and ! ToIntegerOrInfinity(P) ≥ len, in ascending numeric index order, do
@@ -124,7 +124,7 @@ pub(crate) fn string_exotic_own_property_keys(
         obj.properties
             .string_property_keys()
             .cloned()
-            .map(|s| s.into()),
+            .map(PropertyKey::String),
     );
 
     // 8. For each own property key P of O such that Type(P) is Symbol, in ascending

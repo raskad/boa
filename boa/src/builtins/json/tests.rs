@@ -343,7 +343,7 @@ fn json_parse_array_with_reviver() {
     .unwrap();
     assert_eq!(
         result
-            .get_field("0", &mut context)
+            .get_field(0u32, &mut context)
             .unwrap()
             .to_number(&mut context)
             .unwrap() as u8,
@@ -351,7 +351,7 @@ fn json_parse_array_with_reviver() {
     );
     assert_eq!(
         result
-            .get_field("1", &mut context)
+            .get_field(1u32, &mut context)
             .unwrap()
             .to_number(&mut context)
             .unwrap() as u8,
@@ -359,7 +359,7 @@ fn json_parse_array_with_reviver() {
     );
     assert_eq!(
         result
-            .get_field("2", &mut context)
+            .get_field(2u32, &mut context)
             .unwrap()
             .to_number(&mut context)
             .unwrap() as u8,
@@ -367,7 +367,7 @@ fn json_parse_array_with_reviver() {
     );
     assert_eq!(
         result
-            .get_field("3", &mut context)
+            .get_field(3u32, &mut context)
             .unwrap()
             .to_number(&mut context)
             .unwrap() as u8,

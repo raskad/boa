@@ -16,7 +16,7 @@ use crate::{
     },
     gc::{self, Finalize, Gc, Trace},
     object::JsObject,
-    property::PropertyDescriptor,
+    property::{PropertyDescriptor, PropertyKey},
     Context, JsResult, JsValue,
 };
 use boa_interner::Sym;
@@ -95,11 +95,7 @@ impl GlobalEnvironmentRecord {
 
         // 3. Let existingProp be ? globalObject.[[GetOwnProperty]](N).
         let existing_prop = global_object.__get_own_property__(
-            &context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .into(),
+            &PropertyKey::String(name),
             context,
         )?;
 
@@ -125,12 +121,7 @@ impl GlobalEnvironmentRecord {
         let global_object = &self.object_record.bindings;
 
         // 3. Let hasProperty be ? HasOwnProperty(globalObject, N).
-        let key = context
-            .interner()
-            .resolve(name)
-            .expect("string disappeared")
-            .to_owned();
-        let has_property = global_object.has_own_property(key, context)?;
+        let has_property = global_object.has_own_property(PropertyKey::String(name), context)?;
 
         // 4. If hasProperty is true, return true.
         if has_property {
@@ -154,11 +145,7 @@ impl GlobalEnvironmentRecord {
 
         // 3. Let existingProp be ? globalObject.[[GetOwnProperty]](N).
         let existing_prop = global_object.__get_own_property__(
-            &context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .into(),
+            &PropertyKey::String(name),
             context,
         )?;
 
@@ -204,11 +191,7 @@ impl GlobalEnvironmentRecord {
 
         // 3. Let hasProperty be ? HasOwnProperty(globalObject, N).
         let has_property = global_object.has_own_property(
-            context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .to_owned(),
+            PropertyKey::String(name),
             context,
         )?;
         // 4. Let extensible be ? IsExtensible(globalObject).
@@ -255,11 +238,7 @@ impl GlobalEnvironmentRecord {
 
         // 3. Let existingProp be ? globalObject.[[GetOwnProperty]](N).
         let existing_prop = global_object.__get_own_property__(
-            &context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .into(),
+            &PropertyKey::String(name),
             context,
         )?;
 
@@ -281,16 +260,10 @@ impl GlobalEnvironmentRecord {
             PropertyDescriptor::builder().value(value.clone()).build()
         };
 
-        let name_str = context
-            .interner()
-            .resolve(name)
-            .expect("string disappeared")
-            .to_owned();
-
         // 6. Perform ? DefinePropertyOrThrow(globalObject, N, desc).
-        global_object.define_property_or_throw(name_str.as_str(), desc, context)?;
+        global_object.define_property_or_throw(PropertyKey::String(name), desc, context)?;
         // 7. Perform ? Set(globalObject, N, V, false).
-        global_object.set(name_str, value, false, context)?;
+        global_object.set(PropertyKey::String(name), value, false, context)?;
 
         // 8. Let varDeclaredNames be envRec.[[VarNames]].
         // 9. If varDeclaredNames does not contain N, then
@@ -484,11 +457,7 @@ impl EnvironmentRecordTrait for GlobalEnvironmentRecord {
         // 5. Let existingProp be ? HasOwnProperty(globalObject, N).
         // 6. If existingProp is true, then
         if global_object.has_own_property(
-            context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .to_owned(),
+            PropertyKey::String(name),
             context,
         )? {
             // a. Let status be ? ObjRec.DeleteBinding(N).

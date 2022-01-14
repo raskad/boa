@@ -19,10 +19,11 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, FunctionBuilder,
         JsObject, ObjectData,
     },
-    property::{Attribute, PropertyNameKind},
+    property::{Attribute, PropertyNameKind, PropertyKey},
     symbol::WellKnownSymbols,
     BoaProfiler, Context, JsResult, JsValue,
 };
+use boa_interner::Sym;
 use ordered_map::OrderedMap;
 
 pub mod map_iterator;
@@ -79,7 +80,7 @@ impl BuiltIn for Map {
             Attribute::CONFIGURABLE,
         )
         .property(
-            "entries",
+            PropertyKey::String(Sym::ENTRIES),
             entries_function.clone(),
             Attribute::WRITABLE | Attribute::NON_ENUMERABLE | Attribute::CONFIGURABLE,
         )
@@ -101,7 +102,7 @@ impl BuiltIn for Map {
         .method(Self::keys, "keys", 0)
         .method(Self::set, "set", 2)
         .method(Self::values, "values", 0)
-        .accessor("size", Some(get_size), None, Attribute::CONFIGURABLE)
+        .accessor(PropertyKey::String(Sym::SIZE), Some(get_size), None, Attribute::CONFIGURABLE)
         .build();
 
         map_object.into()
@@ -145,7 +146,7 @@ impl Map {
         };
 
         // 5. Let adder be ? Get(map, "set").
-        let adder = map.get("set", context)?;
+        let adder = map.get(PropertyKey::String(Sym::SET), context)?;
 
         // 6. Return ? AddEntriesFromIterable(map, iterable, adder).
         add_entries_from_iterable(&map, iterable, &adder, context)
@@ -573,14 +574,14 @@ pub(crate) fn add_entries_from_iterable(
 
         // e. Let k be Get(nextItem, "0").
         // f. IfAbruptCloseIterator(k, iteratorRecord).
-        let key = match next_item.get(0, context) {
+        let key = match next_item.get(0u32, context) {
             Ok(val) => val,
             err => return iterator_record.close(err, context),
         };
 
         // g. Let v be Get(nextItem, "1").
         // h. IfAbruptCloseIterator(v, iteratorRecord).
-        let value = match next_item.get(1, context) {
+        let value = match next_item.get(1u32, context) {
             Ok(val) => val,
             err => return iterator_record.close(err, context),
         };

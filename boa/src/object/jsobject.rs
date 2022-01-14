@@ -2,13 +2,15 @@
 //!
 //! The `JsObject` is a garbage collected Object.
 
+use boa_interner::Sym;
+
 use super::{JsPrototype, NativeObject, Object};
 use crate::{
     gc::{self, Finalize, Gc, Trace},
     object::{ObjectData, ObjectKind},
     property::{PropertyDescriptor, PropertyKey},
     value::PreferredType,
-    Context, JsResult, JsValue,
+    Context, JsResult, JsValue, JsString,
 };
 use std::{
     cell::RefCell,
@@ -165,7 +167,7 @@ impl JsObject {
         // 5. For each name in methodNames in List order, do
         for name in &method_names {
             // a. Let method be ? Get(O, name).
-            let method = self.get(*name, context)?;
+            let method = self.get(PropertyKey::from_str(name, context), context)?;
 
             // b. If IsCallable(method) is true, then
             if let Some(method) = method.as_callable() {
@@ -442,41 +444,41 @@ impl JsObject {
 
         // 3. Let hasEnumerable be ? HasProperty(Obj, "enumerable").
         // 4. If hasEnumerable is true, then ...
-        if self.has_property("enumerable", context)? {
+        if self.has_property(PropertyKey::String(Sym::ENUMERABLE), context)? {
             // a. Let enumerable be ! ToBoolean(? Get(Obj, "enumerable")).
             // b. Set desc.[[Enumerable]] to enumerable.
-            desc = desc.enumerable(self.get("enumerable", context)?.to_boolean());
+            desc = desc.enumerable(self.get(PropertyKey::String(Sym::ENUMERABLE), context)?.to_boolean());
         }
 
         // 5. Let hasConfigurable be ? HasProperty(Obj, "configurable").
         // 6. If hasConfigurable is true, then ...
-        if self.has_property("configurable", context)? {
+        if self.has_property(PropertyKey::String(Sym::CONFIGURABLE), context)? {
             // a. Let configurable be ! ToBoolean(? Get(Obj, "configurable")).
             // b. Set desc.[[Configurable]] to configurable.
-            desc = desc.configurable(self.get("configurable", context)?.to_boolean());
+            desc = desc.configurable(self.get(PropertyKey::String(Sym::CONFIGURABLE), context)?.to_boolean());
         }
 
         // 7. Let hasValue be ? HasProperty(Obj, "value").
         // 8. If hasValue is true, then ...
-        if self.has_property("value", context)? {
+        if self.has_property(PropertyKey::String(Sym::VALUE), context)? {
             // a. Let value be ? Get(Obj, "value").
             // b. Set desc.[[Value]] to value.
-            desc = desc.value(self.get("value", context)?);
+            desc = desc.value(self.get(PropertyKey::String(Sym::VALUE), context)?);
         }
 
         // 9. Let hasWritable be ? HasProperty(Obj, ).
         // 10. If hasWritable is true, then ...
-        if self.has_property("writable", context)? {
+        if self.has_property(PropertyKey::String(Sym::WRITABLE), context)? {
             // a. Let writable be ! ToBoolean(? Get(Obj, "writable")).
             // b. Set desc.[[Writable]] to writable.
-            desc = desc.writable(self.get("writable", context)?.to_boolean());
+            desc = desc.writable(self.get(PropertyKey::String(Sym::WRITABLE), context)?.to_boolean());
         }
 
         // 11. Let hasGet be ? HasProperty(Obj, "get").
         // 12. If hasGet is true, then
-        let get = if self.has_property("get", context)? {
+        let get = if self.has_property(PropertyKey::String(Sym::GET), context)? {
             // a. Let getter be ? Get(Obj, "get").
-            let getter = self.get("get", context)?;
+            let getter = self.get(PropertyKey::String(Sym::GET), context)?;
             // b. If IsCallable(getter) is false and getter is not undefined, throw a TypeError exception.
             // todo: extract IsCallable to be callable from Value
             if !getter.is_undefined() && getter.as_object().map_or(true, |o| !o.is_callable()) {
@@ -490,9 +492,9 @@ impl JsObject {
 
         // 13. Let hasSet be ? HasProperty(Obj, "set").
         // 14. If hasSet is true, then
-        let set = if self.has_property("set", context)? {
+        let set = if self.has_property(PropertyKey::String(Sym::SET), context)? {
             // 14.a. Let setter be ? Get(Obj, "set").
-            let setter = self.get("set", context)?;
+            let setter = self.get(PropertyKey::String(Sym::SET), context)?;
             // 14.b. If IsCallable(setter) is false and setter is not undefined, throw a TypeError exception.
             // todo: extract IsCallable to be callable from Value
             if !setter.is_undefined() && setter.as_object().map_or(true, |o| !o.is_callable()) {
@@ -526,15 +528,12 @@ Cannot both specify accessors and a value or writable attribute",
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-copydataproperties
     #[inline]
-    pub fn copy_data_properties<K>(
+    pub fn copy_data_properties(
         &self,
         source: &JsValue,
-        excluded_keys: Vec<K>,
+        excluded_keys: Vec<JsString>,
         context: &mut Context,
-    ) -> JsResult<()>
-    where
-        K: Into<PropertyKey>,
-    {
+    ) -> JsResult<()> {
         // 1. Assert: Type(target) is Object.
         // 2. Assert: excludedItems is a List of property keys.
         // 3. If source is undefined or null, return target.
@@ -549,7 +548,7 @@ Cannot both specify accessors and a value or writable attribute",
 
         // 5. Let keys be ? from.[[OwnPropertyKeys]]().
         // 6. For each element nextKey of keys, do
-        let excluded_keys: Vec<PropertyKey> = excluded_keys.into_iter().map(|e| e.into()).collect();
+        let excluded_keys: Vec<PropertyKey> = excluded_keys.into_iter().map(|e| PropertyKey::from_str(e, context)).collect();
         for key in from.__own_property_keys__(context)? {
             // a. Let excluded be false.
             let mut excluded = false;

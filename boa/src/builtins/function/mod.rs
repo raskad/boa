@@ -27,6 +27,7 @@ use crate::{
     value::IntegerOrInfinity,
     BoaProfiler, Context, JsResult, JsString, JsValue,
 };
+use boa_interner::Sym;
 use dyn_clone::DynClone;
 use std::{
     any::Any,
@@ -221,15 +222,14 @@ pub(crate) fn make_builtin_fn<N>(
     name: N,
     parent: &JsObject,
     length: usize,
-    interpreter: &Context,
+    context: &mut Context,
 ) where
-    N: Into<String>,
+    N: AsRef<str>,
 {
-    let name = name.into();
-    let _timer = BoaProfiler::global().start_event(&format!("make_builtin_fn: {}", &name), "init");
+    let _timer = BoaProfiler::global().start_event(&format!("make_builtin_fn: {}", name.as_ref()), "init");
 
     let function = JsObject::from_proto_and_data(
-        interpreter.standard_objects().function_object().prototype(),
+        context.standard_objects().function_object().prototype(),
         ObjectData::function(Function::Native {
             function,
             constructor: false,
@@ -239,11 +239,11 @@ pub(crate) fn make_builtin_fn<N>(
         .writable(false)
         .enumerable(false)
         .configurable(true);
-    function.insert_property("length", attribute.clone().value(length));
-    function.insert_property("name", attribute.value(name.as_str()));
+    function.insert_property(PropertyKey::String(Sym::LENGTH), attribute.clone().value(length));
+    function.insert_property(PropertyKey::String(Sym::NAME), attribute.value(name.as_ref()));
 
     parent.clone().insert_property(
-        name,
+        PropertyKey::from_str(name, context),
         PropertyDescriptor::builder()
             .value(function)
             .writable(true)
@@ -347,9 +347,9 @@ impl BuiltInFunctionObject {
 
         // 5. Let targetHasLength be ? HasOwnProperty(Target, "length").
         // 6. If targetHasLength is true, then
-        if target.has_own_property("length", context)? {
+        if target.has_own_property(PropertyKey::String(Sym::LENGTH), context)? {
             // a. Let targetLen be ? Get(Target, "length").
-            let target_len = target.get("length", context)?;
+            let target_len = target.get(PropertyKey::String(Sym::LENGTH), context)?;
             // b. If Type(targetLen) is Number, then
             if target_len.is_number() {
                 // 1. Let targetLenAsInt be ! ToIntegerOrInfinity(targetLen).
@@ -374,7 +374,7 @@ impl BuiltInFunctionObject {
 
         // 7. Perform ! SetFunctionLength(F, L).
         f.define_property_or_throw(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             PropertyDescriptor::builder()
                 .value(l)
                 .writable(false)
@@ -385,7 +385,7 @@ impl BuiltInFunctionObject {
         .expect("defining the `length` property for a new object should not fail");
 
         // 8. Let targetName be ? Get(Target, "name").
-        let target_name = target.get("name", context)?;
+        let target_name = target.get(PropertyKey::String(Sym::NAME), context)?;
 
         // 9. If Type(targetName) is not String, set targetName to the empty String.
         let target_name = target_name
@@ -393,7 +393,7 @@ impl BuiltInFunctionObject {
             .map_or(JsString::new(""), Clone::clone);
 
         // 10. Perform SetFunctionName(F, targetName, "bound").
-        set_function_name(&f, &target_name.into(), Some("bound"), context);
+        set_function_name(&f, &PropertyKey::from_str(target_name, context), Some("bound"), context);
 
         // 11. Return F.
         Ok(f.into())
@@ -438,7 +438,7 @@ impl BuiltInFunctionObject {
             let value = this
                 .as_object()
                 .expect("checked that `this` was an object above")
-                .get("name", &mut *context)?;
+                .get(PropertyKey::String(Sym::NAME), &mut *context)?;
             if value.is_null_or_undefined() {
                 None
             } else {
@@ -539,7 +539,7 @@ fn set_function_name(
 ) {
     // 1. Assert: F is an extensible object that does not have a "name" own property.
     // 2. If Type(name) is Symbol, then
-    let mut name = match name {
+    let mut name: Cow<'_, JsString> = match name {
         PropertyKey::Symbol(sym) => {
             // a. Let description be name's [[Description]] value.
             if let Some(desc) = sym.description() {
@@ -550,7 +550,7 @@ fn set_function_name(
                 Cow::Owned(JsString::new(""))
             }
         }
-        PropertyKey::String(string) => Cow::Borrowed(string),
+        PropertyKey::String(string) => Cow::Owned(JsString::new(context.interner().resolve(*string).expect("string disappeared"))),
         PropertyKey::Index(index) => Cow::Owned(JsString::new(format!("{}", index))),
     };
 
@@ -574,7 +574,7 @@ fn set_function_name(
     // [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }).
     function
         .define_property_or_throw(
-            "name",
+            PropertyKey::String(Sym::NAME),
             PropertyDescriptor::builder()
                 .value(name.into_owned())
                 .writable(false)

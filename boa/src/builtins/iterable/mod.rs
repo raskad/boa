@@ -1,3 +1,5 @@
+use boa_interner::Sym;
+
 use crate::{
     builtins::{
         regexp::regexp_string_iterator::RegExpStringIterator,
@@ -6,7 +8,7 @@ use crate::{
     },
     object::{JsObject, ObjectInitializer},
     symbol::WellKnownSymbols,
-    BoaProfiler, Context, JsResult, JsValue,
+    BoaProfiler, Context, JsResult, JsValue, property::PropertyKey,
 };
 
 #[derive(Debug, Default)]
@@ -82,10 +84,10 @@ pub fn create_iter_result_object(value: JsValue, done: bool, context: &mut Conte
     let obj = context.construct_object();
 
     // 3. Perform ! CreateDataPropertyOrThrow(obj, "value", value).
-    obj.create_data_property_or_throw("value", value, context)
+    obj.create_data_property_or_throw(PropertyKey::String(Sym::VALUE), value, context)
         .unwrap();
     // 4. Perform ! CreateDataPropertyOrThrow(obj, "done", done).
-    obj.create_data_property_or_throw("done", done, context)
+    obj.create_data_property_or_throw(PropertyKey::String(Sym::DONE), done, context)
         .unwrap();
     // 5. Return obj.
     obj.into()
@@ -153,7 +155,7 @@ impl JsValue {
         }
 
         // 5. Let nextMethod be ? GetV(iterator, "next").
-        let next_method = iterator.get_v("next", context)?;
+        let next_method = iterator.get_v(PropertyKey::String(Sym::NEXT), context)?;
 
         // 6. Let iteratorRecord be the Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
         // 7. Return iteratorRecord.
@@ -211,9 +213,9 @@ impl IteratorRecord {
     /// [spec]: https://tc39.es/ecma262/#sec-iteratornext
     pub(crate) fn next(&self, context: &mut Context) -> JsResult<IteratorResult> {
         let next = context.call(&self.next_function, &self.iterator_object, &[])?;
-        let done = next.get_field("done", context)?.to_boolean();
+        let done = next.get_field(PropertyKey::String(Sym::DONE), context)?.to_boolean();
 
-        let value = next.get_field("value", context)?;
+        let value = next.get_field(PropertyKey::String(Sym::VALUE), context)?;
         Ok(IteratorResult { value, done })
     }
 
@@ -231,8 +233,7 @@ impl IteratorRecord {
         // 1. Assert: Type(iteratorRecord.[[Iterator]]) is Object.
         // 2. Let iterator be iteratorRecord.[[Iterator]].
         // 3. Let innerResult be GetMethod(iterator, "return").
-        let inner_result = self.iterator_object.get_method("return", context);
-        //let mut inner_result = self.iterator_object.get_field("return", context);
+        let inner_result = self.iterator_object.get_method(PropertyKey::String(Sym::RETURN), context);
 
         // 4. If innerResult.[[Type]] is normal, then
         if let Ok(inner_value) = inner_result {

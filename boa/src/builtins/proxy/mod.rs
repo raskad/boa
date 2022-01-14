@@ -10,11 +10,13 @@
 //! [spec]: https://tc39.es/ecma262/#sec-proxy-objects
 //! [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
 
+use boa_interner::Sym;
+
 use crate::{
     builtins::{BuiltIn, JsArgs},
     gc::{Finalize, Trace},
     object::{ConstructorBuilder, FunctionBuilder, JsObject, ObjectData},
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     BoaProfiler, Context, JsResult, JsValue,
 };
 
@@ -174,12 +176,12 @@ impl Proxy {
 
         // 6. Perform ! CreateDataPropertyOrThrow(result, "proxy", p).
         result
-            .create_data_property_or_throw("proxy", p, context)
+            .create_data_property_or_throw(PropertyKey::String(Sym::PROXY), p, context)
             .expect("CreateDataPropertyOrThrow cannot fail here");
 
         // 7. Perform ! CreateDataPropertyOrThrow(result, "revoke", revoker).
         result
-            .create_data_property_or_throw("revoke", revoker, context)
+            .create_data_property_or_throw(PropertyKey::String(Sym::REVOKE), revoker, context)
             .expect("CreateDataPropertyOrThrow cannot fail here");
 
         // 8. Return result.

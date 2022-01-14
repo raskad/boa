@@ -19,11 +19,12 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, FunctionBuilder,
         JsObject, ObjectData,
     },
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     symbol::WellKnownSymbols,
     value::{IntegerOrInfinity, JsValue},
     BoaProfiler, Context, JsResult, JsString,
 };
+use boa_interner::Sym;
 use regexp_string_iterator::RegExpStringIterator;
 use regress::Regex;
 
@@ -127,7 +128,7 @@ impl BuiltIn for RegExp {
             None,
             Attribute::CONFIGURABLE,
         )
-        .property("lastIndex", 0, Attribute::all())
+        .property(PropertyKey::String(Sym::LAST_INDEX), 0, Attribute::all())
         .method(Self::test, "test", 1)
         .method(Self::exec, "exec", 1)
         .method(Self::to_string, "toString", 0)
@@ -156,14 +157,14 @@ impl BuiltIn for RegExp {
             (WellKnownSymbols::split(), "[Symbol.split]"),
             2,
         )
-        .accessor("global", Some(get_global), None, flag_attributes)
-        .accessor("ignoreCase", Some(get_ignore_case), None, flag_attributes)
-        .accessor("multiline", Some(get_multiline), None, flag_attributes)
-        .accessor("dotAll", Some(get_dot_all), None, flag_attributes)
-        .accessor("unicode", Some(get_unicode), None, flag_attributes)
-        .accessor("sticky", Some(get_sticky), None, flag_attributes)
-        .accessor("flags", Some(get_flags), None, flag_attributes)
-        .accessor("source", Some(get_source), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::GLOBAL), Some(get_global), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::IGNORE_CASE), Some(get_ignore_case), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::MULTILINE), Some(get_multiline), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::DOT_ALL), Some(get_dot_all), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::UNICODE), Some(get_unicode), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::STICKY), Some(get_sticky), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::FLAGS), Some(get_flags), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::SOURCE), Some(get_source), None, flag_attributes)
         .build();
 
         // TODO: add them RegExp accessor properties
@@ -204,7 +205,7 @@ impl RegExp {
             if let Some(pattern) = pattern_is_regexp {
                 if flags.is_undefined() {
                     // i. Let patternConstructor be ? Get(pattern, "constructor").
-                    let pattern_constructor = pattern.get("constructor", context)?;
+                    let pattern_constructor = pattern.get(PropertyKey::String(Sym::CONSTRUCTOR), context)?;
                     // ii. If SameValue(newTarget, patternConstructor) is true, return pattern.
                     if JsValue::same_value(new_target, &pattern_constructor) {
                         return Ok(pattern.clone().into());
@@ -362,7 +363,7 @@ impl RegExp {
     pub(crate) fn create(p: JsValue, f: JsValue, context: &mut Context) -> JsResult<JsValue> {
         // 1. Let obj be ? RegExpAlloc(%RegExp%).
         let obj = RegExp::alloc(
-            &context.global_object().get(RegExp::NAME, context)?,
+            &context.global_object().get(PropertyKey::String(Sym::REGEXP), context)?,
             &[],
             context,
         )?;
@@ -558,35 +559,35 @@ impl RegExp {
             let mut result = String::new();
             // 4. Let global be ! ToBoolean(? Get(R, "global")).
             // 5. If global is true, append the code unit 0x0067 (LATIN SMALL LETTER G) as the last code unit of result.
-            if object.get("global", context)?.to_boolean() {
+            if object.get(PropertyKey::String(Sym::GLOBAL), context)?.to_boolean() {
                 result.push('g');
             }
             // 6. Let ignoreCase be ! ToBoolean(? Get(R, "ignoreCase")).
             // 7. If ignoreCase is true, append the code unit 0x0069 (LATIN SMALL LETTER I) as the last code unit of result.
-            if object.get("ignoreCase", context)?.to_boolean() {
+            if object.get(PropertyKey::String(Sym::IGNORE_CASE), context)?.to_boolean() {
                 result.push('i');
             }
 
             // 8. Let multiline be ! ToBoolean(? Get(R, "multiline")).
             // 9. If multiline is true, append the code unit 0x006D (LATIN SMALL LETTER M) as the last code unit of result.
-            if object.get("multiline", context)?.to_boolean() {
+            if object.get(PropertyKey::String(Sym::MULTILINE), context)?.to_boolean() {
                 result.push('m');
             }
 
             // 10. Let dotAll be ! ToBoolean(? Get(R, "dotAll")).
             // 11. If dotAll is true, append the code unit 0x0073 (LATIN SMALL LETTER S) as the last code unit of result.
-            if object.get("dotAll", context)?.to_boolean() {
+            if object.get(PropertyKey::String(Sym::DOT_ALL), context)?.to_boolean() {
                 result.push('s');
             }
             // 12. Let unicode be ! ToBoolean(? Get(R, "unicode")).
             // 13. If unicode is true, append the code unit 0x0075 (LATIN SMALL LETTER U) as the last code unit of result.
-            if object.get("unicode", context)?.to_boolean() {
+            if object.get(PropertyKey::String(Sym::UNICODE), context)?.to_boolean() {
                 result.push('u');
             }
 
             // 14. Let sticky be ! ToBoolean(? Get(R, "sticky")).
             // 15. If sticky is true, append the code unit 0x0079 (LATIN SMALL LETTER Y) as the last code unit of result.
-            if object.get("sticky", context)?.to_boolean() {
+            if object.get(PropertyKey::String(Sym::STICKY), context)?.to_boolean() {
                 result.push('y');
             }
 
@@ -766,7 +767,7 @@ impl RegExp {
         // 2. Assert: Type(S) is String.
 
         // 3. Let exec be ? Get(R, "exec").
-        let exec = this.get("exec", context)?;
+        let exec = this.get(PropertyKey::String(Sym::EXEC), context)?;
 
         // 4. If IsCallable(exec) is true, then
         if let Some(exec) = exec.as_callable() {
@@ -818,7 +819,7 @@ impl RegExp {
         let length = input.encode_utf16().count();
 
         // 4. Let lastIndex be ℝ(? ToLength(? Get(R, "lastIndex"))).
-        let mut last_index = this.get("lastIndex", context)?.to_length(context)?;
+        let mut last_index = this.get(PropertyKey::String(Sym::LAST_INDEX), context)?.to_length(context)?;
 
         // 5. Let flags be R.[[OriginalFlags]].
         let flags = &rx.original_flags;
@@ -848,7 +849,7 @@ impl RegExp {
                 // i. If global is true or sticky is true, then
                 if global || sticky {
                     // 1. Perform ? Set(R, "lastIndex", +0𝔽, true).
-                    this.set("lastIndex", 0, true, context)?;
+                    this.set(PropertyKey::String(Sym::LAST_INDEX), 0, true, context)?;
                 }
 
                 // ii. Return null.
@@ -874,7 +875,7 @@ impl RegExp {
                     // i. If sticky is true, then
                     if sticky {
                         // 1. Perform ? Set(R, "lastIndex", +0𝔽, true).
-                        this.set("lastIndex", 0, true, context)?;
+                        this.set(PropertyKey::String(Sym::LAST_INDEX), 0, true, context)?;
 
                         // 2. Return null.
                         return Ok(None);
@@ -891,7 +892,7 @@ impl RegExp {
                         // i. If sticky is true, then
                         if sticky {
                             // 1. Perform ? Set(R, "lastIndex", +0𝔽, true).
-                            this.set("lastIndex", 0, true, context)?;
+                            this.set(PropertyKey::String(Sym::LAST_INDEX), 0, true, context)?;
 
                             // 2. Return null.
                             return Ok(None);
@@ -923,7 +924,7 @@ impl RegExp {
         // 15. If global is true or sticky is true, then
         if global || sticky {
             // a. Perform ? Set(R, "lastIndex", 𝔽(e), true).
-            this.set("lastIndex", e, true, context)?;
+            this.set(PropertyKey::String(Sym::LAST_INDEX), e, true, context)?;
         }
 
         // 16. Let n be the number of elements in r's captures List. (This is the same value as 22.2.2.1's NcapturingParens.)
@@ -936,11 +937,11 @@ impl RegExp {
         let a = Array::array_create(n + 1, None, context)?;
 
         // 20. Perform ! CreateDataPropertyOrThrow(A, "index", 𝔽(lastIndex)).
-        a.create_data_property_or_throw("index", match_value.start(), context)
+        a.create_data_property_or_throw(PropertyKey::String(Sym::INDEX), match_value.start(), context)
             .unwrap();
 
         // 21. Perform ! CreateDataPropertyOrThrow(A, "input", S).
-        a.create_data_property_or_throw("input", input.clone(), context)
+        a.create_data_property_or_throw(PropertyKey::String(Sym::INPUT), input.clone(), context)
             .unwrap();
 
         // 22. Let matchedSubstr be the substring of S from lastIndex to e.
@@ -951,7 +952,7 @@ impl RegExp {
         };
 
         // 23. Perform ! CreateDataPropertyOrThrow(A, "0", matchedSubstr).
-        a.create_data_property_or_throw(0, matched_substr, context)
+        a.create_data_property_or_throw(0u32, matched_substr, context)
             .unwrap();
 
         // 24. If R contains any GroupName, then
@@ -975,7 +976,7 @@ impl RegExp {
 
                     groups
                         .to_object(context)?
-                        .create_data_property_or_throw(name, value, context)
+                        .create_data_property_or_throw(PropertyKey::from_str(name, context), value, context)
                         .unwrap();
                 }
             }
@@ -986,7 +987,7 @@ impl RegExp {
         };
 
         // 26. Perform ! CreateDataPropertyOrThrow(A, "groups", groups).
-        a.create_data_property_or_throw("groups", groups, context)
+        a.create_data_property_or_throw(PropertyKey::String(Sym::GROUPS), groups, context)
             .unwrap();
 
         // 27. For each integer i such that i ≥ 1 and i ≤ n, in ascending order, do
@@ -1009,7 +1010,7 @@ impl RegExp {
             };
 
             // e. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(i)), capturedValue).
-            a.create_data_property_or_throw(i, captured_value, context)
+            a.create_data_property_or_throw(PropertyKey::from_usize(i, context), captured_value, context)
                 .unwrap();
         }
 
@@ -1049,7 +1050,7 @@ impl RegExp {
             .to_string(context)?;
 
         // 4. Let global be ! ToBoolean(? Get(rx, "global")).
-        let global = rx.get("global", context)?.to_boolean();
+        let global = rx.get(PropertyKey::String(Sym::GLOBAL), context)?.to_boolean();
 
         // 5. If global is false, then
         // 6. Else,
@@ -1064,16 +1065,16 @@ impl RegExp {
             // a. Assert: global is true.
 
             // b. Let fullUnicode be ! ToBoolean(? Get(rx, "unicode")).
-            let unicode = rx.get("unicode", context)?.to_boolean();
+            let unicode = rx.get(PropertyKey::String(Sym::UNICODE), context)?.to_boolean();
 
             // c. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-            rx.set("lastIndex", 0, true, context)?;
+            rx.set(PropertyKey::String(Sym::LAST_INDEX), 0, true, context)?;
 
             // d. Let A be ! ArrayCreate(0).
             let a = Array::array_create(0, None, context).unwrap();
 
             // e. Let n be 0.
-            let mut n = 0;
+            let mut n = 0u32;
 
             // f. Repeat,
             loop {
@@ -1084,7 +1085,7 @@ impl RegExp {
                 // iii. Else,
                 if let Some(result) = result {
                     // 1. Let matchStr be ? ToString(? Get(result, "0")).
-                    let match_str = result.get("0", context)?.to_string(context)?;
+                    let match_str = result.get(0u32, context)?.to_string(context)?;
 
                     // 2. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), matchStr).
                     a.create_data_property_or_throw(n, match_str.clone(), context)
@@ -1093,13 +1094,13 @@ impl RegExp {
                     // 3. If matchStr is the empty String, then
                     if match_str.is_empty() {
                         // a. Let thisIndex be ℝ(? ToLength(? Get(rx, "lastIndex"))).
-                        let this_index = rx.get("lastIndex", context)?.to_length(context)?;
+                        let this_index = rx.get(PropertyKey::String(Sym::LAST_INDEX), context)?.to_length(context)?;
 
                         // b. Let nextIndex be AdvanceStringIndex(S, thisIndex, fullUnicode).
                         let next_index = advance_string_index(arg_str.clone(), this_index, unicode);
 
                         // c. Perform ? Set(rx, "lastIndex", 𝔽(nextIndex), true).
-                        rx.set("lastIndex", JsValue::new(next_index), true, context)?;
+                        rx.set(PropertyKey::String(Sym::LAST_INDEX), JsValue::new(next_index), true, context)?;
                     }
 
                     // 4. Set n to n + 1.
@@ -1181,7 +1182,7 @@ impl RegExp {
         let c = regexp.species_constructor(StandardObjects::regexp_object, context)?;
 
         // 5. Let flags be ? ToString(? Get(R, "flags")).
-        let flags = regexp.get("flags", context)?.to_string(context)?;
+        let flags = regexp.get(PropertyKey::String(Sym::FLAGS), context)?.to_string(context)?;
 
         // 6. Let matcher be ? Construct(C, « R, flags »).
         let matcher = c.construct(
@@ -1194,10 +1195,10 @@ impl RegExp {
             .expect("construct must always return an Object");
 
         // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-        let last_index = regexp.get("lastIndex", context)?.to_length(context)?;
+        let last_index = regexp.get(PropertyKey::String(Sym::LAST_INDEX), context)?.to_length(context)?;
 
         // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
-        matcher.set("lastIndex", last_index, true, context)?;
+        matcher.set(PropertyKey::String(Sym::LAST_INDEX), last_index, true, context)?;
 
         // 9. If flags contains "g", let global be true.
         // 10. Else, let global be false.
@@ -1268,16 +1269,16 @@ impl RegExp {
         }
 
         // 7. Let global be ! ToBoolean(? Get(rx, "global")).
-        let global = rx.get("global", context)?.to_boolean();
+        let global = rx.get(PropertyKey::String(Sym::GLOBAL), context)?.to_boolean();
 
         // 8. If global is true, then
         let mut unicode = false;
         if global {
             // a. Let fullUnicode be ! ToBoolean(? Get(rx, "unicode")).
-            unicode = rx.get("unicode", context)?.to_boolean();
+            unicode = rx.get(PropertyKey::String(Sym::UNICODE), context)?.to_boolean();
 
             // b. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-            rx.set("lastIndex", 0, true, context)?;
+            rx.set(PropertyKey::String(Sym::LAST_INDEX), 0, true, context)?;
         }
 
         //  9. Let results be a new empty List.
@@ -1301,18 +1302,18 @@ impl RegExp {
                     break;
                 } else {
                     // 1. Let matchStr be ? ToString(? Get(result, "0")).
-                    let match_str = result.get("0", context)?.to_string(context)?;
+                    let match_str = result.get(0u32, context)?.to_string(context)?;
 
                     // 2. If matchStr is the empty String, then
                     if match_str.is_empty() {
                         // a. Let thisIndex be ℝ(? ToLength(? Get(rx, "lastIndex"))).
-                        let this_index = rx.get("lastIndex", context)?.to_length(context)?;
+                        let this_index = rx.get(PropertyKey::String(Sym::LAST_INDEX), context)?.to_length(context)?;
 
                         // b. Let nextIndex be AdvanceStringIndex(S, thisIndex, fullUnicode).
                         let next_index = advance_string_index(arg_str.clone(), this_index, unicode);
 
                         // c. Perform ? Set(rx, "lastIndex", 𝔽(nextIndex), true).
-                        rx.set("lastIndex", JsValue::new(next_index), true, context)?;
+                        rx.set(PropertyKey::String(Sym::LAST_INDEX), JsValue::new(next_index), true, context)?;
                     }
                 }
             } else {
@@ -1332,17 +1333,17 @@ impl RegExp {
             let result_length = result.length_of_array_like(context)? as isize;
 
             // b. Let nCaptures be max(resultLength - 1, 0).
-            let n_captures = std::cmp::max(result_length - 1, 0);
+            let n_captures = std::cmp::max(result_length - 1, 0) as usize;
 
             // c. Let matched be ? ToString(? Get(result, "0")).
-            let matched = result.get("0", context)?.to_string(context)?;
+            let matched = result.get(0u32, context)?.to_string(context)?;
 
             // d. Let matchLength be the number of code units in matched.
             let match_length = matched.encode_utf16().count();
 
             // e. Let position be ? ToIntegerOrInfinity(? Get(result, "index")).
             let position = result
-                .get("index", context)?
+                .get(PropertyKey::String(Sym::INDEX), context)?
                 .to_integer_or_infinity(context)?;
 
             // f. Set position to the result of clamping position between 0 and lengthS.
@@ -1368,7 +1369,7 @@ impl RegExp {
             // i. Repeat, while n ≤ nCaptures,
             for n in 1..=n_captures {
                 // i. Let capN be ? Get(result, ! ToString(𝔽(n))).
-                let mut cap_n = result.get(n.to_string(), context)?;
+                let mut cap_n = result.get(PropertyKey::from_usize(n, context), context)?;
 
                 // ii. If capN is not undefined, then
                 if !cap_n.is_undefined() {
@@ -1383,7 +1384,7 @@ impl RegExp {
             }
 
             // j. Let namedCaptures be ? Get(result, "groups").
-            let mut named_captures = result.get("groups", context)?;
+            let mut named_captures = result.get(PropertyKey::String(Sym::GROUPS), context)?;
 
             // k. If functionalReplace is true, then
             // l. Else,
@@ -1498,30 +1499,30 @@ impl RegExp {
             .to_string(context)?;
 
         // 4. Let previousLastIndex be ? Get(rx, "lastIndex").
-        let previous_last_index = rx.get("lastIndex", context)?;
+        let previous_last_index = rx.get(PropertyKey::String(Sym::LAST_INDEX), context)?;
 
         // 5. If SameValue(previousLastIndex, +0𝔽) is false, then
         if !JsValue::same_value(&previous_last_index, &JsValue::new(0)) {
             // a. Perform ? Set(rx, "lastIndex", +0𝔽, true).
-            rx.set("lastIndex", 0, true, context)?;
+            rx.set(PropertyKey::String(Sym::LAST_INDEX), 0, true, context)?;
         }
 
         // 6. Let result be ? RegExpExec(rx, S).
         let result = Self::abstract_exec(rx, arg_str, context)?;
 
         // 7. Let currentLastIndex be ? Get(rx, "lastIndex").
-        let current_last_index = rx.get("lastIndex", context)?;
+        let current_last_index = rx.get(PropertyKey::String(Sym::LAST_INDEX), context)?;
 
         // 8. If SameValue(currentLastIndex, previousLastIndex) is false, then
         if !JsValue::same_value(&current_last_index, &previous_last_index) {
             // a. Perform ? Set(rx, "lastIndex", previousLastIndex, true).
-            rx.set("lastIndex", previous_last_index, true, context)?;
+            rx.set(PropertyKey::String(Sym::LAST_INDEX), previous_last_index, true, context)?;
         }
 
         // 9. If result is null, return -1𝔽.
         // 10. Return ? Get(result, "index").
         if let Some(result) = result {
-            result.get("index", context)
+            result.get(PropertyKey::String(Sym::INDEX), context)
         } else {
             Ok(JsValue::new(-1))
         }
@@ -1562,7 +1563,7 @@ impl RegExp {
         let constructor = rx.species_constructor(StandardObjects::regexp_object, context)?;
 
         // 5. Let flags be ? ToString(? Get(rx, "flags")).
-        let flags = rx.get("flags", context)?.to_string(context)?;
+        let flags = rx.get(PropertyKey::String(Sym::FLAGS), context)?.to_string(context)?;
 
         // 6. If flags contains "u", let unicodeMatching be true.
         // 7. Else, let unicodeMatching be false.
@@ -1620,7 +1621,7 @@ impl RegExp {
             }
 
             // c. Perform ! CreateDataPropertyOrThrow(A, "0", S).
-            a.create_data_property_or_throw(0, arg_str, context)
+            a.create_data_property_or_throw(0u32, arg_str, context)
                 .unwrap();
 
             // d. Return A.
@@ -1635,7 +1636,7 @@ impl RegExp {
         // 19. Repeat, while q < size,
         while q < size {
             // a. Perform ? Set(splitter, "lastIndex", 𝔽(q), true).
-            splitter.set("lastIndex", JsValue::new(q), true, context)?;
+            splitter.set(PropertyKey::String(Sym::LAST_INDEX), JsValue::new(q), true, context)?;
 
             // b. Let z be ? RegExpExec(splitter, S).
             let result = Self::abstract_exec(splitter, arg_str.clone(), context)?;
@@ -1644,7 +1645,7 @@ impl RegExp {
             // d. Else,
             if let Some(result) = result {
                 // i. Let e be ℝ(? ToLength(? Get(splitter, "lastIndex"))).
-                let mut e = splitter.get("lastIndex", context)?.to_length(context)?;
+                let mut e = splitter.get(PropertyKey::String(Sym::LAST_INDEX), context)?.to_length(context)?;
 
                 // ii. Set e to min(e, size).
                 e = std::cmp::min(e, size);
@@ -1687,12 +1688,13 @@ impl RegExp {
                     } else {
                         std::cmp::max(number_of_captures - 1, 0)
                     };
+                    let number_of_captures = number_of_captures as usize;
 
                     // 8. Let i be 1.
                     // 9. Repeat, while i ≤ numberOfCaptures,
                     for i in 1..=number_of_captures {
                         // a. Let nextCapture be ? Get(z, ! ToString(𝔽(i))).
-                        let next_capture = result.get(i.to_string(), context)?;
+                        let next_capture = result.get(PropertyKey::from_usize(i, context), context)?;
 
                         // b. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), nextCapture).
                         a.create_data_property_or_throw(length_a, next_capture, context)

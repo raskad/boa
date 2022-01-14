@@ -17,6 +17,7 @@ use super::string::is_trimmable_whitespace;
 use super::JsArgs;
 use crate::context::StandardObjects;
 use crate::object::JsObject;
+use crate::property::PropertyKey;
 use crate::{
     builtins::{function::make_builtin_fn, BuiltIn},
     object::{internal_methods::get_prototype_from_constructor, ConstructorBuilder, ObjectData},
@@ -24,6 +25,7 @@ use crate::{
     value::{AbstractRelation, IntegerOrInfinity, JsValue},
     BoaProfiler, Context, JsResult,
 };
+use boa_interner::Sym;
 use num_traits::{float::FloatCore, Num};
 
 mod conversions;
@@ -63,14 +65,14 @@ impl BuiltIn for Number {
         )
         .name(Self::NAME)
         .length(Self::LENGTH)
-        .static_property("EPSILON", f64::EPSILON, attribute)
-        .static_property("MAX_SAFE_INTEGER", Self::MAX_SAFE_INTEGER, attribute)
-        .static_property("MIN_SAFE_INTEGER", Self::MIN_SAFE_INTEGER, attribute)
-        .static_property("MAX_VALUE", Self::MAX_VALUE, attribute)
-        .static_property("MIN_VALUE", Self::MIN_VALUE, attribute)
-        .static_property("NEGATIVE_INFINITY", f64::NEG_INFINITY, attribute)
-        .static_property("POSITIVE_INFINITY", f64::INFINITY, attribute)
-        .static_property("NaN", f64::NAN, attribute)
+        .static_property(PropertyKey::String(Sym::EPSILON), f64::EPSILON, attribute)
+        .static_property(PropertyKey::String(Sym::MAX_SAFE_INTEGER), Self::MAX_SAFE_INTEGER, attribute)
+        .static_property(PropertyKey::String(Sym::MIN_SAFE_INTEGER), Self::MIN_SAFE_INTEGER, attribute)
+        .static_property(PropertyKey::String(Sym::MAX_VALUE), Self::MAX_VALUE, attribute)
+        .static_property(PropertyKey::String(Sym::MIN_VALUE), Self::MIN_VALUE, attribute)
+        .static_property(PropertyKey::String(Sym::NEGATIVE_INFINITY), f64::NEG_INFINITY, attribute)
+        .static_property(PropertyKey::String(Sym::POSITIVE_INFINITY), f64::INFINITY, attribute)
+        .static_property(PropertyKey::String(Sym::NAN), f64::NAN, attribute)
         .method(Self::to_exponential, "toExponential", 1)
         .method(Self::to_fixed, "toFixed", 1)
         .method(Self::to_locale_string, "toLocaleString", 0)

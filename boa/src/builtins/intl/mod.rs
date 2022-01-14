@@ -12,7 +12,7 @@ use indexmap::IndexSet;
 use crate::{
     builtins::{Array, BuiltIn, JsArgs},
     object::ObjectInitializer,
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     symbol::WellKnownSymbols,
     BoaProfiler, Context, JsResult, JsString, JsValue,
 };
@@ -86,7 +86,8 @@ impl Intl {
         for k in 0..len {
             // a. Let Pk be ToString(k).
             // b. Let kPresent be ? HasProperty(O, Pk).
-            let k_present = o.has_property(k, context)?;
+            let k = PropertyKey::from_usize(k, context);
+            let k_present = o.has_property(k.clone(), context)?;
             // c. If kPresent is true, then
             if k_present {
                 // i. Let kValue be ? Get(O, Pk).

@@ -676,8 +676,10 @@ fn unary_delete() {
 
 #[cfg(test)]
 mod in_operator {
+    use boa_interner::Sym;
+
     use super::*;
-    use crate::forward_val;
+    use crate::{forward_val, property::PropertyKey};
     #[test]
     fn propery_in_object() {
         let p_in_o = r#"
@@ -794,7 +796,7 @@ mod in_operator {
         assert_eq!(
             *bar_obj.prototype(),
             foo_val.as_object().and_then(|obj| obj
-                .get("prototype", &mut context)
+                .get(PropertyKey::String(Sym::PROTOTYPE), &mut context)
                 .unwrap()
                 .as_object()
                 .cloned())

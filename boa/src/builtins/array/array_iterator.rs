@@ -2,7 +2,7 @@ use crate::{
     builtins::{function::make_builtin_fn, iterable::create_iter_result_object, Array, JsValue},
     gc::{Finalize, Trace},
     object::{JsObject, ObjectData},
-    property::{PropertyDescriptor, PropertyNameKind},
+    property::{PropertyDescriptor, PropertyNameKind, PropertyKey},
     symbol::WellKnownSymbols,
     BoaProfiler, Context, JsResult,
 };
@@ -100,11 +100,11 @@ impl ArrayIterator {
         match array_iterator.kind {
             PropertyNameKind::Key => Ok(create_iter_result_object(index.into(), false, context)),
             PropertyNameKind::Value => {
-                let element_value = array_iterator.array.get(index, context)?;
+                let element_value = array_iterator.array.get(PropertyKey::from_usize(index, context), context)?;
                 Ok(create_iter_result_object(element_value, false, context))
             }
             PropertyNameKind::KeyAndValue => {
-                let element_value = array_iterator.array.get(index, context)?;
+                let element_value = array_iterator.array.get(PropertyKey::from_usize(index, context), context)?;
                 let result = Array::create_array_from_list([index.into(), element_value], context);
                 Ok(create_iter_result_object(result.into(), false, context))
             }

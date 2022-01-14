@@ -14,7 +14,7 @@ use crate::{
     },
     gc::{Finalize, Gc, Trace},
     object::{internal_methods::get_prototype_from_constructor, JsObject, ObjectData},
-    property::PropertyDescriptor,
+    property::{PropertyDescriptor, PropertyKey},
     syntax::ast::node::FormalParameter,
     vm::{call_frame::FinallyReturn, CallFrame, Opcode},
     Context, JsResult, JsValue,
@@ -415,7 +415,7 @@ impl JsVmFunction {
             .build();
 
         prototype
-            .define_property_or_throw("constructor", constructor_property, context)
+            .define_property_or_throw(PropertyKey::String(Sym::CONSTRUCTOR), constructor_property, context)
             .unwrap();
 
         let prototype_property = PropertyDescriptor::builder()
@@ -426,13 +426,13 @@ impl JsVmFunction {
             .build();
 
         constructor
-            .define_property_or_throw("prototype", prototype_property, context)
+            .define_property_or_throw(PropertyKey::String(Sym::PROTOTYPE), prototype_property, context)
             .unwrap();
         constructor
-            .define_property_or_throw("name", name_property, context)
+            .define_property_or_throw(PropertyKey::String(Sym::NAME), name_property, context)
             .unwrap();
         constructor
-            .define_property_or_throw("length", length_property, context)
+            .define_property_or_throw(PropertyKey::String(Sym::LENGTH), length_property, context)
             .unwrap();
 
         constructor

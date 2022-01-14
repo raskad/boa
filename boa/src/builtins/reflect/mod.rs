@@ -314,7 +314,7 @@ impl Reflect {
         let keys: Vec<JsValue> = target
             .__own_property_keys__(context)?
             .into_iter()
-            .map(|key| key.into())
+            .map(|key| key.to_js_value(context))
             .collect();
 
         Ok(Array::create_array_from_list(keys, context).into())

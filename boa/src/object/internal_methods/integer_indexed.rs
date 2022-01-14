@@ -240,7 +240,7 @@ pub(crate) fn integer_indexed_exotic_own_property_keys(
         obj.properties
             .string_property_keys()
             .cloned()
-            .map(|s| s.into()),
+            .map(PropertyKey::String),
     );
 
     // 4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do

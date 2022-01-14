@@ -1,7 +1,9 @@
+use boa_interner::Sym;
+
 use crate::{
     builtins::function::Function,
     object::{JsObject, ObjectData},
-    property::PropertyDescriptor,
+    property::{PropertyDescriptor, PropertyKey},
     Context, JsResult, JsValue,
 };
 
@@ -39,8 +41,8 @@ fn create_throw_type_error(context: &mut Context) -> JsObject {
         .writable(false)
         .enumerable(false)
         .configurable(false);
-    function.insert_property("name", property.clone().value("ThrowTypeError"));
-    function.insert_property("length", property.value(0));
+    function.insert_property(PropertyKey::String(Sym::NAME), property.clone().value("ThrowTypeError"));
+    function.insert_property(PropertyKey::String(Sym::LENGTH), property.value(0));
 
     function
 }

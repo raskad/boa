@@ -5,6 +5,8 @@
 //!
 //! [spec]: https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
 
+use boa_interner::Sym;
+
 use crate::{
     context::{StandardConstructor, StandardObjects},
     object::JsObject,
@@ -13,7 +15,7 @@ use crate::{
     BoaProfiler, Context, JsResult,
 };
 
-use super::{JsPrototype, PROTOTYPE};
+use super::JsPrototype;
 
 pub(super) mod arguments;
 pub(super) mod array;
@@ -723,7 +725,7 @@ pub(crate) fn ordinary_own_property_keys(
             .properties
             .string_property_keys()
             .cloned()
-            .map(|s| s.into()),
+            .map(PropertyKey::String),
     );
 
     // 4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
@@ -931,7 +933,7 @@ where
     // as the [[Prototype]] value of an object.
     // 2. Let proto be ? Get(constructor, "prototype").
     if let Some(object) = constructor.as_object() {
-        if let Some(proto) = object.get(PROTOTYPE, context)?.as_object() {
+        if let Some(proto) = object.get(PropertyKey::String(Sym::PROTOTYPE), context)?.as_object() {
             return Ok(proto.clone());
         }
     }

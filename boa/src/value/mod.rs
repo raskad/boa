@@ -16,6 +16,7 @@ use crate::{
     symbol::{JsSymbol, WellKnownSymbols},
     BoaProfiler, Context, JsBigInt, JsResult, JsString,
 };
+use boa_interner::Sym;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::Zero;
@@ -565,7 +566,7 @@ impl JsValue {
                     JsObject::from_proto_and_data(prototype, ObjectData::string(string.clone()));
                 // Make sure the correct length is set on our new string object
                 object.insert_property(
-                    "length",
+                    PropertyKey::String(Sym::LENGTH),
                     PropertyDescriptor::builder()
                         .value(string.encode_utf16().count())
                         .writable(false)
@@ -598,13 +599,13 @@ impl JsValue {
     pub fn to_property_key(&self, context: &mut Context) -> JsResult<PropertyKey> {
         Ok(match self {
             // Fast path:
-            JsValue::String(string) => string.clone().into(),
+            JsValue::String(string) => PropertyKey::from_str(string, context),
             JsValue::Symbol(symbol) => symbol.clone().into(),
             // Slow path:
             _ => match self.to_primitive(context, PreferredType::String)? {
-                JsValue::String(ref string) => string.clone().into(),
+                JsValue::String(ref string) => PropertyKey::from_str(string, context),
                 JsValue::Symbol(ref symbol) => symbol.clone().into(),
-                primitive => primitive.to_string(context)?.into(),
+                primitive => PropertyKey::from_str(primitive.to_string(context)?, context),
             },
         })
     }

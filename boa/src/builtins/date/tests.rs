@@ -1,6 +1,7 @@
 #![allow(clippy::zero_prefixed_literal)]
 
-use crate::{forward, forward_val, Context, JsValue};
+use crate::{forward, forward_val, Context, JsValue, property::PropertyKey};
+use boa_interner::Sym;
 use chrono::prelude::*;
 
 // NOTE: Javascript Uses 0-based months, where chrono uses 1-based months. Many of the assertions look wrong because of
@@ -61,7 +62,7 @@ fn date_this_time_value() {
     )
     .expect_err("Expected error");
     let message_property = &error
-        .get_property("message")
+        .get_property(PropertyKey::String(Sym::MESSAGE))
         .expect("Expected 'message' property")
         .expect_value()
         .clone();

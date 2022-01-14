@@ -1,3 +1,5 @@
+use boa_interner::Sym;
+
 use crate::{
     builtins::{array_buffer::SharedMemoryOrder, typed_array::TypedArrayName, BuiltIn, JsArgs},
     context::StandardObjects,
@@ -6,7 +8,7 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, FunctionBuilder,
         JsObject, ObjectData,
     },
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     symbol::WellKnownSymbols,
     value::JsValue,
     Context, JsResult,
@@ -48,9 +50,9 @@ impl BuiltIn for DataView {
         )
         .name(Self::NAME)
         .length(Self::LENGTH)
-        .accessor("buffer", Some(get_buffer), None, flag_attributes)
-        .accessor("byteLength", Some(get_byte_length), None, flag_attributes)
-        .accessor("byteOffset", Some(get_byte_offset), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::BUFFER), Some(get_buffer), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::BYTE_LENGTH), Some(get_byte_length), None, flag_attributes)
+        .accessor(PropertyKey::String(Sym::BYTE_OFFSET), Some(get_byte_offset), None, flag_attributes)
         .method(Self::get_big_int64, "getBigInt64", 1)
         .method(Self::get_big_uint64, "getBigUint64", 1)
         .method(Self::get_float32, "getFloat32", 1)

@@ -1,3 +1,5 @@
+use boa_interner::Sym;
+
 use crate::{
     builtins::Array,
     context::{StandardConstructor, StandardObjects},
@@ -5,7 +7,7 @@ use crate::{
     property::{PropertyDescriptor, PropertyKey, PropertyNameKind},
     symbol::WellKnownSymbols,
     value::Type,
-    Context, JsResult, JsValue,
+    Context, JsResult, JsValue, JsString,
 };
 
 /// Object integrity level.
@@ -91,6 +93,7 @@ impl JsObject {
         let success = self.__set__(key.clone(), value.into(), self.clone().into(), context)?;
         // 5. If success is false and Throw is true, throw a TypeError exception.
         if !success && throw {
+            let key = key.as_str(context);
             return context.throw_type_error(format!("cannot set non-writable property: {}", key));
         }
         // 6. Return success.
@@ -150,6 +153,7 @@ impl JsObject {
         let success = self.create_data_property(key.clone(), value, context)?;
         // 4. If success is false, throw a TypeError exception.
         if !success {
+            let key = key.as_str(context);
             return context.throw_type_error(format!("cannot redefine property: {}", key));
         }
         // 5. Return success.
@@ -180,6 +184,7 @@ impl JsObject {
         let success = self.__define_own_property__(key.clone(), desc.into(), context)?;
         // 4. If success is false, throw a TypeError exception.
         if !success {
+            let key = key.as_str(context);
             return context.throw_type_error(format!("cannot redefine property: {}", key));
         }
         // 5. Return success.
@@ -204,6 +209,7 @@ impl JsObject {
         let success = self.__delete__(&key, context)?;
         // 4. If success is false, throw a TypeError exception.
         if !success {
+            let key = key.as_str(context);
             return context.throw_type_error(format!("cannot delete property: {}", key));
         }
         // 5. Return success.
@@ -416,7 +422,7 @@ impl JsObject {
     pub(crate) fn length_of_array_like(&self, context: &mut Context) -> JsResult<usize> {
         // 1. Assert: Type(obj) is Object.
         // 2. Return ℝ(? ToLength(? Get(obj, "length"))).
-        self.get("length", context)?.to_length(context)
+        self.get(PropertyKey::String(Sym::LENGTH), context)?.to_length(context)
     }
 
     /// `7.3.22 SpeciesConstructor ( O, defaultConstructor )`
@@ -440,7 +446,7 @@ impl JsObject {
         // 1. Assert: Type(O) is Object.
 
         // 2. Let C be ? Get(O, "constructor").
-        let c = self.get("constructor", context)?;
+        let c = self.get(PropertyKey::String(Sym::CONSTRUCTOR), context)?;
 
         // 3. If C is undefined, return defaultConstructor.
         if c.is_undefined() {
@@ -488,8 +494,8 @@ impl JsObject {
         // 4. For each element key of ownKeys, do
         for key in own_keys {
             // a. If Type(key) is String, then
-            let key_str = match &key {
-                PropertyKey::String(s) => Some(s.clone()),
+            let key_str: Option<JsString> = match key {
+                PropertyKey::String(s) => Some(context.interner().resolve(s).expect("string disappeared").into()),
                 PropertyKey::Index(i) => Some(i.to_string().into()),
                 _ => None,
             };
@@ -663,7 +669,7 @@ impl JsValue {
         for index in 0..len {
             // a. Let indexName be ! ToString(𝔽(index)).
             // b. Let next be ? Get(obj, indexName).
-            let next = obj.get(index, context)?;
+            let next = obj.get(PropertyKey::from_usize(index, context), context)?;
             // c. If Type(next) is not an element of elementTypes, throw a TypeError exception.
             if !types.contains(&next.get_type()) {
                 return context.throw_type_error("bad type");
@@ -739,7 +745,7 @@ impl JsValue {
         };
 
         // 4. Let P be ? Get(C, "prototype").
-        let prototype = function.get("prototype", context)?;
+        let prototype = function.get(PropertyKey::String(Sym::PROTOTYPE), context)?;
 
         let prototype = if let Some(obj) = prototype.as_object() {
             obj

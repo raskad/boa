@@ -11,8 +11,10 @@
 //! [spec]: https://tc39.es/ecma262/#sec-math-object
 //! [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math
 
+use boa_interner::Sym;
+
 use crate::{
-    builtins::BuiltIn, object::ObjectInitializer, property::Attribute, symbol::WellKnownSymbols,
+    builtins::BuiltIn, object::ObjectInitializer, property::{Attribute, PropertyKey}, symbol::WellKnownSymbols,
     BoaProfiler, Context, JsResult, JsValue,
 };
 
@@ -38,14 +40,14 @@ impl BuiltIn for Math {
         let attribute = Attribute::READONLY | Attribute::NON_ENUMERABLE | Attribute::PERMANENT;
         let string_tag = WellKnownSymbols::to_string_tag();
         let object = ObjectInitializer::new(context)
-            .property("E", std::f64::consts::E, attribute)
-            .property("LN10", std::f64::consts::LN_10, attribute)
-            .property("LN2", std::f64::consts::LN_2, attribute)
-            .property("LOG10E", std::f64::consts::LOG10_E, attribute)
-            .property("LOG2E", std::f64::consts::LOG2_E, attribute)
-            .property("PI", std::f64::consts::PI, attribute)
-            .property("SQRT1_2", std::f64::consts::FRAC_1_SQRT_2, attribute)
-            .property("SQRT2", std::f64::consts::SQRT_2, attribute)
+            .property(PropertyKey::String(Sym::E), std::f64::consts::E, attribute)
+            .property(PropertyKey::String(Sym::LN10), std::f64::consts::LN_10, attribute)
+            .property(PropertyKey::String(Sym::LN2), std::f64::consts::LN_2, attribute)
+            .property(PropertyKey::String(Sym::LOG10E), std::f64::consts::LOG10_E, attribute)
+            .property(PropertyKey::String(Sym::LOG2E), std::f64::consts::LOG2_E, attribute)
+            .property(PropertyKey::String(Sym::PI), std::f64::consts::PI, attribute)
+            .property(PropertyKey::String(Sym::SQRT1_2), std::f64::consts::FRAC_1_SQRT_2, attribute)
+            .property(PropertyKey::String(Sym::SQRT2), std::f64::consts::SQRT_2, attribute)
             .function(Self::abs, "abs", 1)
             .function(Self::acos, "acos", 1)
             .function(Self::acosh, "acosh", 1)

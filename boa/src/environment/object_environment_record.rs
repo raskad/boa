@@ -13,7 +13,7 @@ use crate::{
     },
     gc::{Finalize, Gc, Trace},
     object::JsObject,
-    property::PropertyDescriptor,
+    property::{PropertyDescriptor, PropertyKey},
     symbol::WellKnownSymbols,
     Context, JsResult, JsValue,
 };
@@ -53,11 +53,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
         // 2. Let foundBinding be ? HasProperty(bindingObject, N).
         // 3. If foundBinding is false, return false.
         if !self.bindings.has_property(
-            context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .to_owned(),
+            PropertyKey::String(name),
             context,
         )? {
             return Ok(false);
@@ -79,11 +75,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
             // b. If blocked is true, return false.
             if unscopables
                 .get(
-                    context
-                        .interner()
-                        .resolve(name)
-                        .expect("string disappeared")
-                        .to_owned(),
+                    PropertyKey::String(name),
                     context,
                 )?
                 .to_boolean()
@@ -112,11 +104,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
         // 1. Let bindingObject be envRec.[[BindingObject]].
         // 2. Return ? DefinePropertyOrThrow(bindingObject, N, PropertyDescriptor { [[Value]]: undefined, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: D }).
         self.bindings.define_property_or_throw(
-            context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .to_owned(),
+            PropertyKey::String(name),
             PropertyDescriptor::builder()
                 .value(JsValue::undefined())
                 .writable(true)
@@ -169,11 +157,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
         // 1. Let bindingObject be envRec.[[BindingObject]].
         // 2. Let stillExists be ? HasProperty(bindingObject, N).
         let still_exists = self.bindings.has_property(
-            context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .to_owned(),
+            PropertyKey::String(name),
             context,
         )?;
 
@@ -184,11 +168,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
 
         // 4. Return ? Set(bindingObject, N, V, S).
         self.bindings.set(
-            context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .to_owned(),
+            PropertyKey::String(name),
             value,
             strict,
             context,
@@ -212,11 +192,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
         // 2. Let value be ? HasProperty(bindingObject, N).
         // 3. If value is false, then
         if !self.bindings.__has_property__(
-            &context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .into(),
+            &PropertyKey::String(name),
             context,
         )? {
             // a. If S is false, return the value undefined; otherwise throw a ReferenceError exception.
@@ -235,11 +211,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
 
         // 4. Return ? Get(bindingObject, N).
         self.bindings.get(
-            context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .to_owned(),
+            PropertyKey::String(name),
             context,
         )
     }
@@ -254,11 +226,8 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
         // 1. Let bindingObject be envRec.[[BindingObject]].
         // 2. Return ? bindingObject.[[Delete]](N).
         self.bindings.__delete__(
-            &context
-                .interner()
-                .resolve(name)
-                .expect("string disappeared")
-                .into(),
+                &PropertyKey::String(name),
+            
             context,
         )
     }

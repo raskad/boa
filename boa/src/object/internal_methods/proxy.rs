@@ -5,6 +5,7 @@ use crate::{
     value::Type,
     Context, JsResult, JsValue,
 };
+use boa_interner::Sym;
 use rustc_hash::FxHashSet;
 
 /// Definitions of the internal object methods for array exotic objects.
@@ -85,7 +86,7 @@ pub(crate) fn proxy_exotic_get_prototype_of(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
-    let trap = if let Some(trap) = handler.get_method("getPrototypeOf", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::GET_PROTOTYPE_OF), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -144,7 +145,7 @@ pub(crate) fn proxy_exotic_set_prototype_of(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "setPrototypeOf").
-    let trap = if let Some(trap) = handler.get_method("setPrototypeOf", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::SET_PROTOTYPE_OF), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -205,7 +206,7 @@ pub(crate) fn proxy_exotic_is_extensible(obj: &JsObject, context: &mut Context) 
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "isExtensible").
-    let trap = if let Some(trap) = handler.get_method("isExtensible", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::IS_EXTENSIBLE), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -252,7 +253,7 @@ pub(crate) fn proxy_exotic_prevent_extensions(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "preventExtensions").
-    let trap = if let Some(trap) = handler.get_method("preventExtensions", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::PREVENT_EXTENSIONS), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -299,7 +300,7 @@ pub(crate) fn proxy_exotic_get_own_property(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
-    let trap = if let Some(trap) = handler.get_method("getOwnPropertyDescriptor", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::GET_OWN_PROPERTY_DESCRIPTOR), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -310,7 +311,7 @@ pub(crate) fn proxy_exotic_get_own_property(
     // 7. Let trapResultObj be ? Call(trap, handler, « target, P »).
     let trap_result_obj = trap.call(
         &handler.into(),
-        &[target.clone().into(), key.clone().into()],
+        &[target.clone().into(), key.to_js_value(context)],
         context,
     )?;
 
@@ -419,7 +420,7 @@ pub(crate) fn proxy_exotic_define_own_property(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "defineProperty").
-    let trap = if let Some(trap) = handler.get_method("defineProperty", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::DEFINE_PROPERTY), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -435,7 +436,7 @@ pub(crate) fn proxy_exotic_define_own_property(
     if !trap
         .call(
             &handler.into(),
-            &[target.clone().into(), key.clone().into(), desc_obj],
+            &[target.clone().into(), key.to_js_value(context), desc_obj],
             context,
         )?
         .to_boolean()
@@ -527,7 +528,7 @@ pub(crate) fn proxy_exotic_has_property(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "has").
-    let trap = if let Some(trap) = handler.get_method("has", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::HAS), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -539,7 +540,7 @@ pub(crate) fn proxy_exotic_has_property(
     let boolean_trap_result = trap
         .call(
             &handler.into(),
-            &[target.clone().into(), key.clone().into()],
+            &[target.clone().into(), key.to_js_value(context)],
             context,
         )?
         .to_boolean();
@@ -592,7 +593,7 @@ pub(crate) fn proxy_exotic_get(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "get").
-    let trap = if let Some(trap) = handler.get_method("get", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::GET), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -603,7 +604,7 @@ pub(crate) fn proxy_exotic_get(
     // 7. Let trapResult be ? Call(trap, handler, « target, P, Receiver »).
     let trap_result = trap.call(
         &handler.into(),
-        &[target.clone().into(), key.clone().into(), receiver],
+        &[target.clone().into(), key.to_js_value(context), receiver],
         context,
     )?;
 
@@ -662,7 +663,7 @@ pub(crate) fn proxy_exotic_set(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "set").
-    let trap = if let Some(trap) = handler.get_method("set", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::SET), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -738,7 +739,7 @@ pub(crate) fn proxy_exotic_delete(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "deleteProperty").
-    let trap = if let Some(trap) = handler.get_method("deleteProperty", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::DELETE_PROPERTY), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -751,7 +752,7 @@ pub(crate) fn proxy_exotic_delete(
     if !trap
         .call(
             &handler.into(),
-            &[target.clone().into(), key.clone().into()],
+            &[target.clone().into(), key.to_js_value(context)],
             context,
         )?
         .to_boolean()
@@ -803,7 +804,7 @@ pub(crate) fn proxy_exotic_own_property_keys(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "ownKeys").
-    let trap = if let Some(trap) = handler.get_method("ownKeys", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::OWN_KEYS), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -824,12 +825,12 @@ pub(crate) fn proxy_exotic_own_property_keys(
     for value in &trap_result_raw {
         match value {
             JsValue::String(s) => {
-                if !unchecked_result_keys.insert(s.clone().into()) {
+                if !unchecked_result_keys.insert(PropertyKey::from_str(s, context)) {
                     return context.throw_type_error(
                         "Proxy trap result contains duplicate string property keys",
                     );
                 }
-                trap_result.push(s.clone().into())
+                trap_result.push(PropertyKey::from_str(s, context))
             }
             JsValue::Symbol(s) => {
                 if !unchecked_result_keys.insert(s.clone().into()) {
@@ -938,7 +939,7 @@ fn proxy_exotic_call(
         .try_data(context)?;
 
     // 5. Let trap be ? GetMethod(handler, "apply").
-    let trap = if let Some(trap) = handler.get_method("apply", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::APPLY), context)? {
         trap
     // 6. If trap is undefined, then
     } else {
@@ -983,7 +984,7 @@ fn proxy_exotic_construct(
     assert!(target.is_constructor());
 
     // 6. Let trap be ? GetMethod(handler, "construct").
-    let trap = if let Some(trap) = handler.get_method("construct", context)? {
+    let trap = if let Some(trap) = handler.get_method(PropertyKey::String(Sym::CONSTRUCT), context)? {
         trap
     // 7. If trap is undefined, then
     } else {

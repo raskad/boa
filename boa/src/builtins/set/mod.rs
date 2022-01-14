@@ -17,10 +17,11 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, FunctionBuilder,
         JsObject, ObjectData,
     },
-    property::{Attribute, PropertyNameKind},
+    property::{Attribute, PropertyNameKind, PropertyKey},
     symbol::WellKnownSymbols,
     BoaProfiler, Context, JsResult, JsValue,
 };
+use boa_interner::Sym;
 use ordered_set::OrderedSet;
 
 pub mod set_iterator;
@@ -85,13 +86,13 @@ impl BuiltIn for Set {
         .method(Self::for_each, "forEach", 1)
         .method(Self::has, "has", 1)
         .property(
-            "keys",
+            PropertyKey::String(Sym::KEYS),
             values_function.clone(),
             Attribute::WRITABLE | Attribute::NON_ENUMERABLE | Attribute::CONFIGURABLE,
         )
-        .accessor("size", Some(size_getter), None, Attribute::CONFIGURABLE)
+        .accessor(PropertyKey::String(Sym::SIZE), Some(size_getter), None, Attribute::CONFIGURABLE)
         .property(
-            "values",
+            PropertyKey::String(Sym::VALUES),
             values_function.clone(),
             Attribute::WRITABLE | Attribute::NON_ENUMERABLE | Attribute::CONFIGURABLE,
         )
@@ -139,7 +140,7 @@ impl Set {
         }
 
         // 5
-        let adder = obj.get("add", context)?;
+        let adder = obj.get(PropertyKey::String(Sym::ADD), context)?;
 
         // 6
         let adder = adder.as_callable().ok_or_else(|| {

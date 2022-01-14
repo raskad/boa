@@ -216,42 +216,6 @@ impl Sym {
     /// Padding for the symbol internal value.
     const PADDING: usize = Interner::STATIC_STRINGS.len() + 1;
 
-    /// Symbol for the empty string (`""`).
-    pub const EMPTY_STRING: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(1)) };
-
-    /// Symbol for the `"arguments"` string.
-    pub const ARGUMENTS: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(2)) };
-
-    /// Symbol for the `"await"` string.
-    pub const AWAIT: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(3)) };
-
-    /// Symbol for the `"yield"` string.
-    pub const YIELD: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(4)) };
-
-    /// Symbol for the `"eval"` string.
-    pub const EVAL: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(5)) };
-
-    /// Symbol for the `"default"` string.
-    pub const DEFAULT: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(6)) };
-
-    /// Symbol for the `"null"` string.
-    pub const NULL: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(7)) };
-
-    /// Symbol for the `"RegExp"` string.
-    pub const REGEXP: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(8)) };
-
-    /// Symbol for the `"get"` string.
-    pub const GET: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(9)) };
-
-    /// Symbol for the `"set"` string.
-    pub const SET: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(10)) };
-
-    /// Symbol for the `"<main>"` string.
-    pub const MAIN: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(11)) };
-
-    /// Symbol for the `"raw"` string.
-    pub const RAW: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked(12)) };
-
     /// Creates a `Sym` from a raw `NonZeroUsize`.
     const fn from_raw(value: NonZeroUsize) -> Self {
         Self { value }
@@ -298,22 +262,122 @@ where
     }
 }
 
-impl Interner {
-    /// List of commonly used static strings.
-    ///
-    /// Make sure that any string added as a `Sym` constant is also added here.
-    const STATIC_STRINGS: [&'static str; 12] = [
-        "",
-        "arguments",
-        "await",
-        "yield",
-        "eval",
-        "default",
-        "null",
-        "RegExp",
-        "get",
-        "set",
-        "<main>",
-        "raw",
-    ];
+macro_rules! yes {
+    ($({$id:ident, $name:literal, $number:literal}),*) => {
+        impl Interner {
+            /// List of commonly used static strings.
+            ///
+            /// Make sure that any string added as a `Sym` constant is also added here.
+            const STATIC_STRINGS: [&'static str; 93] = [
+                $(
+                    $name,
+                )*
+            ];
+        }
+
+        impl Sym {
+            $(
+                #[doc="Symbol for the `"]
+                #[doc=$name]
+                #[doc="` string."]
+                pub const $id: Self = unsafe { Self::from_raw(NonZeroUsize::new_unchecked($number)) };
+            )*
+        }
+    }
 }
+
+yes!(
+    {EMPTY_STRING, "", 1},
+    {ARGUMENTS, "arguments", 2},
+    {AWAIT, "await", 3},
+    {YIELD, "yield", 4},
+    {EVAL, "eval", 5},
+    {DEFAULT, "default", 6},
+    {NULL, "null", 7},
+    {REGEXP, "RegExp", 8},
+    {GET, "get", 9},
+    {SET, "set", 10},
+    {MAIN, "<main>", 11},
+    {RAW, "raw", 12},
+    {LENGTH, "length", 13},
+    {NAME, "name", 14},
+    {PROTOTYPE, "prototype", 15},
+    {NEXT, "next", 16},
+    {CONSTRUCTOR, "constructor", 17},
+    {MESSAGE, "message", 18},
+    {WRITABLE, "writable", 19},
+    {VALUE, "value", 20},
+    {CONFIGURABLE, "configurable", 21},
+    {ENUMERABLE, "enumerable", 22},
+    {CONSTRUCT, "construct", 23},
+    {TO_ISO_STRING, "toISOString", 24},
+    {CALLEE, "callee", 25},
+    {DONE, "done", 26},
+    {JOIN, "join", 27},
+    {RETURN, "return", 28},
+    {APPLY, "apply", 29},
+    {OWN_KEYS, "ownKeys", 30},
+    {DELETE_PROPERTY, "deleteProperty", 31},
+    {HAS, "has", 32},
+    {DEFINE_PROPERTY, "defineProperty", 33},
+    {GET_OWN_PROPERTY_DESCRIPTOR, "getOwnPropertyDescriptor", 34},
+    {PREVENT_EXTENSIONS, "preventExtensions", 35},
+    {IS_EXTENSIBLE, "isExtensible", 36},
+    {SET_PROTOTYPE_OF, "setPrototypeOf", 37},
+    {GET_PROTOTYPE_OF, "getPrototypeOf", 38},
+    {BYTE_OFFSET, "byteOffset", 39},
+    {BYTE_LENGTH, "byteLength", 40},
+    {BUFFER, "buffer", 41},
+    {BYTES_PER_ELEMENT, "BYTES_PER_ELEMENT", 42},
+    {DESCRIPTION, "description", 43},
+    {UNSCOPABLES, "unscopables", 44},
+    {TO_STRING_TAG, "toStringTag", 45},
+    {TO_PRIMITIVE, "toPrimitive", 46},
+    {SPLIT, "split", 47},
+    {SPECIES, "species", 48},
+    {SEARCH, "search", 49},
+    {REPLACE, "replace", 50},
+    {MATCH_ALL, "matchAll", 51},
+    {MATCH, "match", 52},
+    {ITERATOR, "iterator", 53},
+    {IS_CONCAT_SPREADABLE, "isConcatSpreadable", 54},
+    {HAS_INSTANCE, "hasInstance", 55},
+    {ASYNC_ITERATOR, "asyncIterator", 56},
+    {FLAGS, "flags", 57},
+    {ADD, "add", 58},
+    {VALUES, "values", 59},
+    {KEYS, "keys", 60},
+    {SIZE, "size", 61},
+    {LAST_INDEX, "lastIndex", 62},
+    {INDEX, "index", 63},
+    {GROUPS, "groups", 64},
+    {UNICODE, "unicode", 65},
+    {GLOBAL, "global", 66},
+    {INPUT, "input", 67},
+    {EXEC, "exec", 68},
+    {STICKY, "sticky", 69},
+    {DOT_ALL, "dotAll", 70},
+    {MULTILINE, "multiline", 71},
+    {IGNORE_CASE, "ignoreCase", 72},
+    {SOURCE,"source", 73},
+    {REVOKE, "revoke", 74},
+    {PROXY, "proxy", 75},
+    {ENTRIES, "entries", 76},
+    {TO_JSON, "toJSON", 77},
+    {EPSILON, "EPSILON", 78},
+    {MAX_SAFE_INTEGER, "MAX_SAFE_INTEGER", 79},
+    {MIN_SAFE_INTEGER, "MIN_SAFE_INTEGER",80},
+    {MAX_VALUE, "MAX_VALUE", 81},
+    {MIN_VALUE, "MIN_VALUE", 82},
+    {NEGATIVE_INFINITY, "NEGATIVE_INFINITY", 83},
+    {POSITIVE_INFINITY, "POSITIVE_INFINITY", 84},
+    {NAN, "NaN", 85},
+    {E, "E", 86},
+    {LN10, "LN10", 87},
+    {LN2, "LN2", 88},
+    {LOG10E, "LOG10E", 89},
+    {LOG2E, "LOG2E", 90},
+    {PI, "PI", 91},
+    {SQRT1_2, "SQRT1_2", 92},
+    {SQRT2, "SQRT2", 93}
+);

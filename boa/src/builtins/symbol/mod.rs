@@ -21,7 +21,7 @@ mod tests;
 use crate::{
     builtins::BuiltIn,
     object::{ConstructorBuilder, FunctionBuilder},
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     symbol::{JsSymbol, WellKnownSymbols},
     value::JsValue,
     BoaProfiler, Context, JsResult, JsString,
@@ -29,6 +29,7 @@ use crate::{
 
 use std::cell::RefCell;
 
+use boa_interner::Sym;
 use rustc_hash::FxHashMap;
 
 use super::JsArgs;
@@ -119,23 +120,23 @@ impl BuiltIn for Symbol {
         .length(Self::LENGTH)
         .static_method(Self::for_, "for", 1)
         .static_method(Self::key_for, "keyFor", 1)
-        .static_property("asyncIterator", symbol_async_iterator, attribute)
-        .static_property("hasInstance", symbol_has_instance, attribute)
-        .static_property("isConcatSpreadable", symbol_is_concat_spreadable, attribute)
-        .static_property("iterator", symbol_iterator, attribute)
-        .static_property("match", symbol_match, attribute)
-        .static_property("matchAll", symbol_match_all, attribute)
-        .static_property("replace", symbol_replace, attribute)
-        .static_property("search", symbol_search, attribute)
-        .static_property("species", symbol_species, attribute)
-        .static_property("split", symbol_split, attribute)
-        .static_property("toPrimitive", symbol_to_primitive.clone(), attribute)
-        .static_property("toStringTag", symbol_to_string_tag.clone(), attribute)
-        .static_property("unscopables", symbol_unscopables, attribute)
+        .static_property(PropertyKey::String(Sym::ASYNC_ITERATOR), symbol_async_iterator, attribute)
+        .static_property(PropertyKey::String(Sym::HAS_INSTANCE), symbol_has_instance, attribute)
+        .static_property(PropertyKey::String(Sym::IS_CONCAT_SPREADABLE), symbol_is_concat_spreadable, attribute)
+        .static_property(PropertyKey::String(Sym::ITERATOR), symbol_iterator, attribute)
+        .static_property(PropertyKey::String(Sym::MATCH), symbol_match, attribute)
+        .static_property(PropertyKey::String(Sym::MATCH_ALL), symbol_match_all, attribute)
+        .static_property(PropertyKey::String(Sym::REPLACE), symbol_replace, attribute)
+        .static_property(PropertyKey::String(Sym::SEARCH), symbol_search, attribute)
+        .static_property(PropertyKey::String(Sym::SPECIES), symbol_species, attribute)
+        .static_property(PropertyKey::String(Sym::SPLIT), symbol_split, attribute)
+        .static_property(PropertyKey::String(Sym::TO_PRIMITIVE), symbol_to_primitive.clone(), attribute)
+        .static_property(PropertyKey::String(Sym::TO_STRING_TAG), symbol_to_string_tag.clone(), attribute)
+        .static_property(PropertyKey::String(Sym::UNSCOPABLES), symbol_unscopables, attribute)
         .method(Self::to_string, "toString", 0)
         .method(Self::value_of, "valueOf", 0)
         .accessor(
-            "description",
+            PropertyKey::String(Sym::DESCRIPTION),
             Some(get_description),
             None,
             Attribute::CONFIGURABLE | Attribute::NON_ENUMERABLE,

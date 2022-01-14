@@ -8,11 +8,12 @@ use crate::{
     object::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, JsObject, ObjectData,
     },
-    property::Attribute,
+    property::{Attribute, PropertyKey},
     symbol::WellKnownSymbols,
     value::{JsValue, PreferredType},
     BoaProfiler, Context, JsResult, JsString,
 };
+use boa_interner::Sym;
 use chrono::{prelude::*, Duration, LocalResult};
 use std::fmt::Display;
 
@@ -1714,7 +1715,7 @@ impl Date {
         }
 
         // 4. Return ? Invoke(O, "toISOString").
-        let func = o.get("toISOString", context)?;
+        let func = o.get(PropertyKey::String(Sym::TO_ISO_STRING), context)?;
         context.call(&func, &o.into(), &[])
     }
 

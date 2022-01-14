@@ -291,6 +291,13 @@ impl JsSymbol {
     pub fn hash(&self) -> u64 {
         self.inner.hash
     }
+
+    pub(crate) fn as_str(&self) -> String {
+        match self.inner.description {
+            Some(ref desc) => format!("Symbol({})", desc),
+            None => "Symbol()".to_owned(), 
+        }
+    }
 }
 
 impl Finalize for JsSymbol {}

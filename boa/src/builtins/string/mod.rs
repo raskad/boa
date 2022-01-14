@@ -17,6 +17,7 @@ use crate::builtins::Symbol;
 use crate::context::StandardObjects;
 use crate::object::internal_methods::get_prototype_from_constructor;
 use crate::object::JsObject;
+use crate::property::PropertyKey;
 use crate::{
     builtins::{string::string_iterator::StringIterator, Array, BuiltIn, RegExp},
     object::{ConstructorBuilder, ObjectData},
@@ -29,6 +30,7 @@ use std::{
     cmp::{max, min},
     string::String as StdString,
 };
+use boa_interner::Sym;
 use unicode_normalization::UnicodeNormalization;
 
 use super::JsArgs;
@@ -107,7 +109,7 @@ impl BuiltIn for String {
         )
         .name(Self::NAME)
         .length(Self::LENGTH)
-        .property("length", 0, attribute)
+        .property(PropertyKey::String(Sym::LENGTH), 0, attribute)
         .static_method(Self::raw, "raw", 1)
         .static_method(Self::from_char_code, "fromCharCode", 1)
         .method(Self::char_at, "charAt", 1)
@@ -211,7 +213,7 @@ impl String {
         // 8. Perform ! DefinePropertyOrThrow(S, "length", PropertyDescriptor { [[Value]]: 𝔽(length),
         // [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
         s.define_property_or_throw(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             PropertyDescriptor::builder()
                 .value(len)
                 .writable(false)
@@ -250,7 +252,7 @@ impl String {
         let cooked = args.get_or_undefined(0).to_object(context)?;
 
         // 3. Let raw be ? ToObject(? Get(cooked, "raw")).
-        let raw = cooked.get("raw", context)?.to_object(context)?;
+        let raw = cooked.get(PropertyKey::String(Sym::RAW), context)?.to_object(context)?;
 
         // 4. Let literalSegments be ? LengthOfArrayLike(raw).
         let literal_segments = raw.length_of_array_like(context)?;
@@ -272,7 +274,7 @@ impl String {
             let next_key = next_index;
 
             // b. Let nextSeg be ? ToString(? Get(raw, nextKey)).
-            let next_seg = raw.get(next_key, context)?.to_string(context)?;
+            let next_seg = raw.get(PropertyKey::from_usize(next_key, context), context)?.to_string(context)?;
 
             // c. Append the code unit elements of nextSeg to the end of stringElements.
             string_elements.extend(next_seg.encode_utf16());
@@ -940,7 +942,7 @@ impl String {
                 // b. If isRegExp is true, then
                 if obj.is_regexp() {
                     // i. Let flags be ? Get(searchValue, "flags").
-                    let flags = obj.get("flags", context)?;
+                    let flags = obj.get(PropertyKey::String(Sym::FLAGS), context)?;
 
                     // ii. Perform ? RequireObjectCoercible(flags).
                     flags.require_object_coercible(context)?;
@@ -1596,7 +1598,7 @@ impl String {
         // 9. If separator is undefined, then
         if separator.is_undefined() {
             // a. Perform ! CreateDataPropertyOrThrow(A, "0", S).
-            a.create_data_property_or_throw(0, this_str, context)
+            a.create_data_property_or_throw(0u32, this_str, context)
                 .unwrap();
 
             // b. Return A.
@@ -1611,7 +1613,7 @@ impl String {
             // a. If R is not the empty String, then
             if !separator_str.is_empty() {
                 // i. Perform ! CreateDataPropertyOrThrow(A, "0", S).
-                a.create_data_property_or_throw(0, this_str, context)
+                a.create_data_property_or_throw(0u32, this_str, context)
                     .unwrap();
             }
 
@@ -1734,7 +1736,7 @@ impl String {
             // b. If isRegExp is true, then
             if let Some(regexp_obj) = regexp.as_object().filter(|obj| obj.is_regexp()) {
                 // i. Let flags be ? Get(regexp, "flags").
-                let flags = regexp_obj.get("flags", context)?;
+                let flags = regexp_obj.get(PropertyKey::String(Sym::FLAGS), context)?;
 
                 // ii. Perform ? RequireObjectCoercible(flags).
                 flags.require_object_coercible(context)?;
@@ -1997,7 +1999,7 @@ pub(crate) fn get_substitution(
                         } else {
                             // i. Let groupName be the enclosed substring.
                             // ii. Let capture be ? Get(namedCaptures, groupName).
-                            let capture = named_captures.get_field(group_name, context)?;
+                            let capture = named_captures.get_field(PropertyKey::from_str(group_name, context), context)?;
 
                             // iii. If capture is undefined, replace the text through > with the empty String.
                             // iv. Otherwise, replace the text through > with ? ToString(capture).

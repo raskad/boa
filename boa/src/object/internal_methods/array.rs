@@ -1,3 +1,5 @@
+use boa_interner::Sym;
+
 use crate::{
     object::JsObject,
     property::{PropertyDescriptor, PropertyKey},
@@ -32,7 +34,7 @@ pub(crate) fn array_exotic_define_own_property(
     // 1. Assert: IsPropertyKey(P) is true.
     match key {
         // 2. If P is "length", then
-        PropertyKey::String(ref s) if s == "length" => {
+        PropertyKey::String(ref s) if *s == Sym::LENGTH => {
             // a. Return ? ArraySetLength(A, Desc).
 
             // Abstract operation `ArraySetLength ( A, Desc )`
@@ -46,7 +48,7 @@ pub(crate) fn array_exotic_define_own_property(
                     // a. Return OrdinaryDefineOwnProperty(A, "length", Desc).
                     return super::ordinary_define_own_property(
                         obj,
-                        "length".into(),
+                        PropertyKey::String(Sym::LENGTH),
                         desc,
                         context,
                     );
@@ -75,7 +77,7 @@ pub(crate) fn array_exotic_define_own_property(
 
             // 7. Let oldLenDesc be OrdinaryGetOwnProperty(A, "length").
             let old_len_desc =
-                super::ordinary_get_own_property(obj, &"length".into(), context)?.unwrap();
+                super::ordinary_get_own_property(obj, &PropertyKey::String(Sym::LENGTH), context)?.unwrap();
 
             // 8. Assert: ! IsDataDescriptor(oldLenDesc) is true.
             debug_assert!(old_len_desc.is_data_descriptor());
@@ -91,7 +93,7 @@ pub(crate) fn array_exotic_define_own_property(
                 // a. Return OrdinaryDefineOwnProperty(A, "length", newLenDesc).
                 return super::ordinary_define_own_property(
                     obj,
-                    "length".into(),
+                    PropertyKey::String(Sym::LENGTH),
                     new_len_desc.build(),
                     context,
                 );
@@ -121,7 +123,7 @@ pub(crate) fn array_exotic_define_own_property(
             // 16. If succeeded is false, return false.
             if !super::ordinary_define_own_property(
                 obj,
-                "length".into(),
+                PropertyKey::String(Sym::LENGTH),
                 new_len_desc.clone().build(),
                 context,
             )
@@ -159,7 +161,7 @@ pub(crate) fn array_exotic_define_own_property(
                     // iii. Perform ! OrdinaryDefineOwnProperty(A, "length", newLenDesc).
                     super::ordinary_define_own_property(
                         obj,
-                        "length".into(),
+                        PropertyKey::String(Sym::LENGTH),
                         new_len_desc.build(),
                         context,
                     )
@@ -176,7 +178,7 @@ pub(crate) fn array_exotic_define_own_property(
                 // PropertyDescriptor { [[Writable]]: false }).
                 let succeeded = super::ordinary_define_own_property(
                     obj,
-                    "length".into(),
+                    PropertyKey::String(Sym::LENGTH),
                     PropertyDescriptor::builder().writable(false).build(),
                     context,
                 )?;
@@ -193,7 +195,7 @@ pub(crate) fn array_exotic_define_own_property(
         PropertyKey::Index(index) if index < u32::MAX => {
             // a. Let oldLenDesc be OrdinaryGetOwnProperty(A, "length").
             let old_len_desc =
-                super::ordinary_get_own_property(obj, &"length".into(), context)?.unwrap();
+                super::ordinary_get_own_property(obj, &PropertyKey::String(Sym::LENGTH), context)?.unwrap();
 
             // b. Assert: ! IsDataDescriptor(oldLenDesc) is true.
             debug_assert!(old_len_desc.is_data_descriptor());
@@ -225,7 +227,7 @@ pub(crate) fn array_exotic_define_own_property(
                     // ii. Set succeeded to OrdinaryDefineOwnProperty(A, "length", oldLenDesc).
                     let succeeded = super::ordinary_define_own_property(
                         obj,
-                        "length".into(),
+                        PropertyKey::String(Sym::LENGTH),
                         old_len_desc.into(),
                         context,
                     )

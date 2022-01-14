@@ -1,5 +1,8 @@
+use boa_interner::Sym;
+
 use super::Array;
 use crate::builtins::Number;
+use crate::property::PropertyKey;
 use crate::{forward, Context, JsValue};
 
 #[test]
@@ -1544,7 +1547,7 @@ fn array_length_is_not_enumerable() {
     let mut context = Context::default();
 
     let array = Array::new_array(&mut context);
-    let desc = array.get_property("length").unwrap();
+    let desc = array.get_property(PropertyKey::String(Sym::LENGTH)).unwrap();
     assert!(!desc.expect_enumerable());
 }
 

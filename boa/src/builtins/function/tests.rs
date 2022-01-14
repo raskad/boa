@@ -1,7 +1,7 @@
 use crate::{
     forward, forward_val,
     object::FunctionBuilder,
-    property::{Attribute, PropertyDescriptor},
+    property::{Attribute, PropertyDescriptor, PropertyKey},
     Context, JsString,
 };
 
@@ -226,7 +226,7 @@ fn closure_capture_clone() {
     let object = context.construct_object();
     object
         .define_property_or_throw(
-            "key",
+            PropertyKey::from_str("key", &mut context),
             PropertyDescriptor::builder()
                 .value(" world!")
                 .writable(false)
@@ -244,7 +244,7 @@ fn closure_capture_clone() {
             let hw = JsString::concat(
                 string,
                 object
-                    .__get_own_property__(&"key".into(), context)?
+                    .__get_own_property__(&PropertyKey::from_str("key", context), context)?
                     .and_then(|prop| prop.value().cloned())
                     .and_then(|val| val.as_string().cloned())
                     .ok_or_else(|| context.construct_type_error("invalid `key` property"))?,
@@ -255,8 +255,8 @@ fn closure_capture_clone() {
     )
     .name("closure")
     .build();
-
-    context.register_global_property("closure", func, Attribute::default());
+    let key = PropertyKey::from_str("closure", &mut context);
+    context.register_global_property(key, func, Attribute::default());
 
     assert_eq!(forward(&mut context, "closure()"), "\"Hello world!\"");
 }

@@ -14,7 +14,7 @@ use crate::{
     vm::{call_frame::CatchAddresses, code_block::Readable},
     BoaProfiler, Context, JsBigInt, JsResult, JsString, JsValue,
 };
-use boa_interner::ToInternedString;
+use boa_interner::{ToInternedString, Sym};
 use std::{convert::TryInto, mem::size_of, ops::Neg, time::Instant};
 
 mod call_frame;
@@ -439,12 +439,7 @@ impl Context {
                 };
 
                 let name = self.vm.frame().code.variables[index as usize];
-                let name: PropertyKey = self
-                    .interner()
-                    .resolve(name)
-                    .expect("string disappeared")
-                    .into();
-                let result = object.get(name, self)?;
+                let result = object.get(PropertyKey::String(name), self)?;
 
                 self.vm.push(result)
             }
@@ -474,14 +469,9 @@ impl Context {
                 };
 
                 let name = self.vm.frame().code.variables[index as usize];
-                let name: PropertyKey = self
-                    .interner()
-                    .resolve(name)
-                    .expect("string disappeared")
-                    .into();
 
                 object.set(
-                    name,
+                    PropertyKey::String(name),
                     value,
                     self.strict() || self.vm.frame().code.strict,
                     self,
@@ -499,10 +489,8 @@ impl Context {
                 };
 
                 let name = self.vm.frame().code.variables[index as usize];
-                let name = self.interner().resolve(name).expect("string disappeared");
-
                 object.__define_own_property__(
-                    name.into(),
+                    PropertyKey::String(name),
                     PropertyDescriptor::builder()
                         .value(value)
                         .writable(true)
@@ -560,11 +548,7 @@ impl Context {
                 let object = object.to_object(self)?;
 
                 let name = self.vm.frame().code.variables[index as usize];
-                let name = self
-                    .interner()
-                    .resolve(name)
-                    .expect("string disappeared")
-                    .into();
+                let name = PropertyKey::String(name);
                 let set = object
                     .__get_own_property__(&name, self)?
                     .as_ref()
@@ -609,11 +593,7 @@ impl Context {
                 let value = self.vm.pop();
                 let object = object.to_object(self)?;
                 let name = self.vm.frame().code.variables[index as usize];
-                let name = self
-                    .interner()
-                    .resolve(name)
-                    .expect("string disappeared")
-                    .into();
+                let name = PropertyKey::String(name);
                 let get = object
                     .__get_own_property__(&name, self)?
                     .as_ref()
@@ -655,13 +635,8 @@ impl Context {
             Opcode::DeletePropertyByName => {
                 let index = self.vm.read::<u32>();
                 let key = self.vm.frame().code.variables[index as usize];
-                let key = self
-                    .interner()
-                    .resolve(key)
-                    .expect("string disappeared")
-                    .into();
                 let object = self.vm.pop();
-                let result = object.to_object(self)?.__delete__(&key, self)?;
+                let result = object.to_object(self)?.__delete__(&PropertyKey::String(key), self)?;
                 if !result && self.strict() || self.vm.frame().code.strict {
                     return Err(self.construct_type_error("Cannot delete property"));
                 }
@@ -972,7 +947,7 @@ impl Context {
                 let object = object.to_object(self)?;
                 let iterator = ForInIterator::create_for_in_iterator(JsValue::new(object), self);
                 let next_function = iterator
-                    .get_property("next")
+                    .get_property(PropertyKey::String(Sym::NEXT))
                     .as_ref()
                     .map(|p| p.expect_value())
                     .cloned()

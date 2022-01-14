@@ -65,7 +65,7 @@ pub(crate) use self::{
 
 use crate::{
     builtins::array_buffer::ArrayBuffer,
-    property::{Attribute, PropertyDescriptor},
+    property::{Attribute, PropertyDescriptor, PropertyKey},
     Context, JsValue,
 };
 
@@ -105,7 +105,7 @@ fn init_builtin<B: BuiltIn>(context: &mut Context) {
     context
         .global_object()
         .borrow_mut()
-        .insert(B::NAME, property);
+        .insert(PropertyKey::from_str(B::NAME, context), property);
 }
 
 /// Initializes built-in objects and functions

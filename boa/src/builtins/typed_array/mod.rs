@@ -25,11 +25,12 @@ use crate::{
         internal_methods::get_prototype_from_constructor, ConstructorBuilder, FunctionBuilder,
         JsObject, ObjectData,
     },
-    property::{Attribute, PropertyNameKind},
+    property::{Attribute, PropertyKey, PropertyNameKind},
     symbol::WellKnownSymbols,
     value::{IntegerOrInfinity, JsValue},
     BoaProfiler, Context, JsResult, JsString,
 };
+use boa_interner::Sym;
 use num_traits::{Signed, Zero};
 use std::cmp::Ordering;
 
@@ -73,12 +74,12 @@ macro_rules! typed_array {
                     Attribute::CONFIGURABLE,
                 )
                 .property(
-                    "BYTES_PER_ELEMENT",
+                    PropertyKey::String(Sym::BYTES_PER_ELEMENT),
                     TypedArrayName::$ty.element_size(),
                     Attribute::READONLY | Attribute::NON_ENUMERABLE | Attribute::PERMANENT,
                 )
                 .static_property(
-                    "BYTES_PER_ELEMENT",
+                    PropertyKey::String(Sym::BYTES_PER_ELEMENT),
                     TypedArrayName::$ty.element_size(),
                     Attribute::READONLY | Attribute::NON_ENUMERABLE | Attribute::PERMANENT,
                 )
@@ -288,7 +289,7 @@ impl TypedArray {
             Attribute::CONFIGURABLE,
         )
         .property(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             0,
             Attribute::WRITABLE | Attribute::NON_ENUMERABLE | Attribute::PERMANENT,
         )
@@ -298,25 +299,25 @@ impl TypedArray {
             Attribute::WRITABLE | Attribute::NON_ENUMERABLE | Attribute::CONFIGURABLE,
         )
         .accessor(
-            "buffer",
+            PropertyKey::String(Sym::BUFFER),
             Some(get_buffer),
             None,
             Attribute::CONFIGURABLE | Attribute::NON_ENUMERABLE,
         )
         .accessor(
-            "byteLength",
+            PropertyKey::String(Sym::BYTE_LENGTH),
             Some(get_byte_length),
             None,
             Attribute::CONFIGURABLE | Attribute::NON_ENUMERABLE,
         )
         .accessor(
-            "byteOffset",
+            PropertyKey::String(Sym::BYTE_OFFSET),
             Some(get_byte_offset),
             None,
             Attribute::CONFIGURABLE | Attribute::NON_ENUMERABLE,
         )
         .accessor(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             Some(get_length),
             None,
             Attribute::CONFIGURABLE | Attribute::NON_ENUMERABLE,
@@ -440,7 +441,12 @@ impl TypedArray {
                 };
 
                 // v. Perform ? Set(targetObj, Pk, mappedValue, true).
-                target_obj.set(k, mapped_value, true, context)?;
+                target_obj.set(
+                    PropertyKey::from_usize(k, context),
+                    mapped_value,
+                    true,
+                    context,
+                )?;
             }
 
             // f. Assert: values is now an empty List.
@@ -465,12 +471,13 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ? Get(arrayLike, Pk).
-            let k_value = array_like.get(k, context)?;
+            let k = PropertyKey::from_usize(k, context);
+            let k_value = array_like.get(k.clone(), context)?;
 
             // c. If mapping is true, then
             let mapped_value = if let Some(map_fn) = &mapping {
                 // i. Let mappedValue be ? Call(mapfn, thisArg, « kValue, 𝔽(k) »).
-                map_fn.call(this_arg, &[k_value, k.into()], context)?
+                map_fn.call(this_arg, &[k_value, k.to_js_value(context)], context)?
             }
             // d. Else, let mappedValue be kValue.
             else {
@@ -512,7 +519,7 @@ impl TypedArray {
             // a. Let kValue be items[k].
             // b. Let Pk be ! ToString(𝔽(k)).
             // c. Perform ? Set(newObj, Pk, kValue, true).
-            new_obj.set(k, k_value, true, context)?;
+            new_obj.set(PropertyKey::from_usize(k, context), k_value, true, context)?;
         }
 
         // 7. Return newObj.
@@ -575,7 +582,7 @@ impl TypedArray {
         }
 
         // 8. Return ! Get(O, ! ToString(𝔽(k))).
-        Ok(obj.get(k, context).expect("Get cannot fail here"))
+        Ok(obj.get(PropertyKey::from_i64(k, context), context).expect("Get cannot fail here"))
     }
 
     /// `23.2.3.2 get %TypedArray%.prototype.buffer`
@@ -897,7 +904,7 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context)?;
+            let k_value = obj.get(PropertyKey::from_usize(k, context), context)?;
 
             // c. Let testResult be ! ToBoolean(? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »)).
             let test_result = callback_fn
@@ -987,7 +994,7 @@ impl TypedArray {
         while k < r#final {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Perform ! Set(O, Pk, value, true).
-            obj.set(k, value.clone(), true, context)
+            obj.set(PropertyKey::from_i64(k, context), value.clone(), true, context)
                 .expect("Set cannot fail here");
 
             // c. Set k to k + 1.
@@ -1042,7 +1049,9 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k_value = obj
+                .get(PropertyKey::from_usize(k, context), context)
+                .expect("Get cannot fail here");
 
             // c. Let selected be ! ToBoolean(? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »)).#
             let selected = callback_fn
@@ -1070,8 +1079,13 @@ impl TypedArray {
         // 11. For each element e of kept, do
         for (n, e) in kept.iter().enumerate() {
             // a. Perform ! Set(A, ! ToString(𝔽(n)), e, true).
-            a.set(n, e.clone(), true, context)
-                .expect("Set cannot fail here");
+            a.set(
+                PropertyKey::from_usize(n, context),
+                e.clone(),
+                true,
+                context,
+            )
+            .expect("Set cannot fail here");
             // b. Set n to n + 1.
         }
 
@@ -1117,7 +1131,9 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k_value = obj
+                .get(PropertyKey::from_usize(k, context), context)
+                .expect("Get cannot fail here");
 
             // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
             // d. If testResult is true, return kValue.
@@ -1174,7 +1190,9 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k_value = obj
+                .get(PropertyKey::from_usize(k, context), context)
+                .expect("Get cannot fail here");
 
             // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
             // d. If testResult is true, return 𝔽(k).
@@ -1232,7 +1250,9 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k_value = obj
+                .get(PropertyKey::from_usize(k, context), context)
+                .expect("Get cannot fail here");
 
             // c. Perform ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
             callback_fn.call(
@@ -1304,7 +1324,7 @@ impl TypedArray {
         // 11. Repeat, while k < len,
         while k < len {
             // a. Let elementK be ! Get(O, ! ToString(𝔽(k))).
-            let element_k = obj.get(k, context).expect("Get cannot fail here");
+            let element_k = obj.get(PropertyKey::from_i64(k, context), context).expect("Get cannot fail here");
 
             // b. If SameValueZero(searchElement, elementK) is true, return true.
             if JsValue::same_value_zero(args.get_or_undefined(0), &element_k) {
@@ -1378,13 +1398,13 @@ impl TypedArray {
         while k < len {
             // a. Let kPresent be ! HasProperty(O, ! ToString(𝔽(k))).
             let k_present = obj
-                .has_property(k, context)
+                .has_property(PropertyKey::from_i64(k, context), context)
                 .expect("HasProperty cannot fail here");
 
             // b. If kPresent is true, then
             if k_present {
                 // i. Let elementK be ! Get(O, ! ToString(𝔽(k))).
-                let element_k = obj.get(k, context).expect("Get cannot fail here");
+                let element_k = obj.get(PropertyKey::from_i64(k, context), context).expect("Get cannot fail here");
 
                 // ii. Let same be IsStrictlyEqual(searchElement, elementK).
                 // iii. If same is true, return 𝔽(k).
@@ -1445,7 +1465,9 @@ impl TypedArray {
             }
 
             // b. Let element be ! Get(O, ! ToString(𝔽(k))).
-            let element = obj.get(k, context).expect("Get cannot fail here");
+            let element = obj
+                .get(PropertyKey::from_usize(k, context), context)
+                .expect("Get cannot fail here");
 
             // c. If element is undefined, let next be the empty String; otherwise, let next be ! ToString(element).
             // d. Set R to the string-concatenation of R and next.
@@ -1537,13 +1559,13 @@ impl TypedArray {
         while k >= 0 {
             // a. Let kPresent be ! HasProperty(O, ! ToString(𝔽(k))).
             let k_present = obj
-                .has_property(k, context)
+                .has_property(PropertyKey::from_i64(k, context), context)
                 .expect("HasProperty cannot fail here");
 
             // b. If kPresent is true, then
             if k_present {
                 // i. Let elementK be ! Get(O, ! ToString(𝔽(k))).
-                let element_k = obj.get(k, context).expect("Get cannot fail here");
+                let element_k = obj.get(PropertyKey::from_i64(k, context), context).expect("Get cannot fail here");
 
                 // ii. Let same be IsStrictlyEqual(searchElement, elementK).
                 // iii. If same is true, return 𝔽(k).
@@ -1630,12 +1652,13 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k = PropertyKey::from_usize(k, context);
+            let k_value = obj.get(k.clone(), context).expect("Get cannot fail here");
 
             // c. Let mappedValue be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
             let mapped_value = callback_fn.call(
                 args.get_or_undefined(1),
-                &[k_value, k.into(), this.clone()],
+                &[k_value, k.to_js_value(context), this.clone()],
                 context,
             )?;
 
@@ -1700,14 +1723,16 @@ impl TypedArray {
             // b. Set accumulator to ! Get(O, Pk).
             // c. Set k to k + 1.
             k += 1;
-            obj.get(0, context).expect("Get cannot fail here")
+            obj.get(0u32, context).expect("Get cannot fail here")
         };
 
         // 10. Repeat, while k < len,
         while k < len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k_value = obj
+                .get(PropertyKey::from_usize(k, context), context)
+                .expect("Get cannot fail here");
 
             // c. Set accumulator to ? Call(callbackfn, undefined, « accumulator, kValue, 𝔽(k), O »).
             accumulator = callback_fn.call(
@@ -1774,7 +1799,7 @@ impl TypedArray {
         } else {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Set accumulator to ! Get(O, Pk).
-            let accumulator = obj.get(k, context).expect("Get cannot fail here");
+            let accumulator = obj.get(PropertyKey::from_i64(k, context), context).expect("Get cannot fail here");
 
             // c. Set k to k - 1.
             k -= 1;
@@ -1786,7 +1811,7 @@ impl TypedArray {
         while k >= 0 {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k_value = obj.get(PropertyKey::from_i64(k, context), context).expect("Get cannot fail here");
 
             // c. Set accumulator to ? Call(callbackfn, undefined, « accumulator, kValue, 𝔽(k), O »).
             accumulator = callback_fn.call(
@@ -1825,34 +1850,36 @@ impl TypedArray {
         }
 
         // 3. Let len be O.[[ArrayLength]].
-        let len = o.array_length() as f64;
+        let len = o.array_length() as u64;
 
         // 4. Let middle be floor(len / 2).
-        let middle = (len / 2.0).floor();
+        let middle = (len as f64 / 2.0).floor() as u64;
 
         // 5. Let lower be 0.
-        let mut lower = 0.0;
+        let mut lower = 0;
         // 6. Repeat, while lower ≠ middle,
         while lower != middle {
             // a. Let upper be len - lower - 1.
-            let upper = len - lower - 1.0;
+            let upper = len - lower - 1;
 
             // b. Let upperP be ! ToString(𝔽(upper)).
+            let upper_p = PropertyKey::from_u64(upper, context);
             // c. Let lowerP be ! ToString(𝔽(lower)).
+            let lower_p = PropertyKey::from_u64(lower, context);
             // d. Let lowerValue be ! Get(O, lowerP).
-            let lower_value = obj.get(lower, context).expect("Get cannot fail here");
+            let lower_value = obj.get(lower_p.clone(), context).expect("Get cannot fail here");
             // e. Let upperValue be ! Get(O, upperP).
-            let upper_value = obj.get(upper, context).expect("Get cannot fail here");
+            let upper_value = obj.get(upper_p.clone(), context).expect("Get cannot fail here");
 
             // f. Perform ! Set(O, lowerP, upperValue, true).
-            obj.set(lower, upper_value, true, context)
+            obj.set(lower_p, upper_value, true, context)
                 .expect("Set cannot fail here");
             // g. Perform ! Set(O, upperP, lowerValue, true).
-            obj.set(upper, lower_value, true, context)
+            obj.set(upper_p, lower_value, true, context)
                 .expect("Set cannot fail here");
 
             // h. Set lower to lower + 1.
-            lower += 1.0;
+            lower += 1;
         }
 
         // 7. Return O.
@@ -2184,7 +2211,7 @@ impl TypedArray {
         let mut target_byte_index = target_offset * target_element_size + target_byte_offset;
 
         // 13. Let k be 0.
-        let mut k = 0;
+        let mut k = 0u32;
 
         // 14. Let limit be targetByteIndex + targetElementSize × srcLength.
         let limit = target_byte_index + target_element_size * src_length;
@@ -2312,12 +2339,12 @@ impl TypedArray {
             // f. If srcType is different from targetType, then
             if o.typed_array_name() != a_array.typed_array_name() {
                 // i. Let n be 0.
-                let mut n = 0;
+                let mut n = 0u32;
                 // ii. Repeat, while k < final,
                 while k < r#final {
                     // 1. Let Pk be ! ToString(𝔽(k)).
                     // 2. Let kValue be ! Get(O, Pk).
-                    let k_value = obj.get(k, context).expect("Get cannot fail here");
+                    let k_value = obj.get(PropertyKey::from_i64(k, context), context).expect("Get cannot fail here");
 
                     // 3. Perform ! Set(A, ! ToString(𝔽(n)), kValue, true).
                     a.set(n, k_value, true, context)
@@ -2438,7 +2465,9 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ! Get(O, Pk).
-            let k_value = obj.get(k, context).expect("Get cannot fail here");
+            let k_value = obj
+                .get(PropertyKey::from_usize(k, context), context)
+                .expect("Get cannot fail here");
 
             // c. Let testResult be ! ToBoolean(? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »)).
             // d. If testResult is true, return true.
@@ -2511,7 +2540,8 @@ impl TypedArray {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kPresent be ? HasProperty(obj, Pk).
             // c. If kPresent is true, then
-            if obj.has_property(k, context)? {
+            let k = PropertyKey::from_usize(k, context);
+            if obj.has_property(k.clone(), context)? {
                 // i. Let kValue be ? Get(obj, Pk).
                 let k_val = obj.get(k, context)?;
                 // ii. Append kValue to items.
@@ -2651,14 +2681,14 @@ impl TypedArray {
         // 10. Repeat, while j < itemCount,
         for (j, item) in items.into_iter().enumerate() {
             // a. Perform ? Set(obj, ! ToString(𝔽(j)), items[j], true).
-            obj.set(j, item, true, context)?;
+            obj.set(PropertyKey::from_usize(j, context), item, true, context)?;
             // b. Set j to j + 1.
         }
 
         // 11. Repeat, while j < len,
         for j in item_count..len {
             // a. Perform ? DeletePropertyOrThrow(obj, ! ToString(𝔽(j))).
-            obj.delete_property_or_throw(j, context)?;
+            obj.delete_property_or_throw(PropertyKey::from_usize(j, context), context)?;
             // b. Set j to j + 1.
         }
 
@@ -2957,7 +2987,7 @@ impl TypedArray {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be the first element of values and remove that element from values.
             // c. Perform ? Set(O, Pk, kValue, true).
-            o.set(k, k_value, true, context)?;
+            o.set(PropertyKey::from_usize(k, context), k_value, true, context)?;
             // d. Set k to k + 1.
         }
 
@@ -3277,7 +3307,8 @@ impl TypedArray {
         for k in 0..len {
             // a. Let Pk be ! ToString(𝔽(k)).
             // b. Let kValue be ? Get(arrayLike, Pk).
-            let k_value = array_like.get(k, context)?;
+            let k = PropertyKey::from_usize(k, context);
+            let k_value = array_like.get(k.clone(), context)?;
 
             // c. Perform ? Set(O, Pk, kValue, true).
             o.set(k, k_value, true, context)?;

@@ -413,7 +413,7 @@ impl Default for Context {
         // but for now we almost always want these default builtins
         let typed_array_constructor_constructor = TypedArray::init(&mut context);
         let typed_array_constructor_prototype = typed_array_constructor_constructor
-            .get("prototype", &mut context)
+            .get(PropertyKey::String(Sym::PROTOTYPE), &mut context)
             .expect("prototype must exist")
             .as_object()
             .expect("prototype must be object")
@@ -727,7 +727,7 @@ impl Context {
             .build();
 
         self.global_object().insert_property(
-            name,
+            PropertyKey::from_str(name, self),
             PropertyDescriptor::builder()
                 .value(function)
                 .writable(true)
@@ -770,7 +770,7 @@ impl Context {
             .build();
 
         self.global_object().insert_property(
-            name,
+            PropertyKey::from_str(name, self),
             PropertyDescriptor::builder()
                 .value(function)
                 .writable(true)
@@ -817,7 +817,7 @@ impl Context {
             .writable(T::ATTRIBUTES.writable())
             .enumerable(T::ATTRIBUTES.enumerable())
             .configurable(T::ATTRIBUTES.configurable());
-        self.global_object().insert(T::NAME, property);
+        self.global_object().insert(PropertyKey::from_str(T::NAME, self), property);
         Ok(())
     }
 

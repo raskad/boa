@@ -61,9 +61,11 @@
 //!
 //! [class-trait]: ./trait.Class.html
 
+use boa_interner::Sym;
+
 use crate::{
     builtins::function::NativeFunctionSignature,
-    object::{ConstructorBuilder, JsObject, NativeObject, ObjectData, PROTOTYPE},
+    object::{ConstructorBuilder, JsObject, NativeObject, ObjectData},
     property::{Attribute, PropertyDescriptor, PropertyKey},
     Context, JsResult, JsValue,
 };
@@ -110,7 +112,7 @@ impl<T: Class> ClassConstructor for T {
             ));
         }
 
-        let class_constructor = context.global_object().get(T::NAME, context)?;
+        let class_constructor = context.global_object().get(PropertyKey::from_str(T::NAME, context), context)?;
         let class_constructor = if let JsValue::Object(ref obj) = class_constructor {
             obj
         } else {
@@ -120,7 +122,7 @@ impl<T: Class> ClassConstructor for T {
             ));
         };
         let class_prototype =
-            if let JsValue::Object(ref obj) = class_constructor.get(PROTOTYPE, context)? {
+            if let JsValue::Object(ref obj) = class_constructor.get(PropertyKey::String(Sym::PROTOTYPE), context)? {
                 obj.clone()
             } else {
                 return context.throw_type_error(format!(
@@ -133,7 +135,7 @@ impl<T: Class> ClassConstructor for T {
             .as_object()
             .cloned()
             .map(|obj| {
-                obj.get(PROTOTYPE, context)
+                obj.get(PropertyKey::String(Sym::PROTOTYPE), context)
                     .map(|val| val.as_object().cloned())
             })
             .transpose()?

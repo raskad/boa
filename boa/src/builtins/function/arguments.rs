@@ -3,11 +3,12 @@ use crate::{
     environment::lexical_environment::Environment,
     gc::{Finalize, Trace},
     object::{FunctionBuilder, JsObject, ObjectData},
-    property::PropertyDescriptor,
+    property::{PropertyDescriptor, PropertyKey},
     symbol::{self, WellKnownSymbols},
     syntax::ast::node::FormalParameter,
     Context, JsValue,
 };
+use boa_interner::Sym;
 use rustc_hash::FxHashSet;
 
 #[derive(Debug, Clone, Trace, Finalize)]
@@ -49,7 +50,7 @@ impl Arguments {
         // 4. Perform DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len),
         // [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
         obj.define_property_or_throw(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             PropertyDescriptor::builder()
                 .value(len)
                 .writable(true)
@@ -64,7 +65,7 @@ impl Arguments {
         for (index, value) in arguments_list.iter().cloned().enumerate() {
             // a. Let val be argumentsList[index].
             // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-            obj.create_data_property_or_throw(index, value, context)
+            obj.create_data_property_or_throw(PropertyKey::from_usize(index, context), value, context)
                 .expect("CreateDataPropertyOrThrow must not fail per the spec");
 
             // c. Set index to index + 1.
@@ -90,7 +91,7 @@ impl Arguments {
         // [[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false,
         // [[Configurable]]: false }).
         obj.define_property_or_throw(
-            "callee",
+            PropertyKey::String(Sym::CALLEE),
             PropertyDescriptor::builder()
                 .get(throw_type_error.clone())
                 .set(throw_type_error)
@@ -141,7 +142,7 @@ impl Arguments {
         for (index, val) in arguments_list.iter().cloned().enumerate() {
             // a. Let val be argumentsList[index].
             // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-            obj.create_data_property_or_throw(index, val, context)
+            obj.create_data_property_or_throw(PropertyKey::from_usize(index, context), val, context)
                 .expect("CreateDataPropertyOrThrow must not fail per the spec");
             // c. Set index to index + 1.
         }
@@ -149,7 +150,7 @@ impl Arguments {
         // 16. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len),
         // [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
         obj.define_property_or_throw(
-            "length",
+            PropertyKey::String(Sym::LENGTH),
             PropertyDescriptor::builder()
                 .value(len)
                 .writable(true)
@@ -225,7 +226,7 @@ impl Arguments {
                         // 3. Perform map.[[DefineOwnProperty]](! ToString(𝔽(index)), PropertyDescriptor {
                         // [[Set]]: p, [[Get]]: g, [[Enumerable]]: false, [[Configurable]]: true }).
                         map.__define_own_property__(
-                            index.into(),
+                            PropertyKey::from_usize(index, context),
                             PropertyDescriptor::builder()
                                 .set(p)
                                 .get(g)
@@ -257,7 +258,7 @@ impl Arguments {
         // 21. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor {
         // [[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
         obj.define_property_or_throw(
-            "callee",
+            PropertyKey::String(Sym::CALLEE),
             PropertyDescriptor::builder()
                 .value(func.clone())
                 .writable(true)

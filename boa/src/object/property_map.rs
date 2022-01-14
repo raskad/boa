@@ -1,8 +1,9 @@
 use super::{PropertyDescriptor, PropertyKey};
 use crate::{
     gc::{custom_trace, Finalize, Trace},
-    JsString, JsSymbol,
+    JsSymbol,
 };
+use boa_interner::Sym;
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHasher};
 use std::{collections::hash_map, hash::BuildHasherDefault, iter::FusedIterator};
@@ -30,7 +31,7 @@ unsafe impl<K: Trace> Trace for OrderedHashMap<K> {
 pub struct PropertyMap {
     indexed_properties: FxHashMap<u32, PropertyDescriptor>,
     /// Properties
-    string_properties: OrderedHashMap<JsString>,
+    string_properties: OrderedHashMap<Sym>,
     /// Symbol Properties
     symbol_properties: OrderedHashMap<JsSymbol>,
 }
@@ -55,7 +56,7 @@ impl PropertyMap {
         match &key {
             PropertyKey::Index(index) => self.indexed_properties.insert(*index, property),
             PropertyKey::String(string) => {
-                self.string_properties.0.insert(string.clone(), property)
+                self.string_properties.0.insert(*string, property)
             }
             PropertyKey::Symbol(symbol) => {
                 self.symbol_properties.0.insert(symbol.clone(), property)
@@ -186,7 +187,7 @@ impl PropertyMap {
 #[derive(Debug, Clone)]
 pub struct Iter<'a> {
     indexed_properties: hash_map::Iter<'a, u32, PropertyDescriptor>,
-    string_properties: indexmap::map::Iter<'a, JsString, PropertyDescriptor>,
+    string_properties: indexmap::map::Iter<'a, Sym, PropertyDescriptor>,
     symbol_properties: indexmap::map::Iter<'a, JsSymbol, PropertyDescriptor>,
 }
 
@@ -196,7 +197,7 @@ impl<'a> Iterator for Iter<'a> {
         if let Some((key, value)) = self.indexed_properties.next() {
             Some(((*key).into(), value))
         } else if let Some((key, value)) = self.string_properties.next() {
-            Some((key.clone().into(), value))
+            Some((PropertyKey::String(*key), value))
         } else {
             let (key, value) = self.symbol_properties.next()?;
             Some((key.clone().into(), value))
@@ -419,10 +420,10 @@ impl FusedIterator for IndexPropertyValues<'_> {}
 
 /// An iterator over the `String` property entries of an `Object`
 #[derive(Debug, Clone)]
-pub struct StringProperties<'a>(indexmap::map::Iter<'a, JsString, PropertyDescriptor>);
+pub struct StringProperties<'a>(indexmap::map::Iter<'a, Sym, PropertyDescriptor>);
 
 impl<'a> Iterator for StringProperties<'a> {
-    type Item = (&'a JsString, &'a PropertyDescriptor);
+    type Item = (&'a Sym, &'a PropertyDescriptor);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -446,10 +447,10 @@ impl FusedIterator for StringProperties<'_> {}
 
 /// An iterator over the string keys (`RcString`) of an `Object`.
 #[derive(Debug, Clone)]
-pub struct StringPropertyKeys<'a>(indexmap::map::Keys<'a, JsString, PropertyDescriptor>);
+pub struct StringPropertyKeys<'a>(indexmap::map::Keys<'a, Sym, PropertyDescriptor>);
 
 impl<'a> Iterator for StringPropertyKeys<'a> {
-    type Item = &'a JsString;
+    type Item = &'a Sym;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -473,7 +474,7 @@ impl FusedIterator for StringPropertyKeys<'_> {}
 
 /// An iterator over the string values (`Property`) of an `Object`.
 #[derive(Debug, Clone)]
-pub struct StringPropertyValues<'a>(indexmap::map::Values<'a, JsString, PropertyDescriptor>);
+pub struct StringPropertyValues<'a>(indexmap::map::Values<'a, Sym, PropertyDescriptor>);
 
 impl<'a> Iterator for StringPropertyValues<'a> {
     type Item = &'a PropertyDescriptor;
