@@ -1,7 +1,5 @@
 //! Javascript context.
 
-use boa_interner::Sym;
-
 use crate::{
     builtins::{
         self, function::NativeFunctionSignature, intrinsics::IntrinsicObjects,
@@ -17,6 +15,7 @@ use crate::{
     vm::{CallFrame, CodeBlock, FinallyReturn, Vm},
     BoaProfiler, Interner, JsResult, JsValue,
 };
+use boa_interner::Sym;
 
 #[cfg(feature = "console")]
 use crate::builtins::console::Console;
@@ -897,7 +896,7 @@ impl Context {
             Err(e) => return self.throw_syntax_error(e),
         };
 
-        let code_block = self.compile(&statement_list);
+        let code_block = self.compile(&statement_list)?;
         let result = self.execute(code_block);
 
         // The main_timer needs to be dropped before the BoaProfiler is.
@@ -909,11 +908,14 @@ impl Context {
 
     /// Compile the AST into a `CodeBlock` ready to be executed by the VM.
     #[inline]
-    pub fn compile(&mut self, statement_list: &StatementList) -> Gc<CodeBlock> {
+    pub fn compile(&mut self, statement_list: &StatementList) -> JsResult<Gc<CodeBlock>> {
         let _ = BoaProfiler::global().start_event("Compilation", "Main");
-        let mut compiler = ByteCompiler::new(Sym::MAIN, statement_list.strict(), &self.interner);
-        compiler.compile_statement_list(statement_list, true);
-        Gc::new(compiler.finish())
+        let mut compiler = ByteCompiler::new(Sym::MAIN, statement_list.strict(), self);
+        for node in statement_list.items() {
+            compiler.create_declarations(node)?;
+        }
+        compiler.compile_statement_list(statement_list, true)?;
+        Ok(Gc::new(compiler.finish()))
     }
 
     /// Call the VM with a `CodeBlock` and return the result.
@@ -936,12 +938,18 @@ impl Context {
             finally_return: FinallyReturn::None,
             finally_jump: Vec::new(),
             pop_on_return: 0,
-            pop_env_on_return: 0,
+            loop_env_stack: vec![0],
+            try_env_stack: vec![crate::vm::TryStackEntry {
+                num_env: 0,
+                num_loop_stack_entries: 0,
+            }],
             param_count: 0,
             arg_count: 0,
         });
 
-        self.run()
+        let result = self.run();
+        self.vm.pop_frame();
+        result
     }
 
     /// Return the cached iterator prototypes.
