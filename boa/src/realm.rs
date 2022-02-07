@@ -4,15 +4,14 @@
 //!
 //! A realm is represented in this implementation as a Realm struct with the fields specified from the spec.
 
-use gc::GcCell;
-
 use crate::{
     bytecompiler::EnvironmentStack,
-    environment::object_environment_record::ObjectEnvironmentRecord,
     gc::{Finalize, Gc, Trace},
-    object::{JsObject, ObjectData},
+    object::{JsObject, ObjectData, PropertyMap},
     BoaProfiler, JsValue,
 };
+use gc::GcCell;
+use std::borrow::Borrow;
 
 /// Representation of a Realm.
 ///
@@ -20,7 +19,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Realm {
     pub global_object: JsObject,
-    pub object_record: ObjectEnvironmentRecord,
+    pub(crate) global_bindings: PropertyMap,
     pub(crate) environments: DeclarativeEnvironmentStack,
     pub(crate) compile_env: EnvironmentStack,
 }
@@ -33,14 +32,10 @@ impl Realm {
         // Global has no prototype to pass None to new_obj
         // Allow identification of the global object easily
         let global_object = JsObject::from_proto_and_data(None, ObjectData::global());
-        let object_record = ObjectEnvironmentRecord {
-            bindings: global_object.clone(),
-            with_environment: false,
-        };
 
         Self {
             global_object,
-            object_record,
+            global_bindings: PropertyMap::default(),
             environments: DeclarativeEnvironmentStack::new(),
             compile_env: EnvironmentStack::new(),
         }
@@ -58,22 +53,25 @@ impl DeclarativeEnvironmentStack {
         Self {
             stack: vec![Gc::new(DeclarativeEnvironment {
                 bindings: GcCell::new(vec![None; 100]),
-                parent: None,
                 function: None,
             })],
         }
     }
 
     #[inline]
+    pub(crate) fn get_last_this(&self) -> Option<JsValue> {
+        for env in self.stack.iter().rev() {
+            if let Some(function_env) = env.function.borrow() {
+                return Some(function_env.this_value.clone());
+            }
+        }
+        None
+    }
+
+    #[inline]
     pub(crate) fn push_declarative(&mut self, num_bindings: usize) {
         self.stack.push(Gc::new(DeclarativeEnvironment {
             bindings: GcCell::new(vec![None; num_bindings]),
-            parent: Some(
-                self.stack
-                    .last()
-                    .expect("must always have an environment")
-                    .clone(),
-            ),
             function: None,
         }));
     }
@@ -90,12 +88,6 @@ impl DeclarativeEnvironmentStack {
     ) {
         self.stack.push(Gc::new(DeclarativeEnvironment {
             bindings: GcCell::new(vec![None; num_bindings]),
-            parent: Some(
-                self.stack
-                    .last()
-                    .expect("must always have an environment")
-                    .clone(),
-            ),
             function: Some(FunctionEnvironment {
                 this_value,
                 lexical,
@@ -212,7 +204,6 @@ impl DeclarativeEnvironmentStack {
 #[derive(Debug, Trace, Finalize)]
 pub(crate) struct DeclarativeEnvironment {
     bindings: GcCell<Vec<Option<JsValue>>>,
-    parent: Option<Gc<DeclarativeEnvironment>>,
     function: Option<FunctionEnvironment>,
 }
 

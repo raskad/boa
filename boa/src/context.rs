@@ -725,13 +725,14 @@ impl Context {
             .constructor(true)
             .build();
 
-        self.global_object().insert_property(
-            name,
+        self.realm.global_bindings.string_property_map_mut().insert(
+            name.into(),
             PropertyDescriptor::builder()
                 .value(function)
                 .writable(true)
                 .enumerable(false)
-                .configurable(true),
+                .configurable(true)
+                .build(),
         );
         Ok(())
     }
@@ -768,13 +769,14 @@ impl Context {
             .constructor(true)
             .build();
 
-        self.global_object().insert_property(
-            name,
+        self.realm.global_bindings.string_property_map_mut().insert(
+            name.into(),
             PropertyDescriptor::builder()
                 .value(function)
                 .writable(true)
                 .enumerable(false)
-                .configurable(true),
+                .configurable(true)
+                .build(),
         );
         Ok(())
     }
@@ -815,8 +817,13 @@ impl Context {
             .value(class)
             .writable(T::ATTRIBUTES.writable())
             .enumerable(T::ATTRIBUTES.enumerable())
-            .configurable(T::ATTRIBUTES.configurable());
-        self.global_object().insert(T::NAME, property);
+            .configurable(T::ATTRIBUTES.configurable())
+            .build();
+
+        self.realm
+            .global_bindings
+            .string_property_map_mut()
+            .insert(T::NAME.into(), property);
         Ok(())
     }
 
@@ -858,13 +865,14 @@ impl Context {
         K: Into<PropertyKey>,
         V: Into<JsValue>,
     {
-        self.global_object().insert(
-            key,
+        self.realm.global_bindings.insert(
+            key.into(),
             PropertyDescriptor::builder()
                 .value(value)
                 .writable(attribute.writable())
                 .enumerable(attribute.enumerable())
-                .configurable(attribute.configurable()),
+                .configurable(attribute.configurable())
+                .build(),
         );
     }
 

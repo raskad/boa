@@ -1,6 +1,7 @@
 use crate::{
     builtins::function::ThisMode,
     gc::{empty_trace, Finalize, Gc, Trace},
+    property::{PropertyDescriptor, PropertyKey},
     syntax::ast::{
         node::{
             declaration::{BindingPatternTypeArray, BindingPatternTypeObject, DeclarationPattern},
@@ -141,9 +142,8 @@ impl<'b> ByteCompiler<'b> {
     fn emit_binding(&mut self, opcode: Opcode, name: Sym) -> JsResult<()> {
         match opcode {
             Opcode::DefInitVar => {
-                let strict = self.code_block.strict;
                 let binding = if self.environments().has_binding(name) {
-                    self.environments().set_mutable_binding(name, strict)
+                    self.environments().set_mutable_binding(name)
                 } else {
                     EnvironmentStack::initialize_mutable_binding(name, true, self.context)?
                 };
@@ -523,8 +523,7 @@ impl<'b> ByteCompiler<'b> {
 
         match access {
             Access::Variable { name } => {
-                let s = self.code_block.strict;
-                let binding = self.environments().set_mutable_binding(name, s);
+                let binding = self.environments().set_mutable_binding(name);
                 let index = self.get_or_insert_binding(binding);
                 self.emit(Opcode::SetName, &[index]);
             }
@@ -1204,7 +1203,7 @@ impl<'b> ByteCompiler<'b> {
                 }
             }
             Node::ForLoop(for_loop) => {
-                self.context.realm.compile_env.push(false, false);
+                self.context.realm.compile_env.push(false);
                 let push_env = self.jump_with_custom_opcode(Opcode::PushDeclarativeEnvironment);
 
                 if let Some(init) = for_loop.init() {
@@ -1256,29 +1255,26 @@ impl<'b> ByteCompiler<'b> {
                 self.push_loop_control_info_for_of_in_loop(for_in_loop.label(), start_address);
                 self.emit_opcode(Opcode::LoopContinue);
 
-                self.context.realm.compile_env.push(false, false);
+                self.context.realm.compile_env.push(false);
                 let push_env = self.jump_with_custom_opcode(Opcode::PushDeclarativeEnvironment);
                 let exit = self.jump_with_custom_opcode(Opcode::ForInLoopNext);
 
                 match for_in_loop.init() {
                     IterableLoopInitializer::Identifier(ref ident) => {
-                        let strict = self.code_block.strict;
                         EnvironmentStack::create_mutable_binding(
                             ident.sym(),
-                            false,
                             true,
                             true,
                             self.context,
                         )?;
-                        let binding = self.environments().set_mutable_binding(ident.sym(), strict);
+                        let binding = self.environments().set_mutable_binding(ident.sym());
                         let index = self.get_or_insert_binding(binding);
-                        self.emit(Opcode::SetName, &[index]);
+                        self.emit(Opcode::DefInitVar, &[index]);
                     }
                     IterableLoopInitializer::Var(declaration) => match declaration {
                         Declaration::Identifier { ident, .. } => {
                             EnvironmentStack::create_mutable_binding(
                                 ident.sym(),
-                                false,
                                 true,
                                 true,
                                 self.context,
@@ -1289,7 +1285,6 @@ impl<'b> ByteCompiler<'b> {
                             for ident in pattern.idents() {
                                 EnvironmentStack::create_mutable_binding(
                                     ident,
-                                    false,
                                     true,
                                     true,
                                     self.context,
@@ -1304,7 +1299,6 @@ impl<'b> ByteCompiler<'b> {
                                 ident.sym(),
                                 false,
                                 false,
-                                false,
                                 self.context,
                             )?;
                             self.emit_binding(Opcode::DefInitLet, ident.sym())?;
@@ -1313,7 +1307,6 @@ impl<'b> ByteCompiler<'b> {
                             for ident in pattern.idents() {
                                 EnvironmentStack::create_mutable_binding(
                                     ident,
-                                    false,
                                     false,
                                     false,
                                     self.context,
@@ -1361,29 +1354,26 @@ impl<'b> ByteCompiler<'b> {
                 self.push_loop_control_info_for_of_in_loop(for_of_loop.label(), start_address);
                 self.emit_opcode(Opcode::LoopContinue);
 
-                self.context.realm.compile_env.push(false, false);
+                self.context.realm.compile_env.push(false);
                 let push_env = self.jump_with_custom_opcode(Opcode::PushDeclarativeEnvironment);
                 let exit = self.jump_with_custom_opcode(Opcode::ForInLoopNext);
 
                 match for_of_loop.init() {
                     IterableLoopInitializer::Identifier(ref ident) => {
-                        let strict = self.code_block.strict;
                         EnvironmentStack::create_mutable_binding(
                             ident.sym(),
-                            false,
                             true,
                             true,
                             self.context,
                         )?;
-                        let binding = self.environments().set_mutable_binding(ident.sym(), strict);
+                        let binding = self.environments().set_mutable_binding(ident.sym());
                         let index = self.get_or_insert_binding(binding);
-                        self.emit(Opcode::SetName, &[index]);
+                        self.emit(Opcode::DefInitVar, &[index]);
                     }
                     IterableLoopInitializer::Var(declaration) => match declaration {
                         Declaration::Identifier { ident, .. } => {
                             EnvironmentStack::create_mutable_binding(
                                 ident.sym(),
-                                false,
                                 true,
                                 true,
                                 self.context,
@@ -1394,7 +1384,6 @@ impl<'b> ByteCompiler<'b> {
                             for ident in pattern.idents() {
                                 EnvironmentStack::create_mutable_binding(
                                     ident,
-                                    false,
                                     true,
                                     true,
                                     self.context,
@@ -1409,7 +1398,6 @@ impl<'b> ByteCompiler<'b> {
                                 ident.sym(),
                                 false,
                                 false,
-                                false,
                                 self.context,
                             )?;
                             self.emit_binding(Opcode::DefInitLet, ident.sym())?;
@@ -1418,7 +1406,6 @@ impl<'b> ByteCompiler<'b> {
                             for ident in pattern.idents() {
                                 EnvironmentStack::create_mutable_binding(
                                     ident,
-                                    false,
                                     false,
                                     false,
                                     self.context,
@@ -1585,7 +1572,7 @@ impl<'b> ByteCompiler<'b> {
                 }
             }
             Node::Block(block) => {
-                self.context.realm.compile_env.push(false, false);
+                self.context.realm.compile_env.push(false);
                 let push_env = self.jump_with_custom_opcode(Opcode::PushDeclarativeEnvironment);
                 for node in block.items() {
                     self.create_declarations(node)?;
@@ -1602,7 +1589,7 @@ impl<'b> ByteCompiler<'b> {
                 self.emit(Opcode::Throw, &[]);
             }
             Node::Switch(switch) => {
-                self.context.realm.compile_env.push(false, false);
+                self.context.realm.compile_env.push(false);
                 let push_env = self.jump_with_custom_opcode(Opcode::PushDeclarativeEnvironment);
                 for case in switch.cases() {
                     for node in case.body().items() {
@@ -1658,7 +1645,7 @@ impl<'b> ByteCompiler<'b> {
                 self.push_try_control_info(t.finally().is_some());
                 let try_start = self.next_opcode_location();
                 self.emit(Opcode::TryStart, &[Self::DUMMY_ADDRESS, 0]);
-                self.context.realm.compile_env.push(false, false);
+                self.context.realm.compile_env.push(false);
                 let push_env = self.jump_with_custom_opcode(Opcode::PushDeclarativeEnvironment);
                 for node in t.block().items() {
                     self.create_declarations(node)?;
@@ -1681,14 +1668,13 @@ impl<'b> ByteCompiler<'b> {
                     } else {
                         None
                     };
-                    self.context.realm.compile_env.push(false, false);
+                    self.context.realm.compile_env.push(false);
                     let push_env = self.jump_with_custom_opcode(Opcode::PushDeclarativeEnvironment);
                     if let Some(decl) = catch.parameter() {
                         match decl {
                             Declaration::Identifier { ident, .. } => {
                                 EnvironmentStack::create_mutable_binding(
                                     ident.sym(),
-                                    false,
                                     false,
                                     false,
                                     self.context,
@@ -1699,7 +1685,6 @@ impl<'b> ByteCompiler<'b> {
                                 for ident in pattern.idents() {
                                     EnvironmentStack::create_mutable_binding(
                                         ident,
-                                        false,
                                         false,
                                         false,
                                         self.context,
@@ -1818,11 +1803,7 @@ impl<'b> ByteCompiler<'b> {
             context: self.context,
         };
 
-        compiler
-            .context
-            .realm
-            .compile_env
-            .push(true, kind == FunctionKind::Arrow);
+        compiler.context.realm.compile_env.push(true);
 
         let mut arguments_in_parameter_names = false;
         for parameter in parameters {
@@ -1838,7 +1819,6 @@ impl<'b> ByteCompiler<'b> {
         if !(kind == FunctionKind::Arrow) && !arguments_in_parameter_names {
             EnvironmentStack::create_mutable_binding(
                 Sym::ARGUMENTS,
-                false,
                 false,
                 true,
                 compiler.context,
@@ -1869,7 +1849,6 @@ impl<'b> ByteCompiler<'b> {
                     EnvironmentStack::create_mutable_binding(
                         ident.sym(),
                         false,
-                        false,
                         true,
                         compiler.context,
                     )?;
@@ -1884,7 +1863,6 @@ impl<'b> ByteCompiler<'b> {
                     for ident in pattern.idents() {
                         EnvironmentStack::create_mutable_binding(
                             ident,
-                            false,
                             false,
                             true,
                             compiler.context,
@@ -1909,11 +1887,7 @@ impl<'b> ByteCompiler<'b> {
                 .expect("must have an environment")
                 .borrow()
                 .num_bindings();
-            compiler
-                .context
-                .realm
-                .compile_env
-                .push(true, kind == FunctionKind::Arrow);
+            compiler.context.realm.compile_env.push(true);
             Some(compiler.jump_with_custom_opcode(Opcode::PushFunctionEnvironment))
         } else {
             None
@@ -2207,7 +2181,6 @@ impl<'b> ByteCompiler<'b> {
                             }
                             EnvironmentStack::create_mutable_binding(
                                 ident,
-                                false,
                                 true,
                                 true,
                                 self.context,
@@ -2220,7 +2193,6 @@ impl<'b> ByteCompiler<'b> {
                                 }
                                 EnvironmentStack::create_mutable_binding(
                                     ident,
-                                    false,
                                     true,
                                     true,
                                     self.context,
@@ -2242,7 +2214,6 @@ impl<'b> ByteCompiler<'b> {
                                 ident,
                                 false,
                                 false,
-                                false,
                                 self.context,
                             )?;
                         }
@@ -2253,7 +2224,6 @@ impl<'b> ByteCompiler<'b> {
                                 }
                                 EnvironmentStack::create_mutable_binding(
                                     ident,
-                                    false,
                                     false,
                                     false,
                                     self.context,
@@ -2289,28 +2259,28 @@ impl<'b> ByteCompiler<'b> {
                 if ident == Sym::ARGUMENTS {
                     has_identifier_argument = true;
                 }
-                EnvironmentStack::create_mutable_binding(ident, false, true, true, self.context)?;
+                EnvironmentStack::create_mutable_binding(ident, true, true, self.context)?;
             }
             Node::GeneratorDecl(decl) => {
                 let ident = decl.name();
                 if ident == Sym::ARGUMENTS {
                     has_identifier_argument = true;
                 }
-                EnvironmentStack::create_mutable_binding(ident, false, true, true, self.context)?;
+                EnvironmentStack::create_mutable_binding(ident, true, true, self.context)?;
             }
             Node::AsyncFunctionDecl(decl) => {
                 let ident = decl.name();
                 if ident == Sym::ARGUMENTS {
                     has_identifier_argument = true;
                 }
-                EnvironmentStack::create_mutable_binding(ident, false, true, true, self.context)?;
+                EnvironmentStack::create_mutable_binding(ident, true, true, self.context)?;
             }
             Node::AsyncGeneratorDecl(decl) => {
                 let ident = decl.name();
                 if ident == Sym::ARGUMENTS {
                     has_identifier_argument = true;
                 }
-                EnvironmentStack::create_mutable_binding(ident, false, true, true, self.context)?;
+                EnvironmentStack::create_mutable_binding(ident, true, true, self.context)?;
             }
             Node::DoWhileLoop(do_while_loop) => {
                 if !matches!(do_while_loop.body(), Node::Block(_)) {
@@ -2405,10 +2375,6 @@ impl BindingLocator {
     pub(crate) fn name(&self) -> Sym {
         self.name
     }
-
-    pub(crate) fn function_scope(&self) -> bool {
-        self.function_scope
-    }
 }
 
 #[derive(Debug)]
@@ -2422,16 +2388,14 @@ impl EnvironmentStack {
             stack: vec![Gc::new(GcCell::new(Environment {
                 bindings: FxHashMap::default(),
                 function_scope: true,
-                lexical: false,
             }))],
         }
     }
 
-    fn push(&mut self, function_scope: bool, lexical: bool) {
+    fn push(&mut self, function_scope: bool) {
         self.stack.push(Gc::new(GcCell::new(Environment {
             bindings: FxHashMap::default(),
             function_scope,
-            lexical,
         })));
     }
 
@@ -2444,7 +2408,6 @@ impl EnvironmentStack {
 struct Environment {
     bindings: FxHashMap<Sym, Binding>,
     function_scope: bool,
-    lexical: bool,
 }
 
 impl Environment {
@@ -2461,7 +2424,6 @@ unsafe impl Trace for Environment {
 #[derive(Debug)]
 struct Binding {
     index: usize,
-    can_delete: bool,
     mutable: bool,
     strict: bool,
     function_scope: bool,
@@ -2492,20 +2454,21 @@ impl EnvironmentStack {
         context: &mut Context,
     ) -> JsResult<BindingLocator> {
         for (i, env) in context.realm.compile_env.stack.iter().enumerate().rev() {
-            let mut env = env.borrow_mut();
+            let env = env.borrow();
             if function_scope && !env.function_scope {
                 continue;
-            } else {
-                let binding = env.bindings.get_mut(&name).expect("binding must exist");
+            } else if let Some(binding) = env.bindings.get(&name) {
                 return Ok(BindingLocator::declarative(
                     name,
                     i,
                     binding.index,
                     binding.function_scope,
                 ));
+            } else {
+                return Ok(BindingLocator::global(name));
             }
         }
-        panic!("global binding must be function scoped")
+        Ok(BindingLocator::global(name))
     }
 
     fn initialize_immutable_binding(
@@ -2541,7 +2504,13 @@ impl EnvironmentStack {
             .expect("at least the global declarative environment must exist")
             .borrow_mut();
 
-        if env.bindings.contains_key(&name) {
+        if env.bindings.contains_key(&name)
+            || (context.realm.compile_env.stack.len() == 1
+                && context
+                    .realm
+                    .global_bindings
+                    .contains_key(&context.interner().resolve_expect(name).into()))
+        {
             drop(env);
             let msg = format!(
                 "Redeclaration of variable {}",
@@ -2555,7 +2524,6 @@ impl EnvironmentStack {
             name,
             Binding {
                 index: binding_index,
-                can_delete: true,
                 mutable: false,
                 strict: false,
                 function_scope: false,
@@ -2566,13 +2534,12 @@ impl EnvironmentStack {
 
     fn create_mutable_binding(
         name: Sym,
-        can_delete: bool,
         function_scope: bool,
         allow_name_reuse: bool,
         context: &mut Context,
     ) -> JsResult<()> {
         let mut redeclaration_error = false;
-        for env in context.realm.compile_env.stack.iter().rev() {
+        for (i, env) in context.realm.compile_env.stack.iter().enumerate().rev() {
             let mut env = env.borrow_mut();
             if function_scope && !env.function_scope {
                 continue;
@@ -2586,12 +2553,41 @@ impl EnvironmentStack {
                     }
                 }
 
+                if i == 0 {
+                    let name = context.interner().resolve_expect(name);
+                    let key = PropertyKey::from(name);
+                    let desc = context.realm.global_bindings.get(&key);
+                    let non_configurable_binding_exists = match desc {
+                        Some(desc) => !matches!(desc.configurable(), Some(true)),
+                        None => false,
+                    };
+                    if function_scope && desc.is_none() {
+                        context.realm.global_bindings.insert(
+                            key,
+                            PropertyDescriptor::builder()
+                                .value(JsValue::Undefined)
+                                .writable(true)
+                                .enumerable(true)
+                                .configurable(true)
+                                .build(),
+                        );
+                        return Ok(());
+                    } else if function_scope {
+                        return Ok(());
+                    } else if !function_scope
+                        && !allow_name_reuse
+                        && non_configurable_binding_exists
+                    {
+                        redeclaration_error = true;
+                        break;
+                    }
+                }
+
                 let binding_index = env.bindings.len();
                 env.bindings.insert(
                     name,
                     Binding {
                         index: binding_index,
-                        can_delete,
                         mutable: true,
                         strict: false,
                         function_scope,
@@ -2610,7 +2606,7 @@ impl EnvironmentStack {
         panic!("global binding must be function scoped")
     }
 
-    fn set_mutable_binding(&self, name: Sym, strict: bool) -> BindingLocator {
+    fn set_mutable_binding(&self, name: Sym) -> BindingLocator {
         for (i, env) in self.stack.iter().enumerate().rev() {
             if let Some(binding) = env.borrow().bindings.get(&name) {
                 if !binding.mutable {

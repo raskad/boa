@@ -12,7 +12,7 @@
 //! [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
 
 use crate::{
-    builtins::{JsArgs, BuiltIn},
+    builtins::{BuiltIn, JsArgs},
     context::StandardObjects,
     gc::{self, Finalize, Gc, Trace},
     object::{

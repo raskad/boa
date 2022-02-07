@@ -4,7 +4,7 @@
 
 use crate::{
     builtins::{iterable::IteratorRecord, Array, ForInIterator, Number},
-    property::{PropertyDescriptor, PropertyKey},
+    property::{DescriptorKind, PropertyDescriptor, PropertyKey},
     value::Numeric,
     vm::{call_frame::CatchAddresses, code_block::Readable},
     BoaProfiler, Context, JsBigInt, JsResult, JsString, JsValue,
@@ -308,9 +308,25 @@ impl Context {
             Opcode::DefVar => {
                 let index = self.vm.read::<u32>();
                 let binding_locator = self.vm.frame().code.bindings[index as usize];
-                let object_record = self.realm.object_record.clone();
-                let name = JsString::new(self.interner().resolve_expect(binding_locator.name()));
-                if !object_record.has_binding(&name, self)? {
+
+                if binding_locator.is_global() {
+                    let key = self
+                        .interner()
+                        .resolve_expect(binding_locator.name())
+                        .into();
+                    self.realm
+                        .global_bindings
+                        .string_property_map_mut()
+                        .entry(key)
+                        .or_insert(
+                            PropertyDescriptor::builder()
+                                .value(JsValue::Undefined)
+                                .writable(true)
+                                .enumerable(true)
+                                .configurable(true)
+                                .build(),
+                        );
+                } else {
                     self.realm.environments.put_value_if_uninitialized(
                         binding_locator.environment_index(),
                         binding_locator.binding_index(),
@@ -323,21 +339,19 @@ impl Context {
                 let value = self.vm.pop();
                 let binding_locator = self.vm.frame().code.bindings[index as usize];
                 binding_locator.throw_mutate_immutable(self)?;
-                let object_record = self.realm.object_record.clone();
-                let name = JsString::new(self.interner().resolve_expect(binding_locator.name()));
-                if binding_locator.is_global() || object_record.has_binding(&name, self)? {
-                    let name =
-                        JsString::from(self.interner().resolve_expect(binding_locator.name()));
-                    let object_record = self.realm.object_record.clone();
-                    if object_record.has_binding(&name, self)? {
-                        object_record.set_mutable_binding(&name, value, self.strict(), self)?;
-                    } else {
-                        self.realm.environments.put_value(
-                            binding_locator.environment_index(),
-                            binding_locator.binding_index(),
-                            value,
-                        );
-                    }
+
+                if binding_locator.is_global() {
+                    let key = self
+                        .interner()
+                        .resolve_expect(binding_locator.name())
+                        .into();
+                    crate::object::internal_methods::global::global_set(
+                        &self.global_object(),
+                        key,
+                        value,
+                        self.global_object().into(),
+                        self,
+                    )?;
                 } else {
                     self.realm.environments.put_value(
                         binding_locator.environment_index(),
@@ -382,30 +396,34 @@ impl Context {
                 let index = self.vm.read::<u32>();
                 let binding_locator = self.vm.frame().code.bindings[index as usize];
                 binding_locator.throw_mutate_immutable(self)?;
+
                 let value = if binding_locator.is_global() {
-                    let name =
-                        JsString::from(self.interner().resolve_expect(binding_locator.name()));
-                    let object_record = self.realm.object_record.clone();
-                    if object_record.has_binding(&name, self)? {
-                        object_record.bindings.get(name, self)?
-                    } else {
-                        return self.throw_reference_error(format!("{} is not defined", name));
-                    }
-                } else if binding_locator.environment_index() == 0 {
-                    if let Some(value) = self.realm.environments.get_value_optional(
-                        binding_locator.environment_index(),
-                        binding_locator.binding_index(),
-                    ) {
-                        value
-                    } else {
-                        let name =
-                            JsString::from(self.interner().resolve_expect(binding_locator.name()));
-                        let object_record = self.realm.object_record.clone();
-                        if object_record.has_binding(&name, self)? {
-                            object_record.bindings.get(name, self)?
-                        } else {
-                            return self.throw_reference_error(format!("{} is not defined", name));
-                        }
+                    let key: JsString = self
+                        .interner()
+                        .resolve_expect(binding_locator.name())
+                        .into();
+                    match self
+                        .realm
+                        .global_bindings
+                        .string_property_map_mut()
+                        .get(&key)
+                    {
+                        Some(desc) => match desc.kind() {
+                            DescriptorKind::Data {
+                                value: Some(value), ..
+                            } => value.clone(),
+                            DescriptorKind::Accessor { get: Some(get), .. }
+                                if !get.is_undefined() =>
+                            {
+                                let get = get.clone();
+                                self.call(&get, &self.global_object().into(), &[])?
+                            }
+                            _ => {
+                                return self
+                                    .throw_reference_error(format!("{} is not defined", key))
+                            }
+                        },
+                        _ => return self.throw_reference_error(format!("{} is not defined", key)),
                     }
                 } else if let Some(value) = self.realm.environments.get_value_optional(
                     binding_locator.environment_index(),
@@ -425,13 +443,29 @@ impl Context {
                 let binding_locator = self.vm.frame().code.bindings[index as usize];
                 binding_locator.throw_mutate_immutable(self)?;
                 let value = if binding_locator.is_global() {
-                    let name =
-                        JsString::from(self.interner().resolve_expect(binding_locator.name()));
-                    let object_record = self.realm.object_record.clone();
-                    if object_record.has_binding(&name, self)? {
-                        object_record.bindings.get(name, self)?
-                    } else {
-                        JsValue::Undefined
+                    let key: JsString = self
+                        .interner()
+                        .resolve_expect(binding_locator.name())
+                        .into();
+                    match self
+                        .realm
+                        .global_bindings
+                        .string_property_map_mut()
+                        .get(&key)
+                    {
+                        Some(desc) => match desc.kind() {
+                            DescriptorKind::Data {
+                                value: Some(value), ..
+                            } => value.clone(),
+                            DescriptorKind::Accessor { get: Some(get), .. }
+                                if !get.is_undefined() =>
+                            {
+                                let get = get.clone();
+                                self.call(&get, &self.global_object().into(), &[])?
+                            }
+                            _ => JsValue::undefined(),
+                        },
+                        _ => JsValue::undefined(),
                     }
                 } else if let Some(value) = self.realm.environments.get_value_optional(
                     binding_locator.environment_index(),
@@ -449,41 +483,45 @@ impl Context {
                 let binding_locator = self.vm.frame().code.bindings[index as usize];
                 let value = self.vm.pop();
                 binding_locator.throw_mutate_immutable(self)?;
+
                 if binding_locator.is_global() {
-                    let name =
-                        JsString::from(self.interner().resolve_expect(binding_locator.name()));
-                    let object_record = self.realm.object_record.clone();
-                    object_record.set_mutable_binding(
-                        &name,
+                    let key: JsString = self
+                        .interner()
+                        .resolve_expect(binding_locator.name())
+                        .into();
+                    let exists = self
+                        .realm
+                        .global_bindings
+                        .string_property_map_mut()
+                        .contains_key(&key);
+
+                    if !exists && (self.strict() || self.vm.frame().code.strict) {
+                        return self.throw_reference_error("Binding already exists");
+                    }
+
+                    let success = crate::object::internal_methods::global::global_set(
+                        &self.global_object(),
+                        key.clone().into(),
                         value,
-                        self.strict() || self.vm.frame().code.strict,
+                        self.global_object().into(),
                         self,
                     )?;
-                } else {
-                    let initialized = self.realm.environments.put_value_if_initialized(
-                        binding_locator.environment_index(),
-                        binding_locator.binding_index(),
-                        value.clone(),
-                    );
-                    if !initialized
-                        && binding_locator.environment_index() == 0
-                        && binding_locator.function_scope()
-                    {
-                        let name =
-                            JsString::from(self.interner().resolve_expect(binding_locator.name()));
-                        let object_record = self.realm.object_record.clone();
-                        object_record.set_mutable_binding(
-                            &name,
-                            value,
-                            self.strict() || self.vm.frame().code.strict,
-                            self,
-                        )?;
-                    } else if !initialized {
-                        self.throw_reference_error(format!(
-                            "cannot access '{}' before initialization",
-                            self.interner().resolve_expect(binding_locator.name())
-                        ))?;
+
+                    if !success && (self.strict() || self.vm.frame().code.strict) {
+                        return self.throw_type_error(format!(
+                            "cannot set non-writable property: {}",
+                            key
+                        ));
                     }
+                } else if !self.realm.environments.put_value_if_initialized(
+                    binding_locator.environment_index(),
+                    binding_locator.binding_index(),
+                    value,
+                ) {
+                    self.throw_reference_error(format!(
+                        "cannot access '{}' before initialization",
+                        self.interner().resolve_expect(binding_locator.name())
+                    ))?;
                 }
             }
             Opcode::Jump => {

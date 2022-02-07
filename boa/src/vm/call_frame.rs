@@ -36,36 +36,36 @@ impl CallFrame {
     }
 
     pub(crate) fn try_env_stack_inc(&mut self) {
-        self
-            .try_env_stack
+        self.try_env_stack
             .last_mut()
-            .expect("try environment stack entry must exist").num_env += 1;
+            .expect("try environment stack entry must exist")
+            .num_env += 1;
     }
 
     pub(crate) fn try_env_stack_dec(&mut self) {
-        self
-            .try_env_stack
+        self.try_env_stack
             .last_mut()
-            .expect("try environment stack entry must exist").num_env -= 1;
+            .expect("try environment stack entry must exist")
+            .num_env -= 1;
     }
 
     pub(crate) fn try_env_stack_loop_inc(&mut self) {
-        self
-            .try_env_stack
+        self.try_env_stack
             .last_mut()
-            .expect("try environment stack entry must exist").num_loop_stack_entries += 1;
+            .expect("try environment stack entry must exist")
+            .num_loop_stack_entries += 1;
     }
 
     pub(crate) fn try_env_stack_loop_dec(&mut self) {
-        self
-            .try_env_stack
+        self.try_env_stack
             .last_mut()
-            .expect("try environment stack entry must exist").num_loop_stack_entries -= 1;
+            .expect("try environment stack entry must exist")
+            .num_loop_stack_entries -= 1;
     }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct  TryStackEntry {
+pub(crate) struct TryStackEntry {
     pub(crate) num_env: usize,
     pub(crate) num_loop_stack_entries: usize,
 }

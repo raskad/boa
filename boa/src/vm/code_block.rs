@@ -545,13 +545,21 @@ impl JsObject {
 
                 let lexical_this_mode = code.this_mode == ThisMode::Lexical;
 
+                let this = if lexical_this_mode {
+                    if let Some(this) = context.realm.environments.get_last_this() {
+                        this
+                    } else {
+                        context.realm.global_object.clone().into()
+                    }
+                } else if (!code.strict && !context.strict()) && this.is_null_or_undefined() {
+                    context.realm.global_object.clone().into()
+                } else {
+                    this.clone()
+                };
+
                 context.realm.environments.push_function(
                     code.num_bindings,
-                    if !lexical_this_mode {
-                        this.clone()
-                    } else {
-                        JsValue::undefined()
-                    },
+                    this.clone(),
                     lexical_this_mode,
                     this_function_object.clone(),
                     JsValue::undefined(),
@@ -609,12 +617,6 @@ impl JsObject {
                 }
 
                 let param_count = code.params.len();
-
-                let this = if !code.strict && this.is_null_or_undefined() {
-                    context.realm.global_object.clone().into()
-                } else {
-                    this.clone()
-                };
 
                 context.vm.push_frame(CallFrame {
                     prev: None,
@@ -769,7 +771,7 @@ impl JsObject {
 
                 let param_count = code.params.len();
 
-                let this = if !code.strict && this.is_null_or_undefined() {
+                let this = if (!code.strict && !context.strict()) && this.is_null_or_undefined() {
                     context.realm.global_object.clone().into()
                 } else {
                     this
