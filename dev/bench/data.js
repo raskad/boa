@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1645495256316,
+  "lastUpdate": 1645650213162,
   "repoUrl": "https://github.com/raskad/boa",
   "entries": {
     "Boa Benchmarks": [
@@ -9929,6 +9929,432 @@ window.BENCHMARK_DATA = {
             "name": "Mini js (Execution)",
             "value": 1000735,
             "range": "± 8138",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "halidodat@gmail.com",
+            "name": "Halid Odat",
+            "username": "HalidOdat"
+          },
+          "committer": {
+            "email": "halidodat@gmail.com",
+            "name": "Halid Odat",
+            "username": "HalidOdat"
+          },
+          "distinct": true,
+          "id": "9dda8d3eaef4a2d8e90a9ceb4857a3c7f2de084a",
+          "message": "Toggleable `JsValue` internals displaying (#1865)\n\nThis PR makes `JsValue` (object) only display owned properties, cleans up object printing. This can be toggled with `value.display().internals(true)`\r\n\r\n`>> ({x: 1, y: \"\"})`\r\n_Before:_\r\n<details>\r\n<pre>\r\n{\r\n   x: 1,\r\n   y: \"\",\r\n__proto__: {\r\nhasOwnProperty: {\r\n      length: 1,\r\n        name: \"hasOwnProperty\",\r\n   __proto__: {\r\n            name: \"\",\r\n          length: 0,\r\n           apply: {\r\n              length: 1,\r\n                name: \"apply\",\r\n           __proto__: [Cycle]\r\n                },\r\n            bind: {\r\n              length: 1,\r\n                name: \"bind\",\r\n           __proto__: [Cycle]\r\n                },\r\n            call: {\r\n              length: 1,\r\n                name: \"call\",\r\n           __proto__: [Cycle]\r\n                },\r\n        toString: {\r\n              length: 0,\r\n                name: \"toString\",\r\n           __proto__: [Cycle]\r\n                },\r\n     constructor: {\r\n              length: 1,\r\n                name: \"Function\",\r\n           prototype: [Cycle],\r\n           __proto__: [Cycle]\r\n                },\r\nSymbol(Symbol.hasInstance): {\r\n              length: 1,\r\n                name: \"[Symbol.iterator]\",\r\n           __proto__: [Cycle]\r\n                },\r\n       __proto__: [Cycle]\r\n            }\r\n        },\r\npropertyIsEnumerable: {\r\n      length: 1,\r\n        name: \"propertyIsEnumerable\",\r\n   __proto__: {\r\n            name: \"\",\r\n          length: 0,\r\n           apply: {\r\n              length: 1,\r\n                name: \"apply\",\r\n           __proto__: [Cycle]\r\n                },\r\n            bind: {\r\n              length: 1,\r\n                name: \"bind\",\r\n           __proto__: [Cycle]\r\n                },\r\n            call: {\r\n              length: 1,\r\n                name: \"call\",\r\n           __proto__: [Cycle]\r\n                },\r\n        toString: {\r\n              length: 0,\r\n                name: \"toString\",\r\n           __proto__: [Cycle]\r\n                },\r\n     constructor: {\r\n              length: 1,\r\n                name: \"Function\",\r\n           prototype: [Cycle],\r\n           __proto__: [Cycle]\r\n                },\r\nSymbol(Symbol.hasInstance): {\r\n              length: 1,\r\n                name: \"[Symbol.iterator]\",\r\n           __proto__: [Cycle]\r\n                },\r\n       __proto__: [Cycle]\r\n            }\r\n        },\r\ntoString: {\r\n      length: 0,\r\n        name: \"toString\",\r\n   __proto__: {\r\n            name: \"\",\r\n          length: 0,\r\n           apply: {\r\n              length: 1,\r\n                name: \"apply\",\r\n           __proto__: [Cycle]\r\n                },\r\n            bind: {\r\n              length: 1,\r\n                name: \"bind\",\r\n           __proto__: [Cycle]\r\n                },\r\n            call: {\r\n              length: 1,\r\n                name: \"call\",\r\n           __proto__: [Cycle]\r\n                },\r\n        toString: {\r\n              length: 0,\r\n                name: \"toString\",\r\n           __proto__: [Cycle]\r\n                },\r\n     constructor: {\r\n              length: 1,\r\n                name: \"Function\",\r\n           prototype: [Cycle],\r\n           __proto__: [Cycle]\r\n                },\r\nSymbol(Symbol.hasInstance): {\r\n              length: 1,\r\n                name: \"[Symbol.iterator]\",\r\n           __proto__: [Cycle]\r\n                },\r\n       __proto__: [Cycle]\r\n            }\r\n        },\r\n valueOf: {\r\n      length: 0,\r\n        name: \"valueOf\",\r\n   __proto__: {\r\n            name: \"\",\r\n          length: 0,\r\n           apply: {\r\n              length: 1,\r\n                name: \"apply\",\r\n           __proto__: [Cycle]\r\n                },\r\n            bind: {\r\n              length: 1,\r\n                name: \"bind\",\r\n           __proto__: [Cycle]\r\n                },\r\n            call: {\r\n              length: 1,\r\n                name: \"call\",\r\n           __proto__: [Cycle]\r\n                },\r\n        toString: {\r\n              length: 0,\r\n                name: \"toString\",\r\n           __proto__: [Cycle]\r\n                },\r\n     constructor: {\r\n              length: 1,\r\n                name: \"Function\",\r\n           prototype: [Cycle],\r\n           __proto__: [Cycle]\r\n                },\r\nSymbol(Symbol.hasInstance): {\r\n              length: 1,\r\n                name: \"[Symbol.iterator]\",\r\n           __proto__: [Cycle]\r\n                },\r\n       __proto__: [Cycle]\r\n            }\r\n        },\r\nisPrototypeOf: {\r\n      length: 1,\r\n        name: \"isPrototypeOf\",\r\n   __proto__: {\r\n            name: \"\",\r\n          length: 0,\r\n           apply: {\r\n              length: 1,\r\n                name: \"apply\",\r\n           __proto__: [Cycle]\r\n                },\r\n            bind: {\r\n              length: 1,\r\n                name: \"bind\",\r\n           __proto__: [Cycle]\r\n                },\r\n            call: {\r\n              length: 1,\r\n                name: \"call\",\r\n           __proto__: [Cycle]\r\n                },\r\n        toString: {\r\n              length: 0,\r\n                name: \"toString\",\r\n           __proto__: [Cycle]\r\n                },\r\n     constructor: {\r\n              length: 1,\r\n                name: \"Function\",\r\n           prototype: [Cycle],\r\n           __proto__: [Cycle]\r\n                },\r\nSymbol(Symbol.hasInstance): {\r\n              length: 1,\r\n                name: \"[Symbol.iterator]\",\r\n           __proto__: [Cycle]\r\n                },\r\n       __proto__: [Cycle]\r\n            }\r\n        },\r\nconstructor: {\r\n      create: {\r\n          length: 2,\r\n            name: \"create\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\nsetPrototypeOf: {\r\n          length: 2,\r\n            name: \"setPrototypeOf\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\ngetPrototypeOf: {\r\n          length: 1,\r\n            name: \"getPrototypeOf\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\ndefineProperty: {\r\n          length: 3,\r\n            name: \"defineProperty\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\ndefineProperties: {\r\n          length: 2,\r\n            name: \"defineProperties\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n      assign: {\r\n          length: 2,\r\n            name: \"assign\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n          is: {\r\n          length: 2,\r\n            name: \"is\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n        keys: {\r\n          length: 1,\r\n            name: \"keys\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n      values: {\r\n          length: 1,\r\n            name: \"values\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n     entries: {\r\n          length: 1,\r\n            name: \"entries\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n        seal: {\r\n          length: 1,\r\n            name: \"seal\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n    isSealed: {\r\n          length: 1,\r\n            name: \"isSealed\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n      freeze: {\r\n          length: 1,\r\n            name: \"freeze\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n    isFrozen: {\r\n          length: 1,\r\n            name: \"isFrozen\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\npreventExtensions: {\r\n          length: 1,\r\n            name: \"preventExtensions\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\nisExtensible: {\r\n          length: 1,\r\n            name: \"isExtensible\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\ngetOwnPropertyDescriptor: {\r\n          length: 2,\r\n            name: \"getOwnPropertyDescriptor\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\ngetOwnPropertyDescriptors: {\r\n          length: 1,\r\n            name: \"getOwnPropertyDescriptors\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\ngetOwnPropertyNames: {\r\n          length: 1,\r\n            name: \"getOwnPropertyNames\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\ngetOwnPropertySymbols: {\r\n          length: 1,\r\n            name: \"getOwnPropertySymbols\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n      hasOwn: {\r\n          length: 2,\r\n            name: \"hasOwn\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n fromEntries: {\r\n          length: 1,\r\n            name: \"fromEntries\",\r\n       __proto__: {\r\n                name: \"\",\r\n              length: 0,\r\n               apply: {\r\n                  length: 1,\r\n                    name: \"apply\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                bind: {\r\n                  length: 1,\r\n                    name: \"bind\",\r\n               __proto__: [Cycle]\r\n                    },\r\n                call: {\r\n                  length: 1,\r\n                    name: \"call\",\r\n               __proto__: [Cycle]\r\n                    },\r\n            toString: {\r\n                  length: 0,\r\n                    name: \"toString\",\r\n               __proto__: [Cycle]\r\n                    },\r\n         constructor: {\r\n                  length: 1,\r\n                    name: \"Function\",\r\n               prototype: [Cycle],\r\n               __proto__: [Cycle]\r\n                    },\r\nSymbol(Symbol.hasInstance): {\r\n                  length: 1,\r\n                    name: \"[Symbol.iterator]\",\r\n               __proto__: [Cycle]\r\n                    },\r\n           __proto__: [Cycle]\r\n                }\r\n            },\r\n      length: 1,\r\n        name: \"Object\",\r\n   prototype: [Cycle],\r\n   __proto__: {\r\n            name: \"\",\r\n          length: 0,\r\n           apply: {\r\n              length: 1,\r\n                name: \"apply\",\r\n           __proto__: [Cycle]\r\n                },\r\n            bind: {\r\n              length: 1,\r\n                name: \"bind\",\r\n           __proto__: [Cycle]\r\n                },\r\n            call: {\r\n              length: 1,\r\n                name: \"call\",\r\n           __proto__: [Cycle]\r\n                },\r\n        toString: {\r\n              length: 0,\r\n                name: \"toString\",\r\n           __proto__: [Cycle]\r\n                },\r\n     constructor: {\r\n              length: 1,\r\n                name: \"Function\",\r\n           prototype: [Cycle],\r\n           __proto__: [Cycle]\r\n                },\r\nSymbol(Symbol.hasInstance): {\r\n              length: 1,\r\n                name: \"[Symbol.iterator]\",\r\n           __proto__: [Cycle]\r\n                },\r\n       __proto__: [Cycle]\r\n            }\r\n        },\r\n__proto__: null\r\n    }\r\n}\r\n</pre>\r\n</details>\r\n\r\n_After:_\r\n```text\r\n{\r\n   x: 1,\r\n   y: \"\"\r\n}\r\n```",
+          "timestamp": "2022-02-23T19:34:53Z",
+          "tree_id": "db61d9d0e40ed8c2b32200172d1a2630bfcf4385",
+          "url": "https://github.com/raskad/boa/commit/9dda8d3eaef4a2d8e90a9ceb4857a3c7f2de084a"
+        },
+        "date": 1645650202017,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Create Realm",
+            "value": 344,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Symbols (Parser)",
+            "value": 5199,
+            "range": "± 228",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "For loop (Parser)",
+            "value": 17498,
+            "range": "± 1063",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Fibonacci (Parser)",
+            "value": 19758,
+            "range": "± 1254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Object Creation (Parser)",
+            "value": 11481,
+            "range": "± 728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Static Object Property Access (Parser)",
+            "value": 12331,
+            "range": "± 598",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Dynamic Object Property Access (Parser)",
+            "value": 13169,
+            "range": "± 1215",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Literal Creation (Parser)",
+            "value": 8248,
+            "range": "± 460",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Creation (Parser)",
+            "value": 10640,
+            "range": "± 734",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Literal (Parser)",
+            "value": 10349,
+            "range": "± 789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp (Parser)",
+            "value": 12480,
+            "range": "± 558",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array access (Parser)",
+            "value": 14698,
+            "range": "± 1124",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array creation (Parser)",
+            "value": 16685,
+            "range": "± 1285",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array pop (Parser)",
+            "value": 174629,
+            "range": "± 9634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String concatenation (Parser)",
+            "value": 9410,
+            "range": "± 622",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String comparison (Parser)",
+            "value": 13147,
+            "range": "± 506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String copy (Parser)",
+            "value": 7019,
+            "range": "± 471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Number Object Access (Parser)",
+            "value": 14114,
+            "range": "± 657",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Boolean Object Access (Parser)",
+            "value": 17827,
+            "range": "± 1070",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String Object Access (Parser)",
+            "value": 18149,
+            "range": "± 1724",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Arithmetic operations (Parser)",
+            "value": 7026,
+            "range": "± 753",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Clean js (Parser)",
+            "value": 37820,
+            "range": "± 3182",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mini js (Parser)",
+            "value": 32325,
+            "range": "± 3785",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Symbols (Compiler)",
+            "value": 1217,
+            "range": "± 63",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "For loop (Compiler)",
+            "value": 2509,
+            "range": "± 137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Fibonacci (Compiler)",
+            "value": 3028,
+            "range": "± 134",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Object Creation (Compiler)",
+            "value": 1807,
+            "range": "± 164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Static Object Property Access (Compiler)",
+            "value": 1877,
+            "range": "± 107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Dynamic Object Property Access (Compiler)",
+            "value": 2090,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Literal Creation (Compiler)",
+            "value": 1859,
+            "range": "± 280",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Creation (Compiler)",
+            "value": 1839,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Literal (Compiler)",
+            "value": 2156,
+            "range": "± 89",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp (Compiler)",
+            "value": 2142,
+            "range": "± 141",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array access (Compiler)",
+            "value": 1667,
+            "range": "± 69",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array creation (Compiler)",
+            "value": 2419,
+            "range": "± 124",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array pop (Compiler)",
+            "value": 4477,
+            "range": "± 178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String concatenation (Compiler)",
+            "value": 2152,
+            "range": "± 88",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String comparison (Compiler)",
+            "value": 2742,
+            "range": "± 149",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String copy (Compiler)",
+            "value": 1666,
+            "range": "± 66",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Number Object Access (Compiler)",
+            "value": 1397,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Boolean Object Access (Compiler)",
+            "value": 1465,
+            "range": "± 66",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String Object Access (Compiler)",
+            "value": 1990,
+            "range": "± 108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Arithmetic operations (Compiler)",
+            "value": 651,
+            "range": "± 64",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Clean js (Compiler)",
+            "value": 4547,
+            "range": "± 188",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mini js (Compiler)",
+            "value": 4352,
+            "range": "± 203",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Symbols (Execution)",
+            "value": 6223,
+            "range": "± 276",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "For loop (Execution)",
+            "value": 54343,
+            "range": "± 2428",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Fibonacci (Execution)",
+            "value": 2374156,
+            "range": "± 91934",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Object Creation (Execution)",
+            "value": 8211,
+            "range": "± 252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Static Object Property Access (Execution)",
+            "value": 8411,
+            "range": "± 350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Dynamic Object Property Access (Execution)",
+            "value": 8696,
+            "range": "± 277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Literal Creation (Execution)",
+            "value": 12424,
+            "range": "± 438",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Creation (Execution)",
+            "value": 12388,
+            "range": "± 518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp Literal (Execution)",
+            "value": 16621,
+            "range": "± 869",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "RegExp (Execution)",
+            "value": 16916,
+            "range": "± 956",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array access (Execution)",
+            "value": 13365,
+            "range": "± 368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array creation (Execution)",
+            "value": 4049387,
+            "range": "± 194752",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Array pop (Execution)",
+            "value": 1723622,
+            "range": "± 52287",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String concatenation (Execution)",
+            "value": 7037,
+            "range": "± 245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String comparison (Execution)",
+            "value": 7621,
+            "range": "± 352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String copy (Execution)",
+            "value": 6343,
+            "range": "± 286",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Number Object Access (Execution)",
+            "value": 5579,
+            "range": "± 255",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Boolean Object Access (Execution)",
+            "value": 7251,
+            "range": "± 243",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "String Object Access (Execution)",
+            "value": 9816,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Arithmetic operations (Execution)",
+            "value": 2444,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Clean js (Execution)",
+            "value": 1364325,
+            "range": "± 145403",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mini js (Execution)",
+            "value": 1299660,
+            "range": "± 43171",
             "unit": "ns/iter"
           }
         ]
