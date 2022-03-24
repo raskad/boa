@@ -9,7 +9,7 @@ use super::arguments::Arguments;
 use crate::syntax::{
     ast::{
         node::{
-            field::{GetConstField, GetField},
+            field::{get_private_field::GetPrivateField, GetConstField, GetField},
             Call, New, Node,
         },
         Keyword, Punctuator,
@@ -98,6 +98,10 @@ where
                         TokenKind::Identifier(name) => lhs = GetConstField::new(lhs, *name).into(),
                         TokenKind::Keyword(kw) => {
                             lhs = GetConstField::new(lhs, kw.to_sym(interner)).into();
+                        }
+                        TokenKind::PrivateIdentifier(name) => {
+                            cursor.push_used_private_identifier(*name, token.span().start())?;
+                            lhs = GetPrivateField::new(lhs, *name).into();
                         }
                         _ => {
                             return Err(ParseError::expected(
