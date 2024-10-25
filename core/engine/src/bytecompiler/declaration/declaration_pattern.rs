@@ -1,5 +1,7 @@
 use crate::{
-    bytecompiler::{Access, ByteCompiler, Literal, Operand, ToJsString},
+    bytecompiler::{
+        Access, ByteCompiler, InstructionOperand, Literal, Operand, Operand2, ToJsString,
+    },
     vm::{BindingOpcode, Opcode},
 };
 use boa_ast::{
@@ -37,21 +39,62 @@ impl ByteCompiler<'_> {
                             default_init,
                         } => {
                             self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::Dup);
+                            let dst = self.register_allocator.alloc();
+                            let value = self.register_allocator.alloc();
+                            self.pop_into_register(&value);
+
                             match name {
-                                PropertyName::Literal(name) => {
-                                    self.emit_get_property_by_name(*name);
-                                    excluded_keys.push(*name);
+                                PropertyName::Literal(ident) => {
+                                    self.emit_get_property_by_name(&dst, &value, &value, *ident);
+                                    self.push_from_register(&dst);
+                                    excluded_keys.push(*ident);
                                 }
                                 PropertyName::Computed(node) => {
                                     self.compile_expr(node, true);
+                                    let key = self.register_allocator.alloc();
+                                    self.pop_into_register(&key);
                                     if rest_exits {
-                                        self.emit_opcode(Opcode::GetPropertyByValuePush);
+                                        self.emit2(
+                                            Opcode::GetPropertyByValuePush,
+                                            &[
+                                                Operand2::Register(&dst),
+                                                Operand2::Operand(InstructionOperand::Register(
+                                                    &key,
+                                                )),
+                                                Operand2::Operand(InstructionOperand::Register(
+                                                    &value,
+                                                )),
+                                                Operand2::Operand(InstructionOperand::Register(
+                                                    &value,
+                                                )),
+                                            ],
+                                        );
+                                        self.push_from_register(&key);
+                                        self.push_from_register(&dst);
                                     } else {
-                                        self.emit_opcode(Opcode::GetPropertyByValue);
+                                        self.emit2(
+                                            Opcode::GetPropertyByValue,
+                                            &[
+                                                Operand2::Register(&dst),
+                                                Operand2::Operand(InstructionOperand::Register(
+                                                    &key,
+                                                )),
+                                                Operand2::Operand(InstructionOperand::Register(
+                                                    &value,
+                                                )),
+                                                Operand2::Operand(InstructionOperand::Register(
+                                                    &value,
+                                                )),
+                                            ],
+                                        );
+                                        self.push_from_register(&dst);
                                     }
+                                    self.register_allocator.dealloc(key);
                                 }
                             }
+
+                            self.register_allocator.dealloc(dst);
+                            self.register_allocator.dealloc(value);
 
                             if let Some(init) = default_init {
                                 let skip =
@@ -103,7 +146,7 @@ impl ByteCompiler<'_> {
                             self.access_set(
                                 Access::Property { access },
                                 false,
-                                ByteCompiler::access_set_top_of_stack_expr_fn,
+                                ByteCompiler::access_set_empty,
                             );
                         }
                         AssignmentPropertyAccess {
@@ -125,41 +168,69 @@ impl ByteCompiler<'_> {
                             self.access_set(
                                 Access::Property { access },
                                 false,
-                                |compiler: &mut ByteCompiler<'_>, level: u8| {
-                                    match level {
-                                        0 => {}
-                                        1 => compiler.emit_opcode(Opcode::Swap),
-                                        _ => {
-                                            compiler.emit(
-                                                Opcode::RotateLeft,
-                                                &[Operand::U8(level + 1)],
-                                            );
-                                        }
-                                    }
-                                    compiler.emit_opcode(Opcode::Dup);
+                                |compiler: &mut ByteCompiler<'_>| {
+                                    let dst = compiler.register_allocator.alloc();
+                                    let value = compiler.register_allocator.alloc();
+                                    compiler.pop_into_register(&value);
 
                                     match name {
-                                        PropertyName::Literal(name) => {
-                                            compiler.emit_get_property_by_name(*name);
+                                        PropertyName::Literal(ident) => {
+                                            compiler.emit_get_property_by_name(
+                                                &dst, &value, &value, *ident,
+                                            );
+                                            compiler.push_from_register(&dst);
                                         }
                                         PropertyName::Computed(_) => {
-                                            compiler.emit(
-                                                Opcode::RotateLeft,
-                                                &[Operand::U8(level + 3)],
-                                            );
+                                            compiler.emit(Opcode::RotateLeft, &[Operand::U8(1)]);
+                                            let key = compiler.register_allocator.alloc();
+                                            compiler.pop_into_register(&key);
+
                                             if rest_exits {
-                                                compiler
-                                                    .emit_opcode(Opcode::GetPropertyByValuePush);
-                                                compiler.emit_opcode(Opcode::Swap);
-                                                compiler.emit(
-                                                    Opcode::RotateRight,
-                                                    &[Operand::U8(level + 2)],
+                                                compiler.emit2(
+                                                    Opcode::GetPropertyByValuePush,
+                                                    &[
+                                                        Operand2::Register(&dst),
+                                                        Operand2::Operand(
+                                                            InstructionOperand::Register(&key),
+                                                        ),
+                                                        Operand2::Operand(
+                                                            InstructionOperand::Register(&value),
+                                                        ),
+                                                        Operand2::Operand(
+                                                            InstructionOperand::Register(&value),
+                                                        ),
+                                                    ],
                                                 );
+                                                compiler.push_from_register(&dst);
+                                                compiler.push_from_register(&key);
+
+                                                compiler
+                                                    .emit(Opcode::RotateRight, &[Operand::U8(2)]);
                                             } else {
-                                                compiler.emit_opcode(Opcode::GetPropertyByValue);
+                                                compiler.emit2(
+                                                    Opcode::GetPropertyByValue,
+                                                    &[
+                                                        Operand2::Register(&dst),
+                                                        Operand2::Operand(
+                                                            InstructionOperand::Register(&key),
+                                                        ),
+                                                        Operand2::Operand(
+                                                            InstructionOperand::Register(&value),
+                                                        ),
+                                                        Operand2::Operand(
+                                                            InstructionOperand::Register(&value),
+                                                        ),
+                                                    ],
+                                                );
+                                                compiler.push_from_register(&dst);
                                             }
+
+                                            compiler.register_allocator.dealloc(key);
                                         }
                                     }
+
+                                    compiler.register_allocator.dealloc(dst);
+                                    compiler.register_allocator.dealloc(value);
 
                                     if let Some(init) = default_init {
                                         let skip = compiler
@@ -181,16 +252,35 @@ impl ByteCompiler<'_> {
                             default_init,
                         } => {
                             self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::Dup);
+
+                            let dst = self.register_allocator.alloc();
+                            let value = self.register_allocator.alloc();
+                            self.pop_into_register(&value);
+
                             match name {
-                                PropertyName::Literal(name) => {
-                                    self.emit_get_property_by_name(*name);
+                                PropertyName::Literal(ident) => {
+                                    self.emit_get_property_by_name(&dst, &value, &value, *ident);
                                 }
                                 PropertyName::Computed(node) => {
                                     self.compile_expr(node, true);
-                                    self.emit_opcode(Opcode::GetPropertyByValue);
+                                    let key = self.register_allocator.alloc();
+                                    self.pop_into_register(&key);
+                                    self.emit2(
+                                        Opcode::GetPropertyByValue,
+                                        &[
+                                            Operand2::Register(&dst),
+                                            Operand2::Operand(InstructionOperand::Register(&key)),
+                                            Operand2::Operand(InstructionOperand::Register(&value)),
+                                            Operand2::Operand(InstructionOperand::Register(&value)),
+                                        ],
+                                    );
+                                    self.register_allocator.dealloc(key);
                                 }
                             }
+
+                            self.push_from_register(&dst);
+                            self.register_allocator.dealloc(dst);
+                            self.register_allocator.dealloc(value);
 
                             if let Some(init) = default_init {
                                 let skip =
@@ -270,7 +360,7 @@ impl ByteCompiler<'_> {
                 access,
                 default_init,
             } => {
-                self.access_set(Access::Property { access }, false, |compiler, _level| {
+                self.access_set(Access::Property { access }, false, |compiler| {
                     compiler.emit_opcode(Opcode::IteratorNextWithoutPop);
                     compiler.emit_opcode(Opcode::IteratorValueWithoutPop);
 
@@ -303,7 +393,7 @@ impl ByteCompiler<'_> {
                 self.emit_binding(def, ident.to_js_string(self.interner()));
             }
             PropertyAccessRest { access } => {
-                self.access_set(Access::Property { access }, false, |compiler, _level| {
+                self.access_set(Access::Property { access }, false, |compiler| {
                     compiler.emit_opcode(Opcode::IteratorToArray);
                 });
             }

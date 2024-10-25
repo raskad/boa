@@ -180,7 +180,7 @@ impl ByteCompiler<'_> {
                 self.access_set(
                     Access::Property { access },
                     false,
-                    ByteCompiler::access_set_top_of_stack_expr_fn,
+                    ByteCompiler::access_set_empty,
                 );
             }
             IterableLoopInitializer::Var(declaration) => match declaration.binding() {
@@ -302,7 +302,7 @@ impl ByteCompiler<'_> {
                 self.access_set(
                     Access::Property { access },
                     false,
-                    ByteCompiler::access_set_top_of_stack_expr_fn,
+                    ByteCompiler::access_set_empty,
                 );
             }
             IterableLoopInitializer::Var(declaration) => {

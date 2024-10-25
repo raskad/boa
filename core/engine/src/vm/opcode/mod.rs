@@ -1180,7 +1180,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, receiver, key **=>** value
-    GetPropertyByValue,
+    GetPropertyByValue { operand_types: u8, dst: VaryingOperand, key: VaryingOperand, receiver: VaryingOperand, object: VaryingOperand },
 
     /// Get a property by value from an object an push the key and value on the stack.
     ///
@@ -1189,7 +1189,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, receiver, key **=>** key, value
-    GetPropertyByValuePush,
+    GetPropertyByValuePush { operand_types: u8, dst: VaryingOperand, key: VaryingOperand, receiver: VaryingOperand, object: VaryingOperand },
 
     /// Sets a property by name of an object.
     ///
@@ -1197,8 +1197,14 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: object, receiver, value **=>** value
-    SetPropertyByName { index: VaryingOperand },
+    /// Stack: object, receiver, value **=>**
+    SetPropertyByName {
+        operand_types: u8,
+        value: VaryingOperand,
+        receiver: VaryingOperand,
+        object: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets the name of a function object.
     ///
@@ -1243,8 +1249,15 @@ generate_opcodes! {
     ///
     /// Operands:
     ///
-    /// Stack: object, receiver, key, value **=>** value
-    SetPropertyByValue,
+    /// Stack: object, receiver, key, value **=>**
+    SetPropertyByValue {
+        operand_types: u8,
+        value: VaryingOperand,
+        key: VaryingOperand,
+        receiver: VaryingOperand,
+        object: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Defines a own property of an object by value.
     ///
@@ -1381,8 +1394,8 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: object, value **=>** value
-    SetPrivateField { index: VaryingOperand },
+    /// Stack: object, value **=>**
+    SetPrivateField { operand_types: u8, value: VaryingOperand, object: VaryingOperand, index: VaryingOperand },
 
     /// Define a private property of a class constructor by it's name.
     ///
@@ -1427,7 +1440,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object **=>** value
-    GetPrivateField { index: VaryingOperand },
+    GetPrivateField { operand_types: u8, dst: VaryingOperand, object: VaryingOperand, index: VaryingOperand },
 
     /// Push a field to a class.
     ///
@@ -1623,7 +1636,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** this
-    This,
+    This { dst: VaryingOperand },
 
     /// Pushes `this` value that is related to the object environment of the given binding
     ///
@@ -1637,7 +1650,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** super
-    Super,
+    Super { dst: VaryingOperand },
 
     /// Get the super constructor and the new target of the current environment.
     ///

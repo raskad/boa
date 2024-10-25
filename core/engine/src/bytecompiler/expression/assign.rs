@@ -1,5 +1,5 @@
 use crate::{
-    bytecompiler::{Access, ByteCompiler, InstructionOperand, Operand, Operand2, ToJsString},
+    bytecompiler::{Access, ByteCompiler, InstructionOperand, Operand2, ToJsString},
     vm::{BindingOpcode, Opcode},
 };
 use boa_ast::{
@@ -14,7 +14,7 @@ impl ByteCompiler<'_> {
     pub(crate) fn compile_assign(&mut self, assign: &Assign, use_expr: bool) {
         if assign.op() == AssignOp::Assign {
             match Access::from_assign_target(assign.lhs()) {
-                Ok(access) => self.access_set(access, use_expr, |compiler, _| {
+                Ok(access) => self.access_set(access, use_expr, |compiler| {
                     compiler.compile_expr(assign.rhs(), true);
                 }),
                 Err(pattern) => {
@@ -52,7 +52,6 @@ impl ByteCompiler<'_> {
                 assign.op(),
                 AssignOp::BoolAnd | AssignOp::BoolOr | AssignOp::Coalesce
             );
-            let mut pop_count = 0;
             let mut early_exit = None;
 
             let lhs = self.register_allocator.alloc();
@@ -129,149 +128,252 @@ impl ByteCompiler<'_> {
                     PropertyAccess::Simple(access) => match access.field() {
                         PropertyAccessField::Const(name) => {
                             self.compile_expr(access.target(), true);
-                            self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::Dup);
+                            let object = self.register_allocator.alloc();
+                            self.pop_into_register(&object);
 
-                            self.emit_get_property_by_name(*name);
+                            self.emit_get_property_by_name(&lhs, &object, &object, *name);
 
                             if short_circuit {
-                                pop_count = 2;
-                                self.pop_into_register(&lhs);
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
                                     InstructionOperand::Register(&lhs),
                                 ));
                                 self.compile_expr(assign.rhs(), true);
                                 self.pop_into_register(&lhs);
-                                self.push_from_register(&lhs);
                             } else {
                                 self.compile_expr(assign.rhs(), true);
-                                emit_stack_opcode(self);
+                                let rhs = self.register_allocator.alloc();
+                                self.pop_into_register(&rhs);
+                                self.emit2(
+                                    opcode,
+                                    &[
+                                        Operand2::Register(&lhs),
+                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Operand(InstructionOperand::Register(&rhs)),
+                                    ],
+                                );
+                                self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_set_property_by_name(*name);
+                            self.emit_set_property_by_name(&lhs, &object, &object, *name);
 
-                            if !use_expr {
-                                self.emit_opcode(Opcode::Pop);
+                            self.register_allocator.dealloc(object);
+
+                            if use_expr {
+                                self.push_from_register(&lhs);
                             }
                         }
                         PropertyAccessField::Expr(expr) => {
                             self.compile_expr(access.target(), true);
-                            self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::Dup);
+                            let object = self.register_allocator.alloc();
+                            self.pop_into_register(&object);
+
                             self.compile_expr(expr, true);
+                            let key = self.register_allocator.alloc();
+                            self.pop_into_register(&key);
 
-                            self.emit_opcode(Opcode::GetPropertyByValuePush);
+                            self.emit2(
+                                Opcode::GetPropertyByValuePush,
+                                &[
+                                    Operand2::Register(&lhs),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                ],
+                            );
+
                             if short_circuit {
-                                pop_count = 3;
-
-                                self.pop_into_register(&lhs);
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
                                     InstructionOperand::Register(&lhs),
                                 ));
                                 self.compile_expr(assign.rhs(), true);
                                 self.pop_into_register(&lhs);
-                                self.push_from_register(&lhs);
                             } else {
                                 self.compile_expr(assign.rhs(), true);
-                                emit_stack_opcode(self);
+                                let rhs = self.register_allocator.alloc();
+                                self.pop_into_register(&rhs);
+                                self.emit2(
+                                    opcode,
+                                    &[
+                                        Operand2::Register(&lhs),
+                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Operand(InstructionOperand::Register(&rhs)),
+                                    ],
+                                );
+                                self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_opcode(Opcode::SetPropertyByValue);
-                            if !use_expr {
-                                self.emit_opcode(Opcode::Pop);
+                            self.emit2(
+                                Opcode::SetPropertyByValue,
+                                &[
+                                    Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                ],
+                            );
+
+                            self.register_allocator.dealloc(key);
+                            self.register_allocator.dealloc(object);
+
+                            if use_expr {
+                                self.push_from_register(&lhs);
                             }
                         }
                     },
                     PropertyAccess::Private(access) => {
                         let index = self.get_or_insert_private_name(access.field());
+
                         self.compile_expr(access.target(), true);
-                        self.emit_opcode(Opcode::Dup);
+                        let object = self.register_allocator.alloc();
+                        self.pop_into_register(&object);
 
-                        self.emit_with_varying_operand(Opcode::GetPrivateField, index);
+                        self.emit2(
+                            Opcode::GetPrivateField,
+                            &[
+                                Operand2::Register(&lhs),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Varying(index),
+                            ],
+                        );
+
                         if short_circuit {
-                            pop_count = 1;
-
-                            self.pop_into_register(&lhs);
                             early_exit = Some(self.emit_opcode_with_operand2(
                                 opcode,
                                 InstructionOperand::Register(&lhs),
                             ));
                             self.compile_expr(assign.rhs(), true);
                             self.pop_into_register(&lhs);
-                            self.push_from_register(&lhs);
                         } else {
                             self.compile_expr(assign.rhs(), true);
-                            emit_stack_opcode(self);
+                            let rhs = self.register_allocator.alloc();
+                            self.pop_into_register(&rhs);
+
+                            self.emit2(
+                                opcode,
+                                &[
+                                    Operand2::Register(&lhs),
+                                    Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                    Operand2::Operand(InstructionOperand::Register(&rhs)),
+                                ],
+                            );
+                            self.register_allocator.dealloc(rhs);
                         }
 
-                        self.emit_with_varying_operand(Opcode::SetPrivateField, index);
-                        if !use_expr {
-                            self.emit_opcode(Opcode::Pop);
+                        self.emit2(
+                            Opcode::SetPrivateField,
+                            &[
+                                Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Varying(index),
+                            ],
+                        );
+
+                        self.register_allocator.dealloc(object);
+
+                        if use_expr {
+                            self.push_from_register(&lhs);
                         }
                     }
                     PropertyAccess::Super(access) => match access.field() {
                         PropertyAccessField::Const(name) => {
-                            self.emit_opcode(Opcode::Super);
-                            self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::This);
-                            self.emit_opcode(Opcode::Swap);
-                            self.emit_opcode(Opcode::This);
+                            let object = self.register_allocator.alloc();
+                            let receiver = self.register_allocator.alloc();
+                            self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
+                            self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
 
-                            self.emit_get_property_by_name(*name);
+                            self.emit_get_property_by_name(&lhs, &receiver, &object, *name);
+
                             if short_circuit {
-                                pop_count = 2;
-
-                                self.pop_into_register(&lhs);
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
                                     InstructionOperand::Register(&lhs),
                                 ));
                                 self.compile_expr(assign.rhs(), true);
                                 self.pop_into_register(&lhs);
-                                self.push_from_register(&lhs);
                             } else {
                                 self.compile_expr(assign.rhs(), true);
-                                emit_stack_opcode(self);
+                                let rhs = self.register_allocator.alloc();
+                                self.pop_into_register(&rhs);
+                                self.emit2(
+                                    opcode,
+                                    &[
+                                        Operand2::Register(&lhs),
+                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Operand(InstructionOperand::Register(&rhs)),
+                                    ],
+                                );
+                                self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_set_property_by_name(*name);
-                            if !use_expr {
-                                self.emit_opcode(Opcode::Pop);
+                            self.emit_set_property_by_name(&lhs, &receiver, &object, *name);
+
+                            self.register_allocator.dealloc(receiver);
+                            self.register_allocator.dealloc(object);
+
+                            if use_expr {
+                                self.push_from_register(&lhs);
                             }
                         }
                         PropertyAccessField::Expr(expr) => {
-                            self.emit_opcode(Opcode::Super);
-                            self.emit_opcode(Opcode::Dup);
-                            self.emit_opcode(Opcode::This);
+                            let object = self.register_allocator.alloc();
+                            let receiver = self.register_allocator.alloc();
+                            self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
+                            self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
+
                             self.compile_expr(expr, true);
+                            let key = self.register_allocator.alloc();
+                            self.pop_into_register(&key);
 
-                            self.emit_opcode(Opcode::GetPropertyByValuePush);
+                            self.emit2(
+                                Opcode::GetPropertyByValuePush,
+                                &[
+                                    Operand2::Register(&lhs),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&receiver)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                ],
+                            );
+
                             if short_circuit {
-                                pop_count = 2;
-
-                                self.pop_into_register(&lhs);
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
                                     InstructionOperand::Register(&lhs),
                                 ));
                                 self.compile_expr(assign.rhs(), true);
                                 self.pop_into_register(&lhs);
-                                self.push_from_register(&lhs);
                             } else {
                                 self.compile_expr(assign.rhs(), true);
-                                emit_stack_opcode(self);
+                                let rhs = self.register_allocator.alloc();
+                                self.pop_into_register(&rhs);
+                                self.emit2(
+                                    opcode,
+                                    &[
+                                        Operand2::Register(&lhs),
+                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Operand(InstructionOperand::Register(&rhs)),
+                                    ],
+                                );
+                                self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_opcode(Opcode::This);
-                            self.emit(Opcode::RotateRight, &[Operand::U8(2)]);
+                            self.emit2(
+                                Opcode::SetPropertyByValue,
+                                &[
+                                    Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&receiver)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                ],
+                            );
 
-                            self.emit_opcode(Opcode::SetPropertyByValue);
-                            if !use_expr {
-                                self.emit_opcode(Opcode::Pop);
+                            self.register_allocator.dealloc(key);
+                            self.register_allocator.dealloc(receiver);
+                            self.register_allocator.dealloc(object);
+
+                            if use_expr {
+                                self.push_from_register(&lhs);
                             }
                         }
                     },
@@ -283,9 +385,6 @@ impl ByteCompiler<'_> {
                 let exit = self.emit_opcode_with_operand(Opcode::Jump);
 
                 self.patch_jump(early_exit);
-                for _ in 0..pop_count {
-                    self.emit_opcode(Opcode::Pop);
-                }
                 self.push_from_register(&lhs);
                 self.patch_jump(exit);
             }

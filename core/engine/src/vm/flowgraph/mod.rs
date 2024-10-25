@@ -290,6 +290,8 @@ impl CodeBlock {
                     graph.add_edge(previous_pc, pc, None, Color::None, EdgeStyle::Line);
                 }
                 Instruction::GetPropertyByName { .. }
+                | Instruction::GetPropertyByValue { .. }
+                | Instruction::GetPropertyByValuePush { .. }
                 | Instruction::SetPropertyByName { .. }
                 | Instruction::DefineOwnPropertyByName { .. }
                 | Instruction::DefineClassStaticMethodByName { .. }
@@ -387,9 +389,7 @@ impl CodeBlock {
                 | Instruction::LogicalNot
                 | Instruction::Pos
                 | Instruction::Neg
-                | Instruction::GetPropertyByValue
-                | Instruction::GetPropertyByValuePush
-                | Instruction::SetPropertyByValue
+                | Instruction::SetPropertyByValue { .. }
                 | Instruction::DefineOwnPropertyByValue
                 | Instruction::DefineClassStaticMethodByValue
                 | Instruction::DefineClassMethodByValue
@@ -403,9 +403,9 @@ impl CodeBlock {
                 | Instruction::DeleteSuperThrow
                 | Instruction::ToPropertyKey
                 | Instruction::ToBoolean
-                | Instruction::This
+                | Instruction::This { .. }
                 | Instruction::ThisForObjectEnvironmentName { .. }
-                | Instruction::Super
+                | Instruction::Super { .. }
                 | Instruction::IncrementLoopIteration
                 | Instruction::CreateForInIterator
                 | Instruction::GetIterator

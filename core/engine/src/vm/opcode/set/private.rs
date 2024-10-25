@@ -14,10 +14,22 @@ use crate::{
 pub(crate) struct SetPrivateField;
 
 impl SetPrivateField {
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
+    fn operation(
+        operand_types: u8,
+        value: u32,
+        object: u32,
+        index: usize,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let name = context.vm.frame().code_block().constant_string(index);
-        let value = context.vm.pop();
-        let object = context.vm.pop();
+        let value = context
+            .vm
+            .frame()
+            .read_value::<0>(operand_types, value, &context.vm);
+        let object = context
+            .vm
+            .frame()
+            .read_value::<1>(operand_types, object, &context.vm);
         let base_obj = object.to_object(context)?;
 
         let name = context
@@ -27,7 +39,6 @@ impl SetPrivateField {
             .expect("private name must be in environment");
 
         base_obj.private_set(&name, value.clone(), context)?;
-        context.vm.push(value);
         Ok(CompletionType::Normal)
     }
 }
@@ -38,18 +49,27 @@ impl Operation for SetPrivateField {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let operand_types = context.vm.read::<u8>();
+        let value = context.vm.read::<u8>().into();
+        let object = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(context, index)
+        Self::operation(operand_types, value, object, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let operand_types = context.vm.read::<u8>();
+        let value = context.vm.read::<u16>().into();
+        let object = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(operand_types, value, object, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let operand_types = context.vm.read::<u8>();
+        let value = context.vm.read::<u32>();
+        let object = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(context, index)
+        Self::operation(operand_types, value, object, index, context)
     }
 }
 

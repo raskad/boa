@@ -13,17 +13,14 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct This;
 
-impl Operation for This {
-    const NAME: &'static str = "This";
-    const INSTRUCTION: &'static str = "INST - This";
-    const COST: u8 = 1;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl This {
+    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let frame = context.vm.frame_mut();
+        let rp = frame.rp;
         let this_index = frame.fp();
         if frame.has_this_value_cached() {
             let this = context.vm.stack[this_index as usize].clone();
-            context.vm.push(this);
+            context.vm.stack[(rp + dst) as usize] = this;
             return Ok(CompletionType::Normal);
         }
 
@@ -34,8 +31,29 @@ impl Operation for This {
             .unwrap_or(context.realm().global_this().clone().into());
         context.vm.frame_mut().flags |= CallFrameFlags::THIS_VALUE_CACHED;
         context.vm.stack[this_index as usize] = this.clone();
-        context.vm.push(this);
+        context.vm.stack[(rp + dst) as usize] = this;
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for This {
+    const NAME: &'static str = "This";
+    const INSTRUCTION: &'static str = "INST - This";
+    const COST: u8 = 1;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>();
+        Self::operation(dst, context)
     }
 }
 
@@ -85,12 +103,9 @@ impl Operation for ThisForObjectEnvironmentName {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Super;
 
-impl Operation for Super {
-    const NAME: &'static str = "Super";
-    const INSTRUCTION: &'static str = "INST - Super";
-    const COST: u8 = 3;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl Super {
+    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let home_object = {
             let env = context
                 .vm
@@ -117,8 +132,29 @@ impl Operation for Super {
             .flatten()
             .map_or_else(JsValue::null, JsValue::from);
 
-        context.vm.push(value);
+        context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for Super {
+    const NAME: &'static str = "Super";
+    const INSTRUCTION: &'static str = "INST - Super";
+    const COST: u8 = 3;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>();
+        Self::operation(dst, context)
     }
 }
 

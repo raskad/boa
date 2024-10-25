@@ -397,8 +397,6 @@ impl CodeBlock {
             | Instruction::Inc { .. }
             | Instruction::Dec { .. }
             | Instruction::ToNumeric { .. } => "TODO: fix".to_string(),
-            Instruction::PopIntoRegister { dst } => format!("R{}", dst.value()),
-            Instruction::PushFromRegister { src } => format!("R{}", src.value()),
             Instruction::Move {
                 operand_types,
                 dst: r1,
@@ -543,12 +541,12 @@ impl CodeBlock {
             | Instruction::DefineClassSetterByName { index }
             | Instruction::ThrowMutateImmutable { index }
             | Instruction::DeletePropertyByName { index }
-            | Instruction::SetPrivateField { index }
+            | Instruction::SetPrivateField { index, .. }
             | Instruction::DefinePrivateField { index }
             | Instruction::SetPrivateMethod { index }
             | Instruction::SetPrivateSetter { index }
             | Instruction::SetPrivateGetter { index }
-            | Instruction::GetPrivateField { index }
+            | Instruction::GetPrivateField { index, .. }
             | Instruction::PushClassFieldPrivate { index }
             | Instruction::PushClassPrivateGetter { index }
             | Instruction::PushClassPrivateSetter { index }
@@ -581,7 +579,29 @@ impl CodeBlock {
                     slot.attributes,
                 )
             }
-            Instruction::SetPropertyByName { index } => {
+            Instruction::GetPropertyByValue {
+                operand_types,
+                dst,
+                key,
+                receiver,
+                object,
+            }
+            | Instruction::GetPropertyByValuePush {
+                operand_types,
+                dst,
+                key,
+                receiver,
+                object,
+            } => {
+                format!(
+                    "dst:reg{}, key:{}, receiver:{}, object:{}",
+                    dst.value(),
+                    key.to_string::<0>(*operand_types),
+                    receiver.to_string::<1>(*operand_types),
+                    object.to_string::<2>(*operand_types),
+                )
+            }
+            Instruction::SetPropertyByName { index, .. } => {
                 let ic = &self.ic[index.value() as usize];
                 let slot = ic.slot();
                 format!(
@@ -685,9 +705,7 @@ impl CodeBlock {
             | Instruction::LogicalNot
             | Instruction::Pos
             | Instruction::Neg
-            | Instruction::GetPropertyByValue
-            | Instruction::GetPropertyByValuePush
-            | Instruction::SetPropertyByValue
+            | Instruction::SetPropertyByValue { .. }
             | Instruction::DefineOwnPropertyByValue
             | Instruction::DefineClassStaticMethodByValue
             | Instruction::DefineClassMethodByValue
@@ -705,9 +723,9 @@ impl CodeBlock {
             | Instruction::ReThrow
             | Instruction::Exception
             | Instruction::MaybeException
-            | Instruction::This
+            | Instruction::This { .. }
             | Instruction::ThisForObjectEnvironmentName { .. }
-            | Instruction::Super
+            | Instruction::Super { .. }
             | Instruction::CheckReturn
             | Instruction::Return
             | Instruction::AsyncGeneratorClose

@@ -84,201 +84,253 @@ impl ByteCompiler<'_> {
             Access::Property { access } => match access {
                 PropertyAccess::Simple(access) => {
                     self.compile_expr(access.target(), true);
+                    let object = self.register_allocator.alloc();
+                    self.pop_into_register(&object);
 
-                    self.emit_opcode(Opcode::Dup);
-                    self.emit_opcode(Opcode::Dup);
-                    self.emit_opcode(Opcode::Dup);
-
-                    // Stack: value, value, value, value
                     match access.field() {
-                        PropertyAccessField::Const(name) => {
-                            self.emit_get_property_by_name(*name);
-
-                            let src = self.register_allocator.alloc();
+                        PropertyAccessField::Const(ident) => {
                             let dst = self.register_allocator.alloc();
-                            self.pop_into_register(&src);
+                            self.emit_get_property_by_name(&dst, &object, &object, *ident);
+
+                            let dst_numeric = self.register_allocator.alloc();
 
                             self.emit2(
                                 Opcode::ToNumeric,
                                 &[
-                                    Operand2::Register(&dst),
-                                    Operand2::Operand(InstructionOperand::Register(&src)),
+                                    Operand2::Register(&dst_numeric),
+                                    Operand2::Operand(InstructionOperand::Register(&dst)),
                                 ],
                             );
                             self.emit2(
                                 opcode,
                                 &[
-                                    Operand2::Register(&src),
-                                    Operand2::Operand(InstructionOperand::Register(&dst)),
+                                    Operand2::Register(&dst),
+                                    Operand2::Operand(InstructionOperand::Register(&dst_numeric)),
                                 ],
                             );
 
-                            self.push_from_register(&src);
-
-                            self.emit_set_property_by_name(*name);
+                            self.emit_set_property_by_name(&dst, &object, &object, *ident);
 
                             if post {
-                                self.emit_opcode(Opcode::Pop);
+                                self.push_from_register(&dst_numeric);
+                            } else {
                                 self.push_from_register(&dst);
                             }
 
-                            self.register_allocator.dealloc(src);
+                            self.register_allocator.dealloc(object);
                             self.register_allocator.dealloc(dst);
+                            self.register_allocator.dealloc(dst_numeric);
                         }
                         PropertyAccessField::Expr(expr) => {
                             self.compile_expr(expr, true);
+                            let key = self.register_allocator.alloc();
+                            self.pop_into_register(&key);
 
-                            self.emit_opcode(Opcode::GetPropertyByValuePush);
+                            let value = self.register_allocator.alloc();
 
-                            let src = self.register_allocator.alloc();
-                            let dst = self.register_allocator.alloc();
-                            self.pop_into_register(&src);
+                            self.emit2(
+                                Opcode::GetPropertyByValuePush,
+                                &[
+                                    Operand2::Register(&value),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                ],
+                            );
+
+                            let value_numeric = self.register_allocator.alloc();
 
                             self.emit2(
                                 Opcode::ToNumeric,
                                 &[
-                                    Operand2::Register(&dst),
-                                    Operand2::Operand(InstructionOperand::Register(&src)),
+                                    Operand2::Register(&value_numeric),
+                                    Operand2::Operand(InstructionOperand::Register(&value)),
                                 ],
                             );
                             self.emit2(
                                 opcode,
                                 &[
-                                    Operand2::Register(&src),
-                                    Operand2::Operand(InstructionOperand::Register(&dst)),
+                                    Operand2::Register(&value),
+                                    Operand2::Operand(InstructionOperand::Register(&value_numeric)),
                                 ],
                             );
 
-                            self.push_from_register(&src);
+                            self.emit2(
+                                Opcode::SetPropertyByValue,
+                                &[
+                                    Operand2::Operand(InstructionOperand::Register(&value)),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                ],
+                            );
 
-                            self.emit_opcode(Opcode::SetPropertyByValue);
+                            self.register_allocator.dealloc(key);
+                            self.register_allocator.dealloc(object);
 
                             if post {
-                                self.emit_opcode(Opcode::Pop);
-                                self.push_from_register(&dst);
+                                self.push_from_register(&value_numeric);
+                            } else {
+                                self.push_from_register(&value);
                             }
 
-                            self.register_allocator.dealloc(src);
-                            self.register_allocator.dealloc(dst);
+                            self.register_allocator.dealloc(value);
+                            self.register_allocator.dealloc(value_numeric);
                         }
                     }
                 }
                 PropertyAccess::Private(access) => {
                     let index = self.get_or_insert_private_name(access.field());
+
                     self.compile_expr(access.target(), true);
+                    let object = self.register_allocator.alloc();
+                    self.pop_into_register(&object);
 
-                    self.emit_opcode(Opcode::Dup);
+                    let value = self.register_allocator.alloc();
 
-                    self.emit_with_varying_operand(Opcode::GetPrivateField, index);
+                    self.emit2(
+                        Opcode::GetPrivateField,
+                        &[
+                            Operand2::Register(&value),
+                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Varying(index),
+                        ],
+                    );
 
-                    let src = self.register_allocator.alloc();
-                    let dst = self.register_allocator.alloc();
-                    self.pop_into_register(&src);
+                    let value_numeric = self.register_allocator.alloc();
 
                     self.emit2(
                         Opcode::ToNumeric,
                         &[
-                            Operand2::Register(&dst),
-                            Operand2::Operand(InstructionOperand::Register(&src)),
+                            Operand2::Register(&value_numeric),
+                            Operand2::Operand(InstructionOperand::Register(&value)),
                         ],
                     );
                     self.emit2(
                         opcode,
                         &[
-                            Operand2::Register(&src),
-                            Operand2::Operand(InstructionOperand::Register(&dst)),
+                            Operand2::Register(&value),
+                            Operand2::Operand(InstructionOperand::Register(&value_numeric)),
                         ],
                     );
 
-                    self.push_from_register(&src);
+                    self.emit2(
+                        Opcode::SetPrivateField,
+                        &[
+                            Operand2::Operand(InstructionOperand::Register(&value)),
+                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Varying(index),
+                        ],
+                    );
 
-                    self.emit_with_varying_operand(Opcode::SetPrivateField, index);
+                    self.register_allocator.dealloc(object);
+
                     if post {
-                        self.emit_opcode(Opcode::Pop);
-                        self.push_from_register(&dst);
+                        self.push_from_register(&value_numeric);
+                    } else {
+                        self.push_from_register(&value);
                     }
 
-                    self.register_allocator.dealloc(src);
-                    self.register_allocator.dealloc(dst);
+                    self.register_allocator.dealloc(value);
+                    self.register_allocator.dealloc(value_numeric);
                 }
                 PropertyAccess::Super(access) => match access.field() {
-                    PropertyAccessField::Const(name) => {
-                        self.emit_opcode(Opcode::Super);
-                        self.emit_opcode(Opcode::Dup);
-                        self.emit_opcode(Opcode::This);
-                        self.emit_opcode(Opcode::Swap);
-                        self.emit_opcode(Opcode::This);
+                    PropertyAccessField::Const(ident) => {
+                        let object = self.register_allocator.alloc();
+                        let receiver = self.register_allocator.alloc();
+                        self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
+                        self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
 
-                        self.emit_get_property_by_name(*name);
-
-                        let src = self.register_allocator.alloc();
                         let dst = self.register_allocator.alloc();
-                        self.pop_into_register(&src);
 
+                        self.emit_get_property_by_name(&dst, &receiver, &object, *ident);
+
+                        let dst_numeric = self.register_allocator.alloc();
                         self.emit2(
                             Opcode::ToNumeric,
                             &[
-                                Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&src)),
+                                Operand2::Register(&dst_numeric),
+                                Operand2::Operand(InstructionOperand::Register(&dst)),
                             ],
                         );
                         self.emit2(
                             opcode,
                             &[
-                                Operand2::Register(&src),
-                                Operand2::Operand(InstructionOperand::Register(&dst)),
+                                Operand2::Register(&dst),
+                                Operand2::Operand(InstructionOperand::Register(&dst_numeric)),
                             ],
                         );
 
-                        self.push_from_register(&src);
-
-                        self.emit_set_property_by_name(*name);
+                        self.emit_set_property_by_name(&dst, &receiver, &object, *ident);
                         if post {
-                            self.emit_opcode(Opcode::Pop);
+                            self.push_from_register(&dst_numeric);
+                        } else {
                             self.push_from_register(&dst);
                         }
 
-                        self.register_allocator.dealloc(src);
+                        self.register_allocator.dealloc(receiver);
+                        self.register_allocator.dealloc(object);
                         self.register_allocator.dealloc(dst);
+                        self.register_allocator.dealloc(dst_numeric);
                     }
                     PropertyAccessField::Expr(expr) => {
-                        self.emit_opcode(Opcode::Super);
-                        self.emit_opcode(Opcode::Dup);
-                        self.emit_opcode(Opcode::This);
+                        let object = self.register_allocator.alloc();
+                        let receiver = self.register_allocator.alloc();
+                        self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
+                        self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
+
                         self.compile_expr(expr, true);
+                        let key = self.register_allocator.alloc();
+                        self.pop_into_register(&key);
 
-                        self.emit_opcode(Opcode::GetPropertyByValuePush);
+                        let value = self.register_allocator.alloc();
 
-                        let src = self.register_allocator.alloc();
-                        let dst = self.register_allocator.alloc();
-                        self.pop_into_register(&src);
+                        self.emit2(
+                            Opcode::GetPropertyByValue,
+                            &[
+                                Operand2::Register(&value),
+                                Operand2::Operand(InstructionOperand::Register(&key)),
+                                Operand2::Operand(InstructionOperand::Register(&receiver)),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                            ],
+                        );
 
                         self.emit2(
                             Opcode::ToNumeric,
                             &[
-                                Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&src)),
+                                Operand2::Register(&value),
+                                Operand2::Operand(InstructionOperand::Register(&value)),
                             ],
                         );
                         self.emit2(
                             opcode,
                             &[
-                                Operand2::Register(&src),
-                                Operand2::Operand(InstructionOperand::Register(&dst)),
+                                Operand2::Register(&value),
+                                Operand2::Operand(InstructionOperand::Register(&value)),
                             ],
                         );
 
-                        self.emit_opcode(Opcode::This);
-                        self.push_from_register(&src);
+                        self.emit2(
+                            Opcode::SetPropertyByValue,
+                            &[
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                                Operand2::Operand(InstructionOperand::Register(&key)),
+                                Operand2::Operand(InstructionOperand::Register(&receiver)),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                            ],
+                        );
 
-                        self.emit_opcode(Opcode::SetPropertyByValue);
+                        self.register_allocator.dealloc(receiver);
+                        self.register_allocator.dealloc(object);
+                        self.register_allocator.dealloc(key);
+
                         if post {
-                            self.emit_opcode(Opcode::Pop);
-                            self.push_from_register(&dst);
+                            self.push_from_register(&value);
+                        } else {
+                            self.push_from_register(&value);
                         }
 
-                        self.register_allocator.dealloc(src);
-                        self.register_allocator.dealloc(dst);
+                        self.register_allocator.dealloc(value);
                     }
                 },
             },

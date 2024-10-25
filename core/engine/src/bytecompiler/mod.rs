@@ -15,7 +15,7 @@ mod utils;
 use std::cell::Cell;
 
 use crate::{
-    builtins::function::{arguments::MappedArguments, ThisMode},
+    builtins::{function::{arguments::MappedArguments, ThisMode}, object},
     js_string,
     vm::{
         BindingOpcode, CallFrame, CodeBlock, CodeBlockFlags, Constant, GeneratorResumeKind,
@@ -926,24 +926,14 @@ impl<'ctx> ByteCompiler<'ctx> {
     fn emit_i64(&mut self, value: i64) {
         self.emit_u64(value as u64);
     }
-    fn emit_get_property_by_name(&mut self, ident: Sym) {
-        let dst = self.register_allocator.alloc();
-        let receiver = self.register_allocator.alloc();
-        let value = self.register_allocator.alloc();
 
-        self.pop_into_register(&receiver);
-        self.pop_into_register(&value);
-
-        self.emit_get_property_by_name2(&dst, &receiver, &value, ident);
-
-        self.push_from_register(&dst);
-
-        self.register_allocator.dealloc(dst);
-        self.register_allocator.dealloc(receiver);
-        self.register_allocator.dealloc(value);
-    }
-
-    fn emit_get_property_by_name2(&mut self, dst: &Register, receiver: &Register, value: &Register, ident: Sym) {
+    fn emit_get_property_by_name(
+        &mut self,
+        dst: &Register,
+        receiver: &Register,
+        value: &Register,
+        ident: Sym,
+    ) {
         let ic_index = self.ic.len() as u32;
 
         let name_index = self.get_or_insert_name(Identifier::new(ident));
@@ -963,7 +953,13 @@ impl<'ctx> ByteCompiler<'ctx> {
         );
     }
 
-    fn emit_set_property_by_name(&mut self, ident: Sym) {
+    fn emit_set_property_by_name(
+        &mut self,
+        value: &Register,
+        receiver: &Register,
+        object: &Register,
+        ident: Sym,
+    ) {
         let ic_index = self.ic.len() as u32;
 
         let name_index = self.get_or_insert_name(Identifier::new(ident));
@@ -972,7 +968,15 @@ impl<'ctx> ByteCompiler<'ctx> {
         };
         self.ic.push(InlineCache::new(name.clone()));
 
-        self.emit_with_varying_operand(Opcode::SetPropertyByName, ic_index);
+        self.emit2(
+            Opcode::SetPropertyByName,
+            &[
+                Operand2::Operand(InstructionOperand::Register(value)),
+                Operand2::Operand(InstructionOperand::Register(receiver)),
+                Operand2::Operand(InstructionOperand::Register(object)),
+                Operand2::Varying(ic_index),
+            ],
+        );
     }
 
     fn emit_type_error(&mut self, message: &str) {
@@ -1191,41 +1195,100 @@ impl<'ctx> ByteCompiler<'ctx> {
                 self.emit_binding_access(Opcode::GetName, &index);
             }
             Access::Property { access } => match access {
-                PropertyAccess::Simple(access) => match access.field() {
-                    PropertyAccessField::Const(name) => {
-                        self.compile_expr(access.target(), true);
-                        self.emit_opcode(Opcode::Dup);
-                        self.emit_get_property_by_name(*name);
+                PropertyAccess::Simple(access) => {
+                    self.compile_expr(access.target(), true);
+
+                    let dst = self.register_allocator.alloc();
+                    let value = self.register_allocator.alloc();
+                    self.pop_into_register(&value);
+
+                    match access.field() {
+                        PropertyAccessField::Const(ident) => {
+                            self.emit_get_property_by_name(&dst, &value, &value, *ident);
+                        }
+                        PropertyAccessField::Expr(expr) => {
+                            self.compile_expr(expr, true);
+                            let key = self.register_allocator.alloc();
+                            self.pop_into_register(&key);
+                            self.emit2(
+                                Opcode::GetPropertyByValue,
+                                &[
+                                    Operand2::Register(&dst),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&value)),
+                                    Operand2::Operand(InstructionOperand::Register(&value)),
+                                ],
+                            );
+                            self.register_allocator.dealloc(key);
+                        }
                     }
-                    PropertyAccessField::Expr(expr) => {
-                        self.compile_expr(access.target(), true);
-                        self.emit_opcode(Opcode::Dup);
-                        self.compile_expr(expr, true);
-                        self.emit_opcode(Opcode::GetPropertyByValue);
-                    }
-                },
+
+                    self.push_from_register(&dst);
+                    self.register_allocator.dealloc(dst);
+                    self.register_allocator.dealloc(value);
+                }
                 PropertyAccess::Private(access) => {
                     let index = self.get_or_insert_private_name(access.field());
-                    self.compile_expr(access.target(), true);
-                    self.emit_with_varying_operand(Opcode::GetPrivateField, index);
-                }
-                PropertyAccess::Super(access) => match access.field() {
-                    PropertyAccessField::Const(field) => {
-                        self.emit_opcode(Opcode::Super);
-                        self.emit_opcode(Opcode::This);
 
-                        self.emit_get_property_by_name(*field);
+                    self.compile_expr(access.target(), true);
+                    let object = self.register_allocator.alloc();
+                    self.pop_into_register(&object);
+
+                    let dst = self.register_allocator.alloc();
+                    self.emit2(
+                        Opcode::GetPrivateField,
+                        &[
+                            Operand2::Register(&dst),
+                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Varying(index),
+                        ],
+                    );
+
+                    self.push_from_register(&dst);
+
+                    self.register_allocator.dealloc(dst);
+                    self.register_allocator.dealloc(object);
+                }
+                PropertyAccess::Super(access) => {
+                    let value = self.register_allocator.alloc();
+                    let receiver = self.register_allocator.alloc();
+                    self.emit2(Opcode::Super, &[Operand2::Register(&value)]);
+                    self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
+
+                    let dst = self.register_allocator.alloc();
+
+                    match access.field() {
+                        PropertyAccessField::Const(ident) => {
+                            self.emit_get_property_by_name(&dst, &receiver, &value, *ident);
+                        }
+                        PropertyAccessField::Expr(expr) => {
+                            self.compile_expr(expr, true);
+                            let key = self.register_allocator.alloc();
+                            self.pop_into_register(&key);
+                            self.emit2(
+                                Opcode::GetPropertyByValue,
+                                &[
+                                    Operand2::Register(&dst),
+                                    Operand2::Operand(InstructionOperand::Register(&key)),
+                                    Operand2::Operand(InstructionOperand::Register(&receiver)),
+                                    Operand2::Operand(InstructionOperand::Register(&value)),
+                                ],
+                            );
+                            self.register_allocator.dealloc(key);
+                        }
                     }
-                    PropertyAccessField::Expr(expr) => {
-                        self.emit_opcode(Opcode::Super);
-                        self.emit_opcode(Opcode::This);
-                        self.compile_expr(expr, true);
-                        self.emit_opcode(Opcode::GetPropertyByValue);
-                    }
-                },
+
+                    self.push_from_register(&dst);
+                    self.register_allocator.dealloc(dst);
+                    self.register_allocator.dealloc(receiver);
+                    self.register_allocator.dealloc(value);
+                }
             },
             Access::This => {
-                self.emit_opcode(Opcode::This);
+                let this = self.register_allocator.alloc();
+                self.emit2(Opcode::This, &[Operand2::Register(&this)]);
+                self.push_from_register(&this);
+                self.register_allocator.dealloc(this);
             }
         }
 
@@ -1234,19 +1297,11 @@ impl<'ctx> ByteCompiler<'ctx> {
         }
     }
 
-    fn access_set_top_of_stack_expr_fn(compiler: &mut ByteCompiler<'_>, level: u8) {
-        match level {
-            0 => {}
-            1 => compiler.emit_opcode(Opcode::Swap),
-            _ => {
-                compiler.emit(Opcode::RotateLeft, &[Operand::U8(level + 1)]);
-            }
-        }
-    }
+    fn access_set_empty(_: &mut ByteCompiler<'_>) {}
 
     fn access_set<F, R>(&mut self, access: Access<'_>, use_expr: bool, expr_fn: F)
     where
-        F: FnOnce(&mut ByteCompiler<'_>, u8) -> R,
+        F: FnOnce(&mut ByteCompiler<'_>) -> R,
     {
         match access {
             Access::Variable { name } => {
@@ -1259,7 +1314,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                     self.emit_binding_access(Opcode::GetLocator, &index);
                 }
 
-                expr_fn(self, 0);
+                expr_fn(self);
                 if use_expr {
                     self.emit(Opcode::Dup, &[]);
                 }
@@ -1286,53 +1341,132 @@ impl<'ctx> ByteCompiler<'ctx> {
                 PropertyAccess::Simple(access) => match access.field() {
                     PropertyAccessField::Const(name) => {
                         self.compile_expr(access.target(), true);
-                        self.emit_opcode(Opcode::Dup);
-                        expr_fn(self, 2);
+                        let object = self.register_allocator.alloc();
+                        self.pop_into_register(&object);
+                        expr_fn(self);
+                        let value = self.register_allocator.alloc();
+                        self.pop_into_register(&value);
 
-                        self.emit_set_property_by_name(*name);
-                        if !use_expr {
-                            self.emit_opcode(Opcode::Pop);
+                        self.emit_set_property_by_name(&value, &object, &object, *name);
+                        if use_expr {
+                            self.push_from_register(&value);
                         }
+                        self.register_allocator.dealloc(value);
+                        self.register_allocator.dealloc(object);
                     }
                     PropertyAccessField::Expr(expr) => {
                         self.compile_expr(access.target(), true);
-                        self.emit_opcode(Opcode::Dup);
+                        let object = self.register_allocator.alloc();
+                        self.pop_into_register(&object);
+
                         self.compile_expr(expr, true);
-                        expr_fn(self, 3);
-                        self.emit_opcode(Opcode::SetPropertyByValue);
-                        if !use_expr {
-                            self.emit_opcode(Opcode::Pop);
+                        let key = self.register_allocator.alloc();
+                        self.pop_into_register(&key);
+
+                        expr_fn(self);
+                        let value = self.register_allocator.alloc();
+                        self.pop_into_register(&value);
+
+                        self.emit2(
+                            Opcode::SetPropertyByValue,
+                            &[
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                                Operand2::Operand(InstructionOperand::Register(&key)),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                            ],
+                        );
+
+                        self.register_allocator.dealloc(object);
+                        self.register_allocator.dealloc(key);
+
+                        if use_expr {
+                            self.push_from_register(&value);
                         }
+
+                        self.register_allocator.dealloc(value);
                     }
                 },
                 PropertyAccess::Private(access) => {
-                    self.compile_expr(access.target(), true);
-                    expr_fn(self, 1);
                     let index = self.get_or_insert_private_name(access.field());
-                    self.emit_with_varying_operand(Opcode::SetPrivateField, index);
-                    if !use_expr {
-                        self.emit_opcode(Opcode::Pop);
+
+                    self.compile_expr(access.target(), true);
+                    let object = self.register_allocator.alloc();
+                    self.pop_into_register(&object);
+
+                    expr_fn(self);
+                    let value = self.register_allocator.alloc();
+                    self.pop_into_register(&value);
+
+                    self.emit2(
+                        Opcode::SetPrivateField,
+                        &[
+                            Operand2::Operand(InstructionOperand::Register(&value)),
+                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Varying(index),
+                        ],
+                    );
+
+                    if use_expr {
+                        self.push_from_register(&value);
                     }
+
+                    self.register_allocator.dealloc(value);
+                    self.register_allocator.dealloc(object);
                 }
                 PropertyAccess::Super(access) => match access.field() {
                     PropertyAccessField::Const(name) => {
-                        self.emit_opcode(Opcode::Super);
-                        self.emit_opcode(Opcode::This);
-                        expr_fn(self, 1);
-                        self.emit_set_property_by_name(*name);
-                        if !use_expr {
-                            self.emit_opcode(Opcode::Pop);
+                        let _super = self.register_allocator.alloc();
+                        self.emit2(Opcode::Super, &[Operand2::Register(&_super)]);
+                        self.push_from_register(&_super);
+                        let this = self.register_allocator.alloc();
+                        self.emit2(Opcode::This, &[Operand2::Register(&this)]);
+                        self.push_from_register(&this);
+                        expr_fn(self);
+                        let value = self.register_allocator.alloc();
+                        self.pop_into_register(&value);
+                        self.emit_set_property_by_name(&value, &this, &_super, *name);
+                        if use_expr {
+                            self.push_from_register(&value);
                         }
+                        self.register_allocator.dealloc(value);
+                        self.register_allocator.dealloc(this);
+                        self.register_allocator.dealloc(_super);
                     }
                     PropertyAccessField::Expr(expr) => {
-                        self.emit_opcode(Opcode::Super);
-                        self.emit_opcode(Opcode::This);
+                        let object = self.register_allocator.alloc();
+                        self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
+
+                        let receiver = self.register_allocator.alloc();
+                        self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
+
                         self.compile_expr(expr, true);
-                        expr_fn(self, 1);
-                        self.emit_opcode(Opcode::SetPropertyByValue);
-                        if !use_expr {
-                            self.emit_opcode(Opcode::Pop);
+                        let key = self.register_allocator.alloc();
+                        self.pop_into_register(&key);
+
+                        expr_fn(self);
+                        let value = self.register_allocator.alloc();
+                        self.pop_into_register(&value);
+
+                        self.emit2(
+                            Opcode::SetPropertyByValue,
+                            &[
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                                Operand2::Operand(InstructionOperand::Register(&key)),
+                                Operand2::Operand(InstructionOperand::Register(&receiver)),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                            ],
+                        );
+
+                        self.register_allocator.dealloc(key);
+                        self.register_allocator.dealloc(receiver);
+                        self.register_allocator.dealloc(object);
+
+                        if use_expr {
+                            self.push_from_register(&value);
                         }
+
+                        self.register_allocator.dealloc(value);
                     }
                 },
             },
@@ -1438,36 +1572,93 @@ impl<'ctx> ByteCompiler<'ctx> {
             PropertyAccess::Simple(access) => {
                 self.compile_expr(access.target(), true);
                 self.emit_opcode(Opcode::Dup);
-                self.emit_opcode(Opcode::Dup);
+
+                let dst = self.register_allocator.alloc();
+                let value = self.register_allocator.alloc();
+                self.pop_into_register(&value);
                 match access.field() {
-                    PropertyAccessField::Const(field) => {
-                        self.emit_get_property_by_name(*field);
+                    PropertyAccessField::Const(ident) => {
+                        self.emit_get_property_by_name(&dst, &value, &value, *ident);
                     }
                     PropertyAccessField::Expr(field) => {
                         self.compile_expr(field, true);
-                        self.emit_opcode(Opcode::GetPropertyByValue);
+                        let key = self.register_allocator.alloc();
+                        self.pop_into_register(&key);
+                        self.emit2(
+                            Opcode::GetPropertyByValue,
+                            &[
+                                Operand2::Register(&dst),
+                                Operand2::Operand(InstructionOperand::Register(&key)),
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                            ],
+                        );
+                        self.register_allocator.dealloc(key);
                     }
                 }
+
+                self.push_from_register(&dst);
+                self.register_allocator.dealloc(dst);
+                self.register_allocator.dealloc(value);
             }
             PropertyAccess::Private(access) => {
-                self.compile_expr(access.target(), true);
-                self.emit_opcode(Opcode::Dup);
                 let index = self.get_or_insert_private_name(access.field());
-                self.emit_with_varying_operand(Opcode::GetPrivateField, index);
+
+                self.compile_expr(access.target(), true);
+                let object = self.register_allocator.alloc();
+                self.pop_into_register(&object);
+
+                let dst = self.register_allocator.alloc();
+                self.emit2(
+                    Opcode::GetPrivateField,
+                    &[
+                        Operand2::Register(&dst),
+                        Operand2::Operand(InstructionOperand::Register(&object)),
+                        Operand2::Varying(index),
+                    ],
+                );
+
+                self.push_from_register(&object);
+                self.push_from_register(&dst);
+
+                self.register_allocator.dealloc(dst);
+                self.register_allocator.dealloc(object);
             }
             PropertyAccess::Super(access) => {
-                self.emit_opcode(Opcode::This);
-                self.emit_opcode(Opcode::Super);
-                self.emit_opcode(Opcode::This);
+                let value = self.register_allocator.alloc();
+                let receiver = self.register_allocator.alloc();
+                self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
+                self.emit2(Opcode::Super, &[Operand2::Register(&value)]);
+
+                self.push_from_register(&receiver);
+
+                let dst = self.register_allocator.alloc();
+
                 match access.field() {
-                    PropertyAccessField::Const(field) => {
-                        self.emit_get_property_by_name(*field);
+                    PropertyAccessField::Const(ident) => {
+                        self.emit_get_property_by_name(&dst, &receiver, &value, *ident);
                     }
                     PropertyAccessField::Expr(expr) => {
                         self.compile_expr(expr, true);
-                        self.emit_opcode(Opcode::GetPropertyByValue);
+                        let key = self.register_allocator.alloc();
+                        self.pop_into_register(&key);
+                        self.emit2(
+                            Opcode::GetPropertyByValue,
+                            &[
+                                Operand2::Register(&dst),
+                                Operand2::Operand(InstructionOperand::Register(&key)),
+                                Operand2::Operand(InstructionOperand::Register(&receiver)),
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                            ],
+                        );
+                        self.register_allocator.dealloc(key);
                     }
                 }
+
+                self.push_from_register(&dst);
+                self.register_allocator.dealloc(dst);
+                self.register_allocator.dealloc(receiver);
+                self.register_allocator.dealloc(value);
             }
         }
     }
@@ -1543,23 +1734,60 @@ impl<'ctx> ByteCompiler<'ctx> {
         match kind {
             OptionalOperationKind::SimplePropertyAccess { field } => {
                 self.emit_opcode(Opcode::Dup);
-                self.emit_opcode(Opcode::Dup);
+
+                let dst = self.register_allocator.alloc();
+                let value = self.register_allocator.alloc();
+                self.pop_into_register(&value);
                 match field {
                     PropertyAccessField::Const(name) => {
-                        self.emit_get_property_by_name(*name);
+                        self.emit_get_property_by_name(&dst, &value, &value, *name);
                     }
                     PropertyAccessField::Expr(expr) => {
                         self.compile_expr(expr, true);
-                        self.emit_opcode(Opcode::GetPropertyByValue);
+                        let key = self.register_allocator.alloc();
+                        self.pop_into_register(&key);
+                        self.emit2(
+                            Opcode::GetPropertyByValue,
+                            &[
+                                Operand2::Register(&dst),
+                                Operand2::Operand(InstructionOperand::Register(&key)),
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                                Operand2::Operand(InstructionOperand::Register(&value)),
+                            ],
+                        );
+                        self.register_allocator.dealloc(key);
                     }
                 }
+                self.push_from_register(&dst);
+
+                self.register_allocator.dealloc(dst);
+                self.register_allocator.dealloc(value);
+
                 self.emit(Opcode::RotateLeft, &[Operand::U8(3)]);
                 self.emit_opcode(Opcode::Pop);
             }
             OptionalOperationKind::PrivatePropertyAccess { field } => {
-                self.emit_opcode(Opcode::Dup);
                 let index = self.get_or_insert_private_name(*field);
-                self.emit_with_varying_operand(Opcode::GetPrivateField, index);
+
+                self.emit_opcode(Opcode::Dup);
+                let object = self.register_allocator.alloc();
+                self.pop_into_register(&object);
+
+                let dst = self.register_allocator.alloc();
+                self.emit2(
+                    Opcode::GetPrivateField,
+                    &[
+                        Operand2::Register(&dst),
+                        Operand2::Operand(InstructionOperand::Register(&object)),
+                        Operand2::Varying(index),
+                    ],
+                );
+
+                self.push_from_register(&dst);
+
+                self.register_allocator.dealloc(dst);
+                self.register_allocator.dealloc(object);
+
                 self.emit(Opcode::RotateLeft, &[Operand::U8(3)]);
                 self.emit_opcode(Opcode::Pop);
             }

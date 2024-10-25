@@ -6,7 +6,7 @@ mod update;
 
 use std::ops::Deref;
 
-use super::{Access, Callable, NodeKind, Operand, ToJsString};
+use super::{Access, Callable, InstructionOperand, NodeKind, Operand, Operand2, ToJsString};
 use crate::{
     bytecompiler::{ByteCompiler, Literal},
     vm::{GeneratorResumeKind, Opcode},
@@ -250,22 +250,58 @@ impl ByteCompiler<'_> {
                     Expression::PropertyAccess(PropertyAccess::Simple(access)) => {
                         self.compile_expr(access.target(), true);
                         self.emit_opcode(Opcode::Dup);
-                        self.emit_opcode(Opcode::Dup);
+
+                        let dst = self.register_allocator.alloc();
+                        let value = self.register_allocator.alloc();
+                        self.pop_into_register(&value);
+
                         match access.field() {
-                            PropertyAccessField::Const(field) => {
-                                self.emit_get_property_by_name(*field);
+                            PropertyAccessField::Const(ident) => {
+                                self.emit_get_property_by_name(&dst, &value, &value, *ident);
                             }
                             PropertyAccessField::Expr(field) => {
                                 self.compile_expr(field, true);
-                                self.emit_opcode(Opcode::GetPropertyByValue);
+                                let key = self.register_allocator.alloc();
+                                self.pop_into_register(&key);
+                                self.emit2(
+                                    Opcode::GetPropertyByValue,
+                                    &[
+                                        Operand2::Register(&dst),
+                                        Operand2::Operand(InstructionOperand::Register(&key)),
+                                        Operand2::Operand(InstructionOperand::Register(&value)),
+                                        Operand2::Operand(InstructionOperand::Register(&value)),
+                                    ],
+                                );
+                                self.register_allocator.dealloc(key);
                             }
                         }
+
+                        self.push_from_register(&dst);
+                        self.register_allocator.dealloc(dst);
+                        self.register_allocator.dealloc(value);
                     }
                     Expression::PropertyAccess(PropertyAccess::Private(access)) => {
-                        self.compile_expr(access.target(), true);
-                        self.emit(Opcode::Dup, &[]);
                         let index = self.get_or_insert_private_name(access.field());
-                        self.emit_with_varying_operand(Opcode::GetPrivateField, index);
+
+                        self.compile_expr(access.target(), true);
+                        let object = self.register_allocator.alloc();
+                        self.pop_into_register(&object);
+
+                        let dst = self.register_allocator.alloc();
+                        self.emit2(
+                            Opcode::GetPrivateField,
+                            &[
+                                Operand2::Register(&dst),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Varying(index),
+                            ],
+                        );
+
+                        self.push_from_register(&object);
+                        self.push_from_register(&dst);
+
+                        self.register_allocator.dealloc(object);
+                        self.register_allocator.dealloc(dst);
                     }
                     expr => {
                         self.emit_opcode(Opcode::PushUndefined);
