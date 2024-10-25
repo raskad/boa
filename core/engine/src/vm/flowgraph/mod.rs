@@ -380,7 +380,7 @@ impl CodeBlock {
                 | Instruction::PushTrue
                 | Instruction::PushFalse
                 | Instruction::PushUndefined
-                | Instruction::PushEmptyObject
+                | Instruction::PushEmptyObject { .. }
                 | Instruction::PushClassPrototype { .. }
                 | Instruction::SetClassPrototype { .. }
                 | Instruction::SetHomeObject { .. }

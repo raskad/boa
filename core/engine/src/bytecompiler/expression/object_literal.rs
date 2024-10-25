@@ -11,9 +11,8 @@ use boa_interner::Sym;
 
 impl ByteCompiler<'_> {
     pub(crate) fn compile_object_literal(&mut self, literal: &ObjectLiteral, use_expr: bool) {
-        self.emit_opcode(Opcode::PushEmptyObject);
         let object = self.register_allocator.alloc();
-        self.pop_into_register(&object);
+        self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&object)]);
 
         for property in literal.properties() {
             match property {

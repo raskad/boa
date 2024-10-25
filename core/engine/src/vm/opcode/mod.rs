@@ -762,8 +762,8 @@ generate_opcodes! {
     ///
     /// Operands:
     ///
-    /// Stack: **=>** `{}`
-    PushEmptyObject,
+    /// Stack: **=>**
+    PushEmptyObject { dst: VaryingOperand },
 
     /// Get the prototype of a superclass and push it on the stack.
     ///

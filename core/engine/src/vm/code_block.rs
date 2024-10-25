@@ -698,7 +698,7 @@ impl CodeBlock {
             | Instruction::PushTrue
             | Instruction::PushFalse
             | Instruction::PushUndefined
-            | Instruction::PushEmptyObject
+            | Instruction::PushEmptyObject { .. }
             | Instruction::SetHomeObject { .. }
             | Instruction::TypeOf
             | Instruction::Void
