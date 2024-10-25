@@ -260,9 +260,8 @@ impl ByteCompiler<'_> {
                                 self.emit_get_property_by_name(&dst, &value, &value, *ident);
                             }
                             PropertyAccessField::Expr(field) => {
-                                self.compile_expr(field, true);
                                 let key = self.register_allocator.alloc();
-                                self.pop_into_register(&key);
+                                self.compile_expr2(field, &key);
                                 self.emit2(
                                     Opcode::GetPropertyByValue,
                                     &[
@@ -283,9 +282,8 @@ impl ByteCompiler<'_> {
                     Expression::PropertyAccess(PropertyAccess::Private(access)) => {
                         let index = self.get_or_insert_private_name(access.field());
 
-                        self.compile_expr(access.target(), true);
                         let object = self.register_allocator.alloc();
-                        self.pop_into_register(&object);
+                        self.compile_expr2(access.target(), &object);
 
                         let dst = self.register_allocator.alloc();
                         self.emit2(

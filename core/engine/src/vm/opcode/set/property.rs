@@ -309,15 +309,12 @@ impl Operation for SetPropertyGetterByName {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SetPropertyGetterByValue;
 
-impl Operation for SetPropertyGetterByValue {
-    const NAME: &'static str = "SetPropertyGetterByValue";
-    const INSTRUCTION: &'static str = "INST - SetPropertyGetterByValue";
-    const COST: u8 = 4;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let key = context.vm.pop();
-        let object = context.vm.pop();
+impl SetPropertyGetterByValue {
+    fn operation(value: u32, key: u32, object: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let object = context.vm.stack[(rp + object) as usize].clone();
         let object = object.to_object(context)?;
         let name = key.to_property_key(context)?;
 
@@ -337,6 +334,33 @@ impl Operation for SetPropertyGetterByValue {
             &mut InternalMethodContext::new(context),
         )?;
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for SetPropertyGetterByValue {
+    const NAME: &'static str = "SetPropertyGetterByValue";
+    const INSTRUCTION: &'static str = "INST - SetPropertyGetterByValue";
+    const COST: u8 = 4;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        let key = context.vm.read::<u8>().into();
+        let object = context.vm.read::<u8>().into();
+        Self::operation(value, key, object,context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        let key = context.vm.read::<u16>().into();
+        let object = context.vm.read::<u16>().into();
+        Self::operation(value, key, object,context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>();
+        let key = context.vm.read::<u32>();
+        let object = context.vm.read::<u32>();
+        Self::operation(value, key, object,context)
     }
 }
 
@@ -406,15 +430,12 @@ impl Operation for SetPropertySetterByName {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SetPropertySetterByValue;
 
-impl Operation for SetPropertySetterByValue {
-    const NAME: &'static str = "SetPropertySetterByValue";
-    const INSTRUCTION: &'static str = "INST - SetPropertySetterByValue";
-    const COST: u8 = 4;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let key = context.vm.pop();
-        let object = context.vm.pop();
+impl SetPropertySetterByValue {
+    fn operation(value: u32, key: u32, object: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let object = context.vm.stack[(rp + object) as usize].clone();
         let object = object.to_object(context)?;
         let name = key.to_property_key(context)?;
 
@@ -437,6 +458,33 @@ impl Operation for SetPropertySetterByValue {
     }
 }
 
+impl Operation for SetPropertySetterByValue {
+    const NAME: &'static str = "SetPropertySetterByValue";
+    const INSTRUCTION: &'static str = "INST - SetPropertySetterByValue";
+    const COST: u8 = 4;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        let key = context.vm.read::<u8>().into();
+        let object = context.vm.read::<u8>().into();
+        Self::operation(value, key, object,context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        let key = context.vm.read::<u16>().into();
+        let object = context.vm.read::<u16>().into();
+        Self::operation(value, key, object,context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>();
+        let key = context.vm.read::<u32>();
+        let object = context.vm.read::<u32>();
+        Self::operation(value, key, object,context)
+    }
+}
+
 /// `SetFunctionName` implements the Opcode Operation for `Opcode::SetFunctionName`
 ///
 /// Operation:
@@ -444,15 +492,11 @@ impl Operation for SetPropertySetterByValue {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SetFunctionName;
 
-impl Operation for SetFunctionName {
-    const NAME: &'static str = "SetFunctionName";
-    const INSTRUCTION: &'static str = "INST - SetFunctionName";
-    const COST: u8 = 4;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let prefix = context.vm.read::<u8>();
-        let function = context.vm.pop();
-        let name = context.vm.pop();
+impl SetFunctionName {
+    fn operation(function: u32, name: u32, prefix: u8, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let function = context.vm.stack[(rp + function) as usize].clone();
+        let name = context.vm.stack[(rp + name) as usize].clone();
 
         let name = match name {
             JsValue::String(name) => name.into(),
@@ -473,7 +517,33 @@ impl Operation for SetFunctionName {
             context,
         );
 
-        context.vm.stack.push(function);
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for SetFunctionName {
+    const NAME: &'static str = "SetFunctionName";
+    const INSTRUCTION: &'static str = "INST - SetFunctionName";
+    const COST: u8 = 4;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u8>().into();
+        let name = context.vm.read::<u8>().into();
+        let prefix = context.vm.read::<u8>();
+        Self::operation(function, name, prefix, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u16>().into();
+        let name = context.vm.read::<u16>().into();
+        let prefix = context.vm.read::<u8>();
+        Self::operation(function, name, prefix,context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u32>();
+        let name = context.vm.read::<u32>();
+        let prefix = context.vm.read::<u8>();
+        Self::operation(function, name, prefix,context)
     }
 }

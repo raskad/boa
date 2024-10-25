@@ -50,9 +50,8 @@ impl ByteCompiler<'_> {
                                     excluded_keys.push(*ident);
                                 }
                                 PropertyName::Computed(node) => {
-                                    self.compile_expr(node, true);
                                     let key = self.register_allocator.alloc();
-                                    self.pop_into_register(&key);
+                                    self.compile_expr2(node, &key);
                                     if rest_exits {
                                         self.emit2(
                                             Opcode::GetPropertyByValuePush,
@@ -143,11 +142,12 @@ impl ByteCompiler<'_> {
                                     Operand::Varying(0),
                                 ],
                             );
-                            self.access_set(
-                                Access::Property { access },
-                                false,
-                                ByteCompiler::access_set_empty,
-                            );
+                            let value = self.register_allocator.alloc();
+                            self.pop_into_register(&value);
+                            self.access_set(Access::Property { access }, false, |_| {
+                                return &value;
+                            });
+                            self.register_allocator.dealloc(value);
                         }
                         AssignmentPropertyAccess {
                             name,
@@ -159,19 +159,25 @@ impl ByteCompiler<'_> {
                             match &name {
                                 PropertyName::Literal(name) => excluded_keys.push(*name),
                                 PropertyName::Computed(node) => {
-                                    self.compile_expr(node, true);
-                                    self.emit_opcode(Opcode::ToPropertyKey);
+                                    let key = self.register_allocator.alloc();
+                                    self.compile_expr2(node, &key);
+                                    self.emit2(
+                                        Opcode::ToPropertyKey,
+                                        &[Operand2::Register(&key), Operand2::Register(&key)],
+                                    );
+                                    self.push_from_register(&key);
+                                    self.register_allocator.dealloc(key);
                                     self.emit_opcode(Opcode::Swap);
                                 }
                             }
 
+                            let value = self.register_allocator.alloc();
+                            self.pop_into_register(&value);
                             self.access_set(
                                 Access::Property { access },
                                 false,
                                 |compiler: &mut ByteCompiler<'_>| {
                                     let dst = compiler.register_allocator.alloc();
-                                    let value = compiler.register_allocator.alloc();
-                                    compiler.pop_into_register(&value);
 
                                     match name {
                                         PropertyName::Literal(ident) => {
@@ -230,16 +236,24 @@ impl ByteCompiler<'_> {
                                     }
 
                                     compiler.register_allocator.dealloc(dst);
-                                    compiler.register_allocator.dealloc(value);
 
                                     if let Some(init) = default_init {
                                         let skip = compiler
                                             .emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                                        compiler.compile_expr(init, true);
+                                        compiler.compile_expr2(init, &value);
+                                        let skip2 = compiler.jump();
                                         compiler.patch_jump(skip);
+                                        compiler.pop_into_register(&value);
+                                        compiler.patch_jump(skip2);
+                                    } else {
+                                        compiler.pop_into_register(&value);
                                     }
+
+                                    return &value;
                                 },
                             );
+
+                            self.register_allocator.dealloc(value);
 
                             if rest_exits && name.computed().is_some() {
                                 self.emit_opcode(Opcode::Swap);
@@ -262,9 +276,8 @@ impl ByteCompiler<'_> {
                                     self.emit_get_property_by_name(&dst, &value, &value, *ident);
                                 }
                                 PropertyName::Computed(node) => {
-                                    self.compile_expr(node, true);
                                     let key = self.register_allocator.alloc();
-                                    self.pop_into_register(&key);
+                                    self.compile_expr2(node, &key);
                                     self.emit2(
                                         Opcode::GetPropertyByValue,
                                         &[
@@ -360,16 +373,24 @@ impl ByteCompiler<'_> {
                 access,
                 default_init,
             } => {
+                let value = self.register_allocator.alloc();
                 self.access_set(Access::Property { access }, false, |compiler| {
                     compiler.emit_opcode(Opcode::IteratorNextWithoutPop);
                     compiler.emit_opcode(Opcode::IteratorValueWithoutPop);
 
                     if let Some(init) = default_init {
                         let skip = compiler.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                        compiler.compile_expr(init, true);
+                        compiler.compile_expr2(init, &value);
+                        let skip2 = compiler.jump();
                         compiler.patch_jump(skip);
+                        compiler.pop_into_register(&value);
+                        compiler.patch_jump(skip2);
+                    } else {
+                        compiler.pop_into_register(&value);
                     }
+                    return &value;
                 });
+                self.register_allocator.dealloc(value);
             }
             // BindingElement : BindingPattern Initializer[opt]
             Pattern {
@@ -393,9 +414,13 @@ impl ByteCompiler<'_> {
                 self.emit_binding(def, ident.to_js_string(self.interner()));
             }
             PropertyAccessRest { access } => {
+                let value = self.register_allocator.alloc();
                 self.access_set(Access::Property { access }, false, |compiler| {
                     compiler.emit_opcode(Opcode::IteratorToArray);
+                    compiler.pop_into_register(&value);
+                    return &value;
                 });
+                self.register_allocator.dealloc(value);
             }
             // BindingRestElement : ... BindingPattern
             PatternRest { pattern } => {

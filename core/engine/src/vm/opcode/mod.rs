@@ -795,8 +795,11 @@ generate_opcodes! {
     ///
     /// Operands:
     ///
-    /// Stack: home, function **=>** home, function
-    SetHomeObject,
+    /// Stack: home, function **=>**
+    SetHomeObject {
+        function: VaryingOperand,
+        home: VaryingOperand
+    },
 
     /// Set the prototype of an object if the value is an object or null.
     ///
@@ -1217,10 +1220,10 @@ generate_opcodes! {
     ///
     /// Operands: prefix: `u8`
     ///
-    /// Stack: name, function **=>** function
+    /// Stack: name, function **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-setfunctionname
-    SetFunctionName { prefix: u8 },
+    SetFunctionName { function: VaryingOperand, name: VaryingOperand, prefix: u8 },
 
     /// Defines a own property of an object by name.
     ///
@@ -1234,14 +1237,24 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: class, function **=>**
-    DefineClassStaticMethodByName { index: VaryingOperand },
+    DefineClassStaticMethodByName {
+        operand_types: u8,
+        function: VaryingOperand,
+        class: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Defines a class method by name.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: class_proto, function **=>**
-    DefineClassMethodByName { index: VaryingOperand },
+    DefineClassMethodByName {
+        operand_types: u8,
+        function: VaryingOperand,
+        class_proto: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets a property by value of an object.
     ///
@@ -1264,21 +1277,35 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, key, value **=>**
-    DefineOwnPropertyByValue,
+    DefineOwnPropertyByValue {
+        value: VaryingOperand,
+        key: VaryingOperand,
+        object: VaryingOperand
+    },
 
     /// Defines a static class method by value.
     ///
     /// Operands:
     ///
     /// Stack: class, key, function **=>**
-    DefineClassStaticMethodByValue,
+    DefineClassStaticMethodByValue {
+        operand_types: u8,
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class: VaryingOperand
+    },
 
     /// Defines a class method by value.
     ///
     /// Operands:
     ///
     /// Stack: class_proto, key, function **=>**
-    DefineClassMethodByValue,
+    DefineClassMethodByValue {
+        operand_types: u8,
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class_proto: VaryingOperand
+    },
 
     /// Sets a getter property by name of an object.
     ///
@@ -1295,8 +1322,13 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: class, binding_function **=>**
-    DefineClassStaticGetterByName { index: VaryingOperand },
+    /// Stack: class, function **=>**
+    DefineClassStaticGetterByName {
+        operand_types: u8,
+        function: VaryingOperand,
+        class: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Defines a getter class method by name.
     ///
@@ -1304,8 +1336,13 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: class_proto, function **=>** class
-    DefineClassGetterByName { index: VaryingOperand },
+    /// Stack: class_proto, function **=>**
+    DefineClassGetterByName {
+        operand_types: u8,
+        function: VaryingOperand,
+        class_proto: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets a getter property by value of an object.
     ///
@@ -1314,7 +1351,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, key, value **=>**
-    SetPropertyGetterByValue,
+    SetPropertyGetterByValue {
+        value: VaryingOperand,
+        key: VaryingOperand,
+        object: VaryingOperand
+    },
 
     /// Defines a static getter class method by value.
     ///
@@ -1323,7 +1364,12 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class, key, function **=>**
-    DefineClassStaticGetterByValue,
+    DefineClassStaticGetterByValue {
+        operand_types: u8,
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class: VaryingOperand
+    },
 
     /// Defines a getter class method by value.
     ///
@@ -1332,7 +1378,12 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class_proto, key, function **=>**
-    DefineClassGetterByValue,
+    DefineClassGetterByValue {
+        operand_types: u8,
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class_proto: VaryingOperand
+    },
 
     /// Sets a setter property by name of an object.
     ///
@@ -1350,7 +1401,12 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: class, function **=>**
-    DefineClassStaticSetterByName { index: VaryingOperand },
+    DefineClassStaticSetterByName {
+        operand_types: u8,
+        function: VaryingOperand,
+        class: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Defines a setter class method by name.
     ///
@@ -1359,7 +1415,12 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: class_proto, function **=>**
-    DefineClassSetterByName { index: VaryingOperand },
+    DefineClassSetterByName {
+        operand_types: u8,
+        function: VaryingOperand,
+        class_proto: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets a setter property by value of an object.
     ///
@@ -1368,7 +1429,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, key, value **=>**
-    SetPropertySetterByValue,
+    SetPropertySetterByValue {
+        value: VaryingOperand,
+        key: VaryingOperand,
+        object: VaryingOperand
+    },
 
     /// Defines a static setter class method by value.
     ///
@@ -1377,7 +1442,12 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class, key, function **=>**
-    DefineClassStaticSetterByValue,
+    DefineClassStaticSetterByValue {
+        operand_types: u8,
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class: VaryingOperand
+    },
 
     /// Defines a setter class method by value.
     ///
@@ -1386,7 +1456,12 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class_proto, key, function **=>**
-    DefineClassSetterByValue,
+    DefineClassSetterByValue {
+        operand_types: u8,
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class_proto: VaryingOperand
+    },
 
     /// Set the value of a private property of an object by it's name.
     ///
@@ -1514,7 +1589,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: value **=>** key
-    ToPropertyKey,
+    ToPropertyKey {value: VaryingOperand, dst: VaryingOperand },
 
     /// Unconditional jump to address.
     ///

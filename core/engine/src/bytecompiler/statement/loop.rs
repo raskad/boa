@@ -177,11 +177,10 @@ impl ByteCompiler<'_> {
                 self.emit_binding(BindingOpcode::InitVar, ident);
             }
             IterableLoopInitializer::Access(access) => {
-                self.access_set(
-                    Access::Property { access },
-                    false,
-                    ByteCompiler::access_set_empty,
-                );
+                let value = self.register_allocator.alloc();
+                self.pop_into_register(&value);
+                self.access_set(Access::Property { access }, false, |_| return &value);
+                self.register_allocator.dealloc(value);
             }
             IterableLoopInitializer::Var(declaration) => match declaration.binding() {
                 Binding::Identifier(ident) => {
@@ -299,11 +298,12 @@ impl ByteCompiler<'_> {
                 }
             }
             IterableLoopInitializer::Access(access) => {
-                self.access_set(
-                    Access::Property { access },
-                    false,
-                    ByteCompiler::access_set_empty,
-                );
+                let value = self.register_allocator.alloc();
+                self.pop_into_register(&value);
+                self.access_set(Access::Property { access }, false, |_| {
+                    return &value;
+                });
+                self.register_allocator.dealloc(value);
             }
             IterableLoopInitializer::Var(declaration) => {
                 // ignore initializers since those aren't allowed on for-of loops.

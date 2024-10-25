@@ -11,14 +11,11 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SetHomeObject;
 
-impl Operation for SetHomeObject {
-    const NAME: &'static str = "SetHomeObject";
-    const INSTRUCTION: &'static str = "INST - SetHomeObject";
-    const COST: u8 = 4;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let function = context.vm.pop();
-        let home = context.vm.pop();
+impl SetHomeObject {
+    fn operation(function:u32, home: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let function = context.vm.stack[(rp + function) as usize].clone();
+        let home = context.vm.stack[(rp + home) as usize].clone();
 
         function
             .as_object()
@@ -27,8 +24,30 @@ impl Operation for SetHomeObject {
             .expect("must be function object")
             .set_home_object(home.as_object().expect("must be object").clone());
 
-        context.vm.push(home);
-        context.vm.push(function);
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for SetHomeObject {
+    const NAME: &'static str = "SetHomeObject";
+    const INSTRUCTION: &'static str = "INST - SetHomeObject";
+    const COST: u8 = 4;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u8>().into();
+        let home = context.vm.read::<u8>().into();
+        Self::operation(function, home, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u16>().into();
+        let home = context.vm.read::<u16>().into();
+        Self::operation(function, home,context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u32>();
+        let home = context.vm.read::<u32>();
+        Self::operation(function, home,context)
     }
 }

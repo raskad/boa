@@ -1,6 +1,6 @@
 use crate::vm::{BindingOpcode, Opcode};
 
-use super::{ByteCompiler, Literal, Operand, ToJsString};
+use super::{ByteCompiler, Literal, Operand2, ToJsString};
 use boa_ast::{declaration::ExportDeclaration, ModuleItem, ModuleItemList};
 use boa_interner::Sym;
 
@@ -44,8 +44,8 @@ impl ByteCompiler<'_> {
                     ExportDeclaration::Declaration(decl) => self.compile_decl(decl, false),
                     ExportDeclaration::DefaultClassDeclaration(cl) => self.class(cl.into(), false),
                     ExportDeclaration::DefaultAssignmentExpression(expr) => {
-                        let name = Sym::DEFAULT_EXPORT.to_js_string(self.interner());
-                        self.compile_expr(expr, true);
+                        let function = self.register_allocator.alloc();
+                        self.compile_expr2(expr, &function);
 
                         if expr.is_anonymous_function_definition() {
                             let default = self
@@ -53,11 +53,20 @@ impl ByteCompiler<'_> {
                                 .resolve_expect(Sym::DEFAULT)
                                 .into_common(false);
                             self.emit_push_literal(Literal::String(default));
-                            self.emit_opcode(Opcode::Swap);
-                            self.emit(Opcode::SetFunctionName, &[Operand::U8(0)]);
+                            let key = self.register_allocator.alloc();
+                            self.pop_into_register(&key);
+                            self.emit2(Opcode::SetFunctionName, &[
+                                Operand2::Register(&function),
+                                Operand2::Register(&key),
+                                Operand2::U8(0),
+                            ]);
+                            self.register_allocator.dealloc(key);
                         }
 
+                        let name = Sym::DEFAULT_EXPORT.to_js_string(self.interner());
+                        self.push_from_register(&function);
                         self.emit_binding(BindingOpcode::InitLexical, name);
+                        self.register_allocator.dealloc(function);
                     }
                 }
             }

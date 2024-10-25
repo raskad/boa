@@ -29,15 +29,36 @@ impl Operation for ToBoolean {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ToPropertyKey;
 
+impl ToPropertyKey {
+    fn operation(value: u32, dst: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let key = value.to_property_key(context)?;
+        context.vm.stack[(rp + dst) as usize] = key.into();
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for ToPropertyKey {
     const NAME: &'static str = "ToPropertyKey";
     const INSTRUCTION: &'static str = "INST - ToPropertyKey";
     const COST: u8 = 2;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let key = value.to_property_key(context)?;
-        context.vm.push(key);
-        Ok(CompletionType::Normal)
+        let value = context.vm.read::<u8>().into();
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(value, dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(value, dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>();
+        let dst = context.vm.read::<u32>();
+        Self::operation(value, dst, context)
     }
 }

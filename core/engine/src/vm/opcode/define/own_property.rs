@@ -64,15 +64,12 @@ impl Operation for DefineOwnPropertyByName {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DefineOwnPropertyByValue;
 
-impl Operation for DefineOwnPropertyByValue {
-    const NAME: &'static str = "DefineOwnPropertyByValue";
-    const INSTRUCTION: &'static str = "INST - DefineOwnPropertyByValue";
-    const COST: u8 = 4;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let key = context.vm.pop();
-        let object = context.vm.pop();
+impl DefineOwnPropertyByValue {
+    fn operation(value: u32, key: u32, object: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let object = context.vm.stack[(rp + object) as usize].clone();
         let object = if let Some(object) = object.as_object() {
             object.clone()
         } else {
@@ -95,5 +92,32 @@ impl Operation for DefineOwnPropertyByValue {
                 .into());
         }
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for DefineOwnPropertyByValue {
+    const NAME: &'static str = "DefineOwnPropertyByValue";
+    const INSTRUCTION: &'static str = "INST - DefineOwnPropertyByValue";
+    const COST: u8 = 4;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        let key = context.vm.read::<u8>().into();
+        let object = context.vm.read::<u8>().into();
+        Self::operation(value, key, object,context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        let key = context.vm.read::<u16>().into();
+        let object = context.vm.read::<u16>().into();
+        Self::operation(value, key, object,context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>();
+        let key = context.vm.read::<u32>();
+        let object = context.vm.read::<u32>();
+        Self::operation(value, key, object,context)
     }
 }

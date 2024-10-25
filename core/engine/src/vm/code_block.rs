@@ -408,7 +408,7 @@ impl CodeBlock {
                     r2.to_string::<0>(*operand_types)
                 )
             }
-            Instruction::SetFunctionName { prefix } => match prefix {
+            Instruction::SetFunctionName { prefix, .. } => match prefix {
                 0 => "prefix: none",
                 1 => "prefix: get",
                 2 => "prefix: set",
@@ -531,14 +531,14 @@ impl CodeBlock {
                 )
             }
             Instruction::DefineOwnPropertyByName { index }
-            | Instruction::DefineClassStaticMethodByName { index }
-            | Instruction::DefineClassMethodByName { index }
+            | Instruction::DefineClassStaticMethodByName { index, .. }
+            | Instruction::DefineClassMethodByName { index, .. }
             | Instruction::SetPropertyGetterByName { index }
-            | Instruction::DefineClassStaticGetterByName { index }
-            | Instruction::DefineClassGetterByName { index }
+            | Instruction::DefineClassStaticGetterByName { index, .. }
+            | Instruction::DefineClassGetterByName { index, .. }
             | Instruction::SetPropertySetterByName { index }
-            | Instruction::DefineClassStaticSetterByName { index }
-            | Instruction::DefineClassSetterByName { index }
+            | Instruction::DefineClassStaticSetterByName { index, .. }
+            | Instruction::DefineClassSetterByName { index, .. }
             | Instruction::ThrowMutateImmutable { index }
             | Instruction::DeletePropertyByName { index }
             | Instruction::SetPrivateField { index, .. }
@@ -699,25 +699,25 @@ impl CodeBlock {
             | Instruction::PushFalse
             | Instruction::PushUndefined
             | Instruction::PushEmptyObject
-            | Instruction::SetHomeObject
+            | Instruction::SetHomeObject { .. }
             | Instruction::TypeOf
             | Instruction::Void
             | Instruction::LogicalNot
             | Instruction::Pos
             | Instruction::Neg
             | Instruction::SetPropertyByValue { .. }
-            | Instruction::DefineOwnPropertyByValue
-            | Instruction::DefineClassStaticMethodByValue
-            | Instruction::DefineClassMethodByValue
-            | Instruction::SetPropertyGetterByValue
-            | Instruction::DefineClassStaticGetterByValue
-            | Instruction::DefineClassGetterByValue
-            | Instruction::SetPropertySetterByValue
-            | Instruction::DefineClassStaticSetterByValue
-            | Instruction::DefineClassSetterByValue
+            | Instruction::DefineOwnPropertyByValue { .. }
+            | Instruction::DefineClassStaticMethodByValue { .. }
+            | Instruction::DefineClassMethodByValue { .. }
+            | Instruction::SetPropertyGetterByValue { .. }
+            | Instruction::DefineClassStaticGetterByValue { .. }
+            | Instruction::DefineClassGetterByValue { .. }
+            | Instruction::SetPropertySetterByValue { .. }
+            | Instruction::DefineClassStaticSetterByValue { .. }
+            | Instruction::DefineClassSetterByValue { .. }
             | Instruction::DeletePropertyByValue
             | Instruction::DeleteSuperThrow
-            | Instruction::ToPropertyKey
+            | Instruction::ToPropertyKey { .. }
             | Instruction::ToBoolean
             | Instruction::Throw
             | Instruction::ReThrow

@@ -383,25 +383,25 @@ impl CodeBlock {
                 | Instruction::PushEmptyObject
                 | Instruction::PushClassPrototype { .. }
                 | Instruction::SetClassPrototype { .. }
-                | Instruction::SetHomeObject
+                | Instruction::SetHomeObject { .. }
                 | Instruction::TypeOf
                 | Instruction::Void
                 | Instruction::LogicalNot
                 | Instruction::Pos
                 | Instruction::Neg
                 | Instruction::SetPropertyByValue { .. }
-                | Instruction::DefineOwnPropertyByValue
-                | Instruction::DefineClassStaticMethodByValue
-                | Instruction::DefineClassMethodByValue
-                | Instruction::SetPropertyGetterByValue
-                | Instruction::DefineClassStaticGetterByValue
-                | Instruction::DefineClassGetterByValue
-                | Instruction::SetPropertySetterByValue
-                | Instruction::DefineClassStaticSetterByValue
-                | Instruction::DefineClassSetterByValue
+                | Instruction::DefineOwnPropertyByValue { .. }
+                | Instruction::DefineClassStaticMethodByValue { .. }
+                | Instruction::DefineClassMethodByValue { .. }
+                | Instruction::SetPropertyGetterByValue { .. }
+                | Instruction::DefineClassStaticGetterByValue { .. }
+                | Instruction::DefineClassGetterByValue { .. }
+                | Instruction::SetPropertySetterByValue { .. }
+                | Instruction::DefineClassStaticSetterByValue { .. }
+                | Instruction::DefineClassSetterByValue { .. }
                 | Instruction::DeletePropertyByValue
                 | Instruction::DeleteSuperThrow
-                | Instruction::ToPropertyKey
+                | Instruction::ToPropertyKey { .. }
                 | Instruction::ToBoolean
                 | Instruction::This { .. }
                 | Instruction::ThisForObjectEnvironmentName { .. }

@@ -83,9 +83,8 @@ impl ByteCompiler<'_> {
             }
             Access::Property { access } => match access {
                 PropertyAccess::Simple(access) => {
-                    self.compile_expr(access.target(), true);
                     let object = self.register_allocator.alloc();
-                    self.pop_into_register(&object);
+                    self.compile_expr2(access.target(), &object);
 
                     match access.field() {
                         PropertyAccessField::Const(ident) => {
@@ -122,9 +121,8 @@ impl ByteCompiler<'_> {
                             self.register_allocator.dealloc(dst_numeric);
                         }
                         PropertyAccessField::Expr(expr) => {
-                            self.compile_expr(expr, true);
                             let key = self.register_allocator.alloc();
-                            self.pop_into_register(&key);
+                            self.compile_expr2(expr, &key);
 
                             let value = self.register_allocator.alloc();
 
@@ -182,9 +180,8 @@ impl ByteCompiler<'_> {
                 PropertyAccess::Private(access) => {
                     let index = self.get_or_insert_private_name(access.field());
 
-                    self.compile_expr(access.target(), true);
                     let object = self.register_allocator.alloc();
-                    self.pop_into_register(&object);
+                    self.compile_expr2(access.target(), &object);
 
                     let value = self.register_allocator.alloc();
 
@@ -279,9 +276,8 @@ impl ByteCompiler<'_> {
                         self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
                         self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
 
-                        self.compile_expr(expr, true);
                         let key = self.register_allocator.alloc();
-                        self.pop_into_register(&key);
+                        self.compile_expr2(expr, &key);
 
                         let value = self.register_allocator.alloc();
 
