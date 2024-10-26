@@ -1548,18 +1548,14 @@ impl<'ctx> ByteCompiler<'ctx> {
     /// with calls (`a.b()`), since both of them must have `a` be the value of `this` for the function
     /// call `b()`, but a regular compilation of the access would lose the `this` value after accessing
     /// `b`.
-    fn compile_access_preserve_this(&mut self, access: &PropertyAccess) {
+    fn compile_access_preserve_this(&mut self, access: &PropertyAccess, this: &Register, dst: &Register) {
         match access {
             PropertyAccess::Simple(access) => {
-                self.compile_expr(access.target(), true);
-                self.emit_opcode(Opcode::Dup);
+                self.compile_expr2(access.target(), &this);
 
-                let dst = self.register_allocator.alloc();
-                let value = self.register_allocator.alloc();
-                self.pop_into_register(&value);
                 match access.field() {
                     PropertyAccessField::Const(ident) => {
-                        self.emit_get_property_by_name(&dst, &value, &value, *ident);
+                        self.emit_get_property_by_name(&dst, &this, &this, *ident);
                     }
                     PropertyAccessField::Expr(field) => {
                         let key = self.register_allocator.alloc();
@@ -1569,53 +1565,35 @@ impl<'ctx> ByteCompiler<'ctx> {
                             &[
                                 Operand2::Register(&dst),
                                 Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&value)),
-                                Operand2::Operand(InstructionOperand::Register(&value)),
+                                Operand2::Operand(InstructionOperand::Register(&this)),
+                                Operand2::Operand(InstructionOperand::Register(&this)),
                             ],
                         );
                         self.register_allocator.dealloc(key);
                     }
                 }
-
-                self.push_from_register(&dst);
-                self.register_allocator.dealloc(dst);
-                self.register_allocator.dealloc(value);
             }
             PropertyAccess::Private(access) => {
+                self.compile_expr2(access.target(), &this);
+
                 let index = self.get_or_insert_private_name(access.field());
-
-                let object = self.register_allocator.alloc();
-                self.compile_expr2(access.target(), &object);
-
-                let dst = self.register_allocator.alloc();
                 self.emit2(
                     Opcode::GetPrivateField,
                     &[
                         Operand2::Register(&dst),
-                        Operand2::Operand(InstructionOperand::Register(&object)),
+                        Operand2::Operand(InstructionOperand::Register(&this)),
                         Operand2::Varying(index),
                     ],
                 );
-
-                self.push_from_register(&object);
-                self.push_from_register(&dst);
-
-                self.register_allocator.dealloc(dst);
-                self.register_allocator.dealloc(object);
             }
             PropertyAccess::Super(access) => {
-                let value = self.register_allocator.alloc();
-                let receiver = self.register_allocator.alloc();
-                self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
-                self.emit2(Opcode::Super, &[Operand2::Register(&value)]);
-
-                self.push_from_register(&receiver);
-
-                let dst = self.register_allocator.alloc();
+                let object = self.register_allocator.alloc();
+                self.emit2(Opcode::This, &[Operand2::Register(&this)]);
+                self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
 
                 match access.field() {
                     PropertyAccessField::Const(ident) => {
-                        self.emit_get_property_by_name(&dst, &receiver, &value, *ident);
+                        self.emit_get_property_by_name(&dst, &this, &object, *ident);
                     }
                     PropertyAccessField::Expr(expr) => {
                         let key = self.register_allocator.alloc();
@@ -1625,18 +1603,14 @@ impl<'ctx> ByteCompiler<'ctx> {
                             &[
                                 Operand2::Register(&dst),
                                 Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&receiver)),
-                                Operand2::Operand(InstructionOperand::Register(&value)),
+                                Operand2::Operand(InstructionOperand::Register(&this)),
+                                Operand2::Operand(InstructionOperand::Register(&object)),
                             ],
                         );
                         self.register_allocator.dealloc(key);
                     }
                 }
-
-                self.push_from_register(&dst);
-                self.register_allocator.dealloc(dst);
-                self.register_allocator.dealloc(receiver);
-                self.register_allocator.dealloc(value);
+                self.register_allocator.dealloc(object);
             }
         }
     }
@@ -1657,7 +1631,13 @@ impl<'ctx> ByteCompiler<'ctx> {
 
         match optional.target().flatten() {
             Expression::PropertyAccess(access) => {
-                self.compile_access_preserve_this(access);
+                let this = self.register_allocator.alloc();
+                let dst = self.register_allocator.alloc();
+                self.compile_access_preserve_this(access, &this, &dst);
+                self.push_from_register(&this);
+                self.push_from_register(&dst);
+                self.register_allocator.dealloc(this);
+                self.register_allocator.dealloc(dst);
             }
             Expression::Optional(opt) => self.compile_optional_preserve_this(opt),
             expr => {
@@ -1665,7 +1645,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                 self.compile_expr(expr, true);
             }
         }
-        jumps.push(self.jump_if_null_or_undefined());
+        let jmp = self.jump_if_null_or_undefined();
 
         let (first, rest) = optional
             .chain()
@@ -1673,19 +1653,37 @@ impl<'ctx> ByteCompiler<'ctx> {
             .expect("chain must have at least one element");
         assert!(first.shorted());
 
-        self.compile_optional_item_kind(first.kind());
+        let this = self.register_allocator.alloc();
+        let value = self.register_allocator.alloc();
+        self.pop_into_register(&value);
+        self.pop_into_register(&this);
+
+        self.compile_optional_item_kind(first.kind(), &this, &value);
 
         for item in rest {
             if item.shorted() {
+                self.push_from_register(&value);
                 jumps.push(self.jump_if_null_or_undefined());
+                self.pop_into_register(&value);
             }
-            self.compile_optional_item_kind(item.kind());
+            self.compile_optional_item_kind(item.kind(), &this, &value);
         }
+
+        self.push_from_register(&this);
+        self.push_from_register(&value);
+
+        self.register_allocator.dealloc(this);
+        self.register_allocator.dealloc(value);
+
         let skip_undef = self.jump();
 
         for label in jumps {
             self.patch_jump(label);
         }
+
+        self.emit_opcode(Opcode::PushUndefined);
+
+        self.patch_jump(jmp);
 
         self.emit_opcode(Opcode::PushUndefined);
 
@@ -1708,17 +1706,13 @@ impl<'ctx> ByteCompiler<'ctx> {
     ///   is not null or undefined (if the operator `?.` was used).
     /// - This assumes that the state of the stack before compiling is `...rest, this, value`,
     ///   since the operation compiled by this function could be a call.
-    fn compile_optional_item_kind(&mut self, kind: &OptionalOperationKind) {
+    fn compile_optional_item_kind(&mut self, kind: &OptionalOperationKind, this: &Register, value: &Register) {
         match kind {
             OptionalOperationKind::SimplePropertyAccess { field } => {
-                self.emit_opcode(Opcode::Dup);
-
-                let dst = self.register_allocator.alloc();
-                let value = self.register_allocator.alloc();
-                self.pop_into_register(&value);
+                self.push_from_register(&value);
                 match field {
                     PropertyAccessField::Const(name) => {
-                        self.emit_get_property_by_name(&dst, &value, &value, *name);
+                        self.emit_get_property_by_name(&value, &value, &value, *name);
                     }
                     PropertyAccessField::Expr(expr) => {
                         let key = self.register_allocator.alloc();
@@ -1726,7 +1720,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                         self.emit2(
                             Opcode::GetPropertyByValue,
                             &[
-                                Operand2::Register(&dst),
+                                Operand2::Register(&value),
                                 Operand2::Operand(InstructionOperand::Register(&key)),
                                 Operand2::Operand(InstructionOperand::Register(&value)),
                                 Operand2::Operand(InstructionOperand::Register(&value)),
@@ -1735,40 +1729,25 @@ impl<'ctx> ByteCompiler<'ctx> {
                         self.register_allocator.dealloc(key);
                     }
                 }
-                self.push_from_register(&dst);
-
-                self.register_allocator.dealloc(dst);
-                self.register_allocator.dealloc(value);
-
-                self.emit(Opcode::RotateLeft, &[Operand::U8(3)]);
-                self.emit_opcode(Opcode::Pop);
+                self.pop_into_register(&this);
             }
             OptionalOperationKind::PrivatePropertyAccess { field } => {
+                self.push_from_register(&value);
                 let index = self.get_or_insert_private_name(*field);
-
-                self.emit_opcode(Opcode::Dup);
-                let object = self.register_allocator.alloc();
-                self.pop_into_register(&object);
-
-                let dst = self.register_allocator.alloc();
                 self.emit2(
                     Opcode::GetPrivateField,
                     &[
-                        Operand2::Register(&dst),
-                        Operand2::Operand(InstructionOperand::Register(&object)),
+                        Operand2::Register(&value),
+                        Operand2::Operand(InstructionOperand::Register(&value)),
                         Operand2::Varying(index),
                     ],
                 );
-
-                self.push_from_register(&dst);
-
-                self.register_allocator.dealloc(dst);
-                self.register_allocator.dealloc(object);
-
-                self.emit(Opcode::RotateLeft, &[Operand::U8(3)]);
-                self.emit_opcode(Opcode::Pop);
+                self.pop_into_register(&this);
             }
             OptionalOperationKind::Call { args } => {
+                self.push_from_register(&this);
+                self.push_from_register(&value);
+
                 let args = &**args;
                 let contains_spread = args.iter().any(|arg| matches!(arg, Expression::Spread(_)));
 
@@ -1791,8 +1770,9 @@ impl<'ctx> ByteCompiler<'ctx> {
                     self.emit_with_varying_operand(Opcode::Call, args.len() as u32);
                 }
 
+                self.pop_into_register(&value);
                 self.emit_opcode(Opcode::PushUndefined);
-                self.emit_opcode(Opcode::Swap);
+                self.pop_into_register(&this);
             }
         }
     }
@@ -2113,7 +2093,13 @@ impl<'ctx> ByteCompiler<'ctx> {
 
         match call.function().flatten() {
             Expression::PropertyAccess(access) if kind == CallKind::Call => {
-                self.compile_access_preserve_this(access);
+                let this = self.register_allocator.alloc();
+                let dst = self.register_allocator.alloc();
+                self.compile_access_preserve_this(access, &this, &dst);
+                self.push_from_register(&this);
+                self.push_from_register(&dst);
+                self.register_allocator.dealloc(this);
+                self.register_allocator.dealloc(dst);
             }
 
             Expression::Optional(opt) if kind == CallKind::Call => {
