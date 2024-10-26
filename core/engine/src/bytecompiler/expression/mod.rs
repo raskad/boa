@@ -395,14 +395,16 @@ impl ByteCompiler<'_> {
                 }
             }
             Expression::Optional(opt) => {
-                self.compile_optional_preserve_this(opt);
+                let this = self.register_allocator.alloc();
+                let dst = self.register_allocator.alloc();
+                self.compile_optional_preserve_this(opt, &this, &dst);
 
-                self.emit_opcode(Opcode::Swap);
-                self.emit_opcode(Opcode::Pop);
-
-                if !use_expr {
-                    self.emit_opcode(Opcode::Pop);
+                if use_expr {
+                    self.push_from_register(&dst);
                 }
+
+                self.register_allocator.dealloc(this);
+                self.register_allocator.dealloc(dst);
             }
             Expression::Parenthesized(parenthesized) => {
                 self.compile_expr(parenthesized.expression(), use_expr);

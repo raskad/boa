@@ -1626,26 +1626,24 @@ impl<'ctx> ByteCompiler<'ctx> {
     /// would only return the result of the chain without preserving the `this` value. In other words,
     /// `this` would be set to `undefined` for that call, which is incorrect since `a` should be the
     /// `this` value of the call.
-    fn compile_optional_preserve_this(&mut self, optional: &Optional) {
+    fn compile_optional_preserve_this(&mut self, optional: &Optional, this: &Register, value: &Register) {
         let mut jumps = Vec::with_capacity(optional.chain().len());
 
         match optional.target().flatten() {
             Expression::PropertyAccess(access) => {
-                let this = self.register_allocator.alloc();
-                let dst = self.register_allocator.alloc();
-                self.compile_access_preserve_this(access, &this, &dst);
-                self.push_from_register(&this);
-                self.push_from_register(&dst);
-                self.register_allocator.dealloc(this);
-                self.register_allocator.dealloc(dst);
+                self.compile_access_preserve_this(access, &this, &value);
             }
-            Expression::Optional(opt) => self.compile_optional_preserve_this(opt),
+            Expression::Optional(opt) => self.compile_optional_preserve_this(opt, this, value),
             expr => {
-                self.emit(Opcode::PushUndefined, &[]);
-                self.compile_expr(expr, true);
+                self.emit_opcode(Opcode::PushUndefined);
+                self.pop_into_register(this);
+                self.compile_expr2(expr, value);
             }
         }
-        let jmp = self.jump_if_null_or_undefined();
+
+        self.push_from_register(value);
+        jumps.push(self.jump_if_null_or_undefined());
+        self.pop_into_register(value);
 
         let (first, rest) = optional
             .chain()
@@ -1653,39 +1651,24 @@ impl<'ctx> ByteCompiler<'ctx> {
             .expect("chain must have at least one element");
         assert!(first.shorted());
 
-        let this = self.register_allocator.alloc();
-        let value = self.register_allocator.alloc();
-        self.pop_into_register(&value);
-        self.pop_into_register(&this);
-
-        self.compile_optional_item_kind(first.kind(), &this, &value);
+        self.compile_optional_item_kind(first.kind(), this, value);
 
         for item in rest {
             if item.shorted() {
-                self.push_from_register(&value);
+                self.push_from_register(value);
                 jumps.push(self.jump_if_null_or_undefined());
-                self.pop_into_register(&value);
+                self.pop_into_register(value);
             }
-            self.compile_optional_item_kind(item.kind(), &this, &value);
+            self.compile_optional_item_kind(item.kind(), this, value);
         }
-
-        self.push_from_register(&this);
-        self.push_from_register(&value);
-
-        self.register_allocator.dealloc(this);
-        self.register_allocator.dealloc(value);
 
         let skip_undef = self.jump();
 
         for label in jumps {
             self.patch_jump(label);
+            self.emit_opcode(Opcode::PushUndefined);
+            self.pop_into_register(value);
         }
-
-        self.emit_opcode(Opcode::PushUndefined);
-
-        self.patch_jump(jmp);
-
-        self.emit_opcode(Opcode::PushUndefined);
 
         self.patch_jump(skip_undef);
     }
@@ -2103,7 +2086,14 @@ impl<'ctx> ByteCompiler<'ctx> {
             }
 
             Expression::Optional(opt) if kind == CallKind::Call => {
-                self.compile_optional_preserve_this(opt);
+                let this = self.register_allocator.alloc();
+                let dst = self.register_allocator.alloc();
+                self.compile_optional_preserve_this(opt, &this, &dst);
+                self.push_from_register(&this);
+                self.push_from_register(&dst);
+                self.register_allocator.dealloc(this);
+                self.register_allocator.dealloc(dst);
+
             }
             expr if kind == CallKind::Call => {
                 if let Expression::Identifier(ident) = expr {
