@@ -1,3 +1,5 @@
+use boa_parser::source;
+
 use crate::{
     vm::{opcode::Operation, CompletionType},
     Context, JsResult,
@@ -12,30 +14,24 @@ pub(crate) struct CopyDataProperties;
 
 impl CopyDataProperties {
     fn operation(
+        object: u32,
+        source: u32,
+        keys: &[u32],
         context: &mut Context,
-        excluded_key_count: usize,
-        excluded_key_count_computed: usize,
     ) -> JsResult<CompletionType> {
-        let mut excluded_keys = Vec::with_capacity(excluded_key_count);
-        for _ in 0..excluded_key_count {
-            let key = context.vm.pop();
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + object) as usize].clone();
+        let source = context.vm.stack[(rp + source) as usize].clone();
+        let mut excluded_keys = Vec::with_capacity(keys.len());
+        for key in keys {
+            let key = context.vm.stack[(rp + *key) as usize].clone();
             excluded_keys.push(
                 key.to_property_key(context)
                     .expect("key must be property key"),
             );
         }
-        let value = context.vm.pop();
-        let object = value.as_object().expect("not an object");
-        let source = context.vm.pop();
-        for _ in 0..excluded_key_count_computed {
-            let key = context.vm.pop();
-            excluded_keys.push(
-                key.to_property_key(context)
-                    .expect("key must be property key"),
-            );
-        }
+        let object = object.as_object().expect("not an object");
         object.copy_data_properties(&source, excluded_keys, context)?;
-        context.vm.push(value);
         Ok(CompletionType::Normal)
     }
 }
@@ -46,20 +42,35 @@ impl Operation for CopyDataProperties {
     const COST: u8 = 6;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let excluded_key_count = context.vm.read::<u8>() as usize;
-        let excluded_key_count_computed = context.vm.read::<u8>() as usize;
-        Self::operation(context, excluded_key_count, excluded_key_count_computed)
+        let object = context.vm.read::<u8>().into();
+        let source = context.vm.read::<u8>().into();
+        let key_count = context.vm.read::<u8>() as usize;
+        let mut keys = Vec::with_capacity(key_count);
+        for _ in 0..key_count {
+            keys.push(context.vm.read::<u8>().into());
+        }
+        Self::operation(object, source, &keys, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let excluded_key_count = context.vm.read::<u16>() as usize;
-        let excluded_key_count_computed = context.vm.read::<u16>() as usize;
-        Self::operation(context, excluded_key_count, excluded_key_count_computed)
+        let object = context.vm.read::<u16>().into();
+        let source = context.vm.read::<u16>().into();
+        let key_count = context.vm.read::<u16>() as usize;
+        let mut keys = Vec::with_capacity(key_count);
+        for _ in 0..key_count {
+            keys.push(context.vm.read::<u16>().into());
+        }
+        Self::operation(object, source, &keys, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let excluded_key_count = context.vm.read::<u32>() as usize;
-        let excluded_key_count_computed = context.vm.read::<u32>() as usize;
-        Self::operation(context, excluded_key_count, excluded_key_count_computed)
+        let object = context.vm.read::<u32>().into();
+        let source = context.vm.read::<u32>().into();
+        let key_count = context.vm.read::<u32>() as usize;
+        let mut keys = Vec::with_capacity(key_count);
+        for _ in 0..key_count {
+            keys.push(context.vm.read::<u32>().into());
+        }
+        Self::operation(object, source, &keys, context)
     }
 }

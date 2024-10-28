@@ -121,10 +121,10 @@ impl CodeBlock {
                         EdgeStyle::Line,
                     );
                 }
-                Instruction::JumpIfFalse { address }
-                | Instruction::JumpIfTrue { address }
-                | Instruction::JumpIfNotUndefined { address }
-                | Instruction::JumpIfNullOrUndefined { address } => {
+                Instruction::JumpIfFalse { address, .. }
+                | Instruction::JumpIfTrue { address, .. }
+                | Instruction::JumpIfNotUndefined { address, .. }
+                | Instruction::JumpIfNullOrUndefined { address, .. } => {
                     graph.add_node(previous_pc, NodeShape::Diamond, label.into(), Color::None);
                     graph.add_edge(
                         previous_pc,
@@ -384,7 +384,7 @@ impl CodeBlock {
                 | Instruction::PushClassPrototype { .. }
                 | Instruction::SetClassPrototype { .. }
                 | Instruction::SetHomeObject { .. }
-                | Instruction::TypeOf
+                | Instruction::TypeOf { .. }
                 | Instruction::Void
                 | Instruction::LogicalNot
                 | Instruction::Pos
@@ -399,7 +399,7 @@ impl CodeBlock {
                 | Instruction::SetPropertySetterByValue { .. }
                 | Instruction::DefineClassStaticSetterByValue { .. }
                 | Instruction::DefineClassSetterByValue { .. }
-                | Instruction::DeletePropertyByValue
+                | Instruction::DeletePropertyByValue { .. }
                 | Instruction::DeleteSuperThrow
                 | Instruction::ToPropertyKey { .. }
                 | Instruction::ToBoolean
@@ -407,26 +407,26 @@ impl CodeBlock {
                 | Instruction::ThisForObjectEnvironmentName { .. }
                 | Instruction::Super { .. }
                 | Instruction::IncrementLoopIteration
-                | Instruction::CreateForInIterator
-                | Instruction::GetIterator
-                | Instruction::GetAsyncIterator
+                | Instruction::CreateForInIterator { .. }
+                | Instruction::GetIterator { .. }
+                | Instruction::GetAsyncIterator { .. }
                 | Instruction::IteratorNext
                 | Instruction::IteratorNextWithoutPop
                 | Instruction::IteratorFinishAsyncNext
                 | Instruction::IteratorValue
                 | Instruction::IteratorValueWithoutPop
                 | Instruction::IteratorResult
-                | Instruction::IteratorDone
+                | Instruction::IteratorDone { .. }
                 | Instruction::IteratorToArray
-                | Instruction::IteratorReturn
-                | Instruction::IteratorStackEmpty
-                | Instruction::RequireObjectCoercible
-                | Instruction::ValueNotNullOrUndefined
+                | Instruction::IteratorReturn { .. }
+                | Instruction::IteratorStackEmpty { .. }
+                | Instruction::RequireObjectCoercible { .. }
+                | Instruction::ValueNotNullOrUndefined { .. }
                 | Instruction::RestParameterInit
-                | Instruction::PushValueToArray
-                | Instruction::PushElisionToArray
-                | Instruction::PushIteratorToArray
-                | Instruction::PushNewArray
+                | Instruction::PushValueToArray { .. }
+                | Instruction::PushElisionToArray { .. }
+                | Instruction::PushIteratorToArray { .. }
+                | Instruction::PushNewArray { .. }
                 | Instruction::GeneratorYield
                 | Instruction::AsyncGeneratorYield
                 | Instruction::AsyncGeneratorClose
@@ -443,8 +443,8 @@ impl CodeBlock {
                 | Instruction::NewSpread
                 | Instruction::SuperCallSpread
                 | Instruction::SuperCallPrepare
-                | Instruction::SetPrototype
-                | Instruction::IsObject
+                | Instruction::SetPrototype { .. }
+                | Instruction::IsObject { .. }
                 | Instruction::SetNameByLocator
                 | Instruction::PushObjectEnvironment
                 | Instruction::PopPrivateEnvironment

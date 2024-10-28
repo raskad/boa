@@ -131,16 +131,18 @@ pub(crate) struct CreateGlobalFunctionBinding;
 impl CreateGlobalFunctionBinding {
     #[allow(clippy::unnecessary_wraps)]
     fn operation(
-        context: &mut Context,
+        function: u32,
         index: usize,
         configurable: bool,
+        context: &mut Context,
     ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + function) as usize].clone();
         let name = context.vm.frame().code_block().constant_string(index);
-        let value = context.vm.pop();
 
         let function = value
             .as_object()
-            .expect("valeu should be an function")
+            .expect("value must be an function")
             .clone();
         context.create_global_function_binding(name, function, configurable)?;
 
@@ -154,21 +156,24 @@ impl Operation for CreateGlobalFunctionBinding {
     const COST: u8 = 2;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u8>().into();
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(context, index, configurable)
+        Self::operation(function, index, configurable, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u8>().into();
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index, configurable)
+        Self::operation(function, index, configurable, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let function = context.vm.read::<u8>().into();
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(context, index, configurable)
+        Self::operation(function, index, configurable, context)
     }
 }
 

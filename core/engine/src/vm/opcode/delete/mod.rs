@@ -13,9 +13,14 @@ use crate::{
 pub(crate) struct DeletePropertyByName;
 
 impl DeletePropertyByName {
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let object = value.to_object(context)?;
+    fn operation(
+        object_register: u32,
+        index: usize,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + object_register) as usize].clone();
+        let object = object.to_object(context)?;
         let code_block = context.vm.frame().code_block();
         let key = code_block.constant_string(index).into();
         let strict = code_block.strict();
@@ -26,7 +31,7 @@ impl DeletePropertyByName {
                 .with_message("Cannot delete property")
                 .into());
         }
-        context.vm.push(result);
+        context.vm.stack[(rp + object_register) as usize] = result.into();
         Ok(CompletionType::Normal)
     }
 }
@@ -37,18 +42,21 @@ impl Operation for DeletePropertyByName {
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u32>().into();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, index, context)
     }
 }
 
@@ -59,16 +67,17 @@ impl Operation for DeletePropertyByName {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DeletePropertyByValue;
 
-impl Operation for DeletePropertyByValue {
-    const NAME: &'static str = "DeletePropertyByValue";
-    const INSTRUCTION: &'static str = "INST - DeletePropertyByValue";
-    const COST: u8 = 3;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let key_value = context.vm.pop();
-        let value = context.vm.pop();
-        let object = value.to_object(context)?;
-        let property_key = key_value.to_property_key(context)?;
+impl DeletePropertyByValue {
+    fn operation(
+        object_register: u32,
+        key: u32,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + object_register) as usize].clone();
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let object = object.to_object(context)?;
+        let property_key = key.to_property_key(context)?;
 
         let result = object.__delete__(&property_key, &mut InternalMethodContext::new(context))?;
         if !result && context.vm.frame().code_block().strict() {
@@ -76,8 +85,32 @@ impl Operation for DeletePropertyByValue {
                 .with_message("Cannot delete property")
                 .into());
         }
-        context.vm.push(result);
+        context.vm.stack[(rp + object_register) as usize] = result.into();
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for DeletePropertyByValue {
+    const NAME: &'static str = "DeletePropertyByValue";
+    const INSTRUCTION: &'static str = "INST - DeletePropertyByValue";
+    const COST: u8 = 3;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u8>().into();
+        let key = context.vm.read::<u8>().into();
+        Self::operation(object, key, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u16>().into();
+        let key = context.vm.read::<u16>().into();
+        Self::operation(object, key, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u32>().into();
+        let key = context.vm.read::<u32>().into();
+        Self::operation(object, key, context)
     }
 }
 

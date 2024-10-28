@@ -29,6 +29,17 @@ impl Operation for Jump {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct JumpIfTrue;
 
+impl JumpIfTrue {
+    fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = &context.vm.stack[(rp + value) as usize];
+        if value.to_boolean() {
+            context.vm.frame_mut().pc = address;
+        }
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for JumpIfTrue {
     const NAME: &'static str = "JumpIfTrue";
     const INSTRUCTION: &'static str = "INST - JumpIfTrue";
@@ -36,10 +47,20 @@ impl Operation for JumpIfTrue {
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        if context.vm.pop().to_boolean() {
-            context.vm.frame_mut().pc = address;
-        }
-        Ok(CompletionType::Normal)
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, address, context)
     }
 }
 
@@ -50,6 +71,17 @@ impl Operation for JumpIfTrue {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct JumpIfFalse;
 
+impl JumpIfFalse {
+    fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = &context.vm.stack[(rp + value) as usize];
+        if !value.to_boolean() {
+            context.vm.frame_mut().pc = address;
+        }
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for JumpIfFalse {
     const NAME: &'static str = "JumpIfFalse";
     const INSTRUCTION: &'static str = "INST - JumpIfFalse";
@@ -57,10 +89,20 @@ impl Operation for JumpIfFalse {
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        if !context.vm.pop().to_boolean() {
-            context.vm.frame_mut().pc = address;
-        }
-        Ok(CompletionType::Normal)
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, address, context)
     }
 }
 
@@ -71,6 +113,17 @@ impl Operation for JumpIfFalse {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct JumpIfNotUndefined;
 
+impl JumpIfNotUndefined {
+    fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = &context.vm.stack[(rp + value) as usize];
+        if !value.is_undefined() {
+            context.vm.frame_mut().pc = address;
+        }
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for JumpIfNotUndefined {
     const NAME: &'static str = "JumpIfNotUndefined";
     const INSTRUCTION: &'static str = "INST - JumpIfNotUndefined";
@@ -78,12 +131,20 @@ impl Operation for JumpIfNotUndefined {
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        let value = context.vm.pop();
-        if !value.is_undefined() {
-            context.vm.frame_mut().pc = address;
-            context.vm.push(value);
-        }
-        Ok(CompletionType::Normal)
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, address, context)
     }
 }
 
@@ -94,6 +155,17 @@ impl Operation for JumpIfNotUndefined {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct JumpIfNullOrUndefined;
 
+impl JumpIfNullOrUndefined {
+    fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = &context.vm.stack[(rp + value) as usize];
+        if value.is_null_or_undefined() {
+            context.vm.frame_mut().pc = address;
+        }
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for JumpIfNullOrUndefined {
     const NAME: &'static str = "JumpIfNullOrUndefined";
     const INSTRUCTION: &'static str = "INST - JumpIfNullOrUndefined";
@@ -101,13 +173,20 @@ impl Operation for JumpIfNullOrUndefined {
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        let value = context.vm.pop();
-        if value.is_null_or_undefined() {
-            context.vm.frame_mut().pc = address;
-        } else {
-            context.vm.push(value);
-        }
-        Ok(CompletionType::Normal)
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, address, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let address = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, address, context)
     }
 }
 

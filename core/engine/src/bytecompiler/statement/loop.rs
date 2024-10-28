@@ -8,9 +8,10 @@ use boa_ast::{
     },
 };
 use boa_interner::Sym;
+use serde::de::value;
 
 use crate::{
-    bytecompiler::{Access, ByteCompiler, Operand, ToJsString},
+    bytecompiler::{Access, ByteCompiler, Operand, Operand2, ToJsString},
     vm::{BindingOpcode, Opcode},
 };
 
@@ -101,12 +102,15 @@ impl ByteCompiler<'_> {
 
         self.patch_jump(initial_jump);
 
+        let value = self.register_allocator.alloc();
         if let Some(condition) = for_loop.condition() {
-            self.compile_expr(condition, true);
+            self.compile_expr2(condition, &value);
         } else {
             self.emit_opcode(Opcode::PushTrue);
+            self.pop_into_register(&value);
         }
-        let exit = self.jump_if_false();
+        let exit = self.jump_if_false(&value);
+        self.register_allocator.dealloc(value);
 
         self.compile_stmt(for_loop.body(), use_expr, true);
 
@@ -138,28 +142,37 @@ impl ByteCompiler<'_> {
                 }
             }
         }
+
+        let value = self.register_allocator.alloc();
+
         if let Some(scope) = for_in_loop.target_scope() {
             let outer_scope = self.lexical_scope.clone();
             let scope_index = self.push_scope(scope);
             self.emit_with_varying_operand(Opcode::PushScope, scope_index);
-            self.compile_expr(for_in_loop.target(), true);
+            self.compile_expr2(for_in_loop.target(), &value);
             self.pop_scope();
             self.lexical_scope = outer_scope;
             self.emit_opcode(Opcode::PopEnvironment);
         } else {
-            self.compile_expr(for_in_loop.target(), true);
+            self.compile_expr2(for_in_loop.target(), &value);
         }
 
-        let early_exit = self.jump_if_null_or_undefined();
-        self.emit_opcode(Opcode::CreateForInIterator);
+        let early_exit = self.jump_if_null_or_undefined(&value);
+
+        self.emit2(Opcode::CreateForInIterator, &[Operand2::Register(&value)]);
+
+        self.register_allocator.dealloc(value);
 
         let start_address = self.next_opcode_location();
         self.push_loop_control_info_for_of_in_loop(label, start_address, use_expr);
         self.emit_opcode(Opcode::IncrementLoopIteration);
 
         self.emit_opcode(Opcode::IteratorNext);
-        self.emit_opcode(Opcode::IteratorDone);
-        let exit = self.jump_if_true();
+
+        let value = self.register_allocator.alloc();
+        self.emit2(Opcode::IteratorDone, &[Operand2::Register(&value)]);
+        let exit = self.jump_if_true(&value);
+        self.register_allocator.dealloc(value);
 
         self.emit_opcode(Opcode::IteratorValue);
 
@@ -233,23 +246,27 @@ impl ByteCompiler<'_> {
         label: Option<Sym>,
         use_expr: bool,
     ) {
+        let object = self.register_allocator.alloc();
+
         if let Some(scope) = for_of_loop.iterable_scope() {
             let outer_scope = self.lexical_scope.clone();
             let scope_index = self.push_scope(scope);
             self.emit_with_varying_operand(Opcode::PushScope, scope_index);
-            self.compile_expr(for_of_loop.iterable(), true);
+            self.compile_expr2(for_of_loop.iterable(), &object);
             self.pop_scope();
             self.lexical_scope = outer_scope;
             self.emit_opcode(Opcode::PopEnvironment);
         } else {
-            self.compile_expr(for_of_loop.iterable(), true);
+            self.compile_expr2(for_of_loop.iterable(), &object);
         }
 
         if for_of_loop.r#await() {
-            self.emit_opcode(Opcode::GetAsyncIterator);
+            self.emit2(Opcode::GetAsyncIterator, &[Operand2::Register(&object)]);
         } else {
-            self.emit_opcode(Opcode::GetIterator);
+            self.emit2(Opcode::GetIterator, &[Operand2::Register(&object)]);
         }
+
+        self.register_allocator.dealloc(object);
 
         let start_address = self.next_opcode_location();
         if for_of_loop.r#await() {
@@ -266,8 +283,12 @@ impl ByteCompiler<'_> {
             self.emit_opcode(Opcode::IteratorFinishAsyncNext);
             self.emit_opcode(Opcode::GeneratorNext);
         }
-        self.emit_opcode(Opcode::IteratorDone);
-        let exit = self.jump_if_true();
+
+        let value = self.register_allocator.alloc();
+        self.emit2(Opcode::IteratorDone, &[Operand2::Register(&value)]);
+        let exit = self.jump_if_true(&value);
+        self.register_allocator.dealloc(value);
+
         self.emit_opcode(Opcode::IteratorValue);
 
         let mut outer_scope = None;
@@ -378,8 +399,10 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::IncrementLoopIteration);
         self.push_loop_control_info(label, start_address, use_expr);
 
-        self.compile_expr(while_loop.condition(), true);
-        let exit = self.jump_if_false();
+        let value = self.register_allocator.alloc();
+        self.compile_expr2(while_loop.condition(), &value);
+        let exit = self.jump_if_false(&value);
+        self.register_allocator.dealloc(value);
 
         self.compile_stmt(while_loop.body(), use_expr, true);
 
@@ -403,8 +426,11 @@ impl ByteCompiler<'_> {
 
         let condition_label_address = self.next_opcode_location();
         self.emit_opcode(Opcode::IncrementLoopIteration);
-        self.compile_expr(do_while_loop.cond(), true);
-        let exit = self.jump_if_false();
+
+        let value = self.register_allocator.alloc();
+        self.compile_expr2(do_while_loop.cond(), &value);
+        let exit = self.jump_if_false(&value);
+        self.register_allocator.dealloc(value);
 
         self.patch_jump(initial_label);
 

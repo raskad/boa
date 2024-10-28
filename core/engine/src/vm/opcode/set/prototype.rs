@@ -11,14 +11,11 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SetPrototype;
 
-impl Operation for SetPrototype {
-    const NAME: &'static str = "SetPrototype";
-    const INSTRUCTION: &'static str = "INST - SetPrototype";
-    const COST: u8 = 4;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let object = context.vm.pop();
+impl SetPrototype {
+    fn operation(object: u32, value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + object) as usize].clone();
+        let value = context.vm.stack[(rp + value) as usize].clone();
 
         let prototype = if let Some(prototype) = value.as_object() {
             Some(prototype.clone())
@@ -34,5 +31,29 @@ impl Operation for SetPrototype {
             .expect("cannot fail per spec");
 
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for SetPrototype {
+    const NAME: &'static str = "SetPrototype";
+    const INSTRUCTION: &'static str = "INST - SetPrototype";
+    const COST: u8 = 4;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u8>().into();
+        let value = context.vm.read::<u8>().into();
+        Self::operation(object, value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u16>().into();
+        let value = context.vm.read::<u16>().into();
+        Self::operation(object, value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>().into();
+        Self::operation(object, value, context)
     }
 }

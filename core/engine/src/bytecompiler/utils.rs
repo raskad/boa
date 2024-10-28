@@ -3,7 +3,7 @@ use crate::{
     vm::{GeneratorResumeKind, Opcode},
 };
 
-use super::{ByteCompiler, Literal, Operand};
+use super::{ByteCompiler, Literal, Operand, Operand2};
 
 impl ByteCompiler<'_> {
     /// Closes an iterator
@@ -17,16 +17,29 @@ impl ByteCompiler<'_> {
     /// [iter]: https://tc39.es/ecma262/#sec-iteratorclose
     /// [async]: https://tc39.es/ecma262/#sec-asynciteratorclose
     pub(super) fn iterator_close(&mut self, async_: bool) {
-        self.emit_opcode(Opcode::IteratorReturn);
+        let value = self.register_allocator.alloc();
+        let called = self.register_allocator.alloc();
+
+        self.emit2(
+            Opcode::IteratorReturn,
+            &[Operand2::Register(&value), Operand2::Register(&called)],
+        );
 
         // `iterator` didn't have a `return` method, is already done or is not on the iterator stack.
-        let early_exit = self.jump_if_false();
+        let early_exit = self.jump_if_false(&called);
+        self.register_allocator.dealloc(called);
+
         if async_ {
+            self.push_from_register(&value);
             self.emit_opcode(Opcode::Await);
             self.emit_opcode(Opcode::GeneratorNext);
+            self.pop_into_register(&value);
         }
-        self.emit_opcode(Opcode::IsObject);
-        let skip_throw = self.jump_if_true();
+
+        self.emit2(Opcode::IsObject, &[Operand2::Register(&value)]);
+        let skip_throw = self.jump_if_true(&value);
+
+        self.register_allocator.dealloc(value);
 
         let error_msg = self.get_or_insert_literal(Literal::String(js_string!(
             "inner result was not an object"
@@ -40,11 +53,15 @@ impl ByteCompiler<'_> {
     /// Closes all active iterators in the current [`CallFrame`][crate::vm::CallFrame].
     pub(super) fn close_active_iterators(&mut self) {
         let start = self.next_opcode_location();
-        self.emit_opcode(Opcode::IteratorStackEmpty);
-        let empty = self.jump_if_true();
+
+        let empty = self.register_allocator.alloc();
+        self.emit2(Opcode::IteratorStackEmpty, &[Operand2::Register(&empty)]);
+        let exit = self.jump_if_true(&empty);
+        self.register_allocator.dealloc(empty);
+
         self.iterator_close(self.is_async_generator());
         self.emit(Opcode::Jump, &[Operand::U32(start)]);
-        self.patch_jump(empty);
+        self.patch_jump(exit);
     }
 
     /// Yields from the current generator.

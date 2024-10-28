@@ -1,6 +1,6 @@
 use crate::{
     bytecompiler::{
-        Access, ByteCompiler, InstructionOperand, Literal, Operand, Operand2, ToJsString,
+        Access, ByteCompiler, InstructionOperand, Literal, Operand2, ToJsString,
     },
     vm::{BindingOpcode, Opcode},
 };
@@ -17,12 +17,15 @@ impl ByteCompiler<'_> {
     ) {
         match pattern {
             Pattern::Object(pattern) => {
-                self.emit_opcode(Opcode::ValueNotNullOrUndefined);
-                self.emit_opcode(Opcode::RequireObjectCoercible);
                 let object = self.register_allocator.alloc();
                 self.pop_into_register(&object);
 
-                let mut excluded_keys_registers= Vec::new();
+                self.emit2(
+                    Opcode::ValueNotNullOrUndefined,
+                    &[Operand2::Register(&object)],
+                );
+
+                let mut excluded_keys_registers = Vec::new();
                 let rest_exits = pattern.has_rest();
 
                 for binding in pattern.bindings() {
@@ -91,62 +94,52 @@ impl ByteCompiler<'_> {
                                 }
                             }
 
+                            if let Some(init) = default_init {
+                                let skip = self.emit_jump_if_not_undefined(&dst);
+                                self.compile_expr2(init, &dst);
+                                self.patch_jump(skip);
+                            }
+
                             self.push_from_register(&dst);
                             self.register_allocator.dealloc(dst);
 
-                            if let Some(init) = default_init {
-                                let skip =
-                                    self.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                                self.compile_expr(init, true);
-                                self.patch_jump(skip);
-                            }
                             self.emit_binding(def, ident.to_js_string(self.interner()));
                         }
                         //  BindingRestProperty : ... BindingIdentifier
                         RestProperty { ident } => {
-                            let new_object = self.register_allocator.alloc();
-                            self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&new_object)]);
-                            self.push_from_register(&object);
-                            self.push_from_register(&new_object);
-                            self.register_allocator.dealloc(new_object);
-
-                            let len = excluded_keys_registers.len() as u32;
+                            let value = self.register_allocator.alloc();
+                            self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&value)]);
+                            let mut args = Vec::from([
+                                Operand2::Register(&value),
+                                Operand2::Register(&object),
+                                Operand2::Varying(excluded_keys_registers.len() as u32),
+                            ]);
+                            for r in &excluded_keys_registers {
+                                args.push(Operand2::Register(&r));
+                            }
+                            self.emit2(Opcode::CopyDataProperties, &args);
                             while let Some(r) = excluded_keys_registers.pop() {
-                                self.push_from_register(&r);
                                 self.register_allocator.dealloc(r);
                             }
-
-                            self.emit(
-                                Opcode::CopyDataProperties,
-                                &[
-                                    Operand::Varying(len),
-                                    Operand::Varying(0),
-                                ],
-                            );
+                            self.push_from_register(&value);
+                            self.register_allocator.dealloc(value);
                             self.emit_binding(def, ident.to_js_string(self.interner()));
                         }
                         AssignmentRestPropertyAccess { access } => {
-                            let new_object = self.register_allocator.alloc();
-                            self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&new_object)]);
-                            self.push_from_register(&object);
-                            self.push_from_register(&new_object);
-                            self.register_allocator.dealloc(new_object);
-
-                            let len = excluded_keys_registers.len() as u32;
+                            let value = self.register_allocator.alloc();
+                            self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&value)]);
+                            let mut args = Vec::from([
+                                Operand2::Register(&value),
+                                Operand2::Register(&object),
+                                Operand2::Varying(excluded_keys_registers.len() as u32),
+                            ]);
+                            for r in &excluded_keys_registers {
+                                args.push(Operand2::Register(&r));
+                            }
+                            self.emit2(Opcode::CopyDataProperties, &args);
                             while let Some(r) = excluded_keys_registers.pop() {
-                                self.push_from_register(&r);
                                 self.register_allocator.dealloc(r);
                             }
-
-                            self.emit(
-                                Opcode::CopyDataProperties,
-                                &[
-                                    Operand::Varying(len),
-                                    Operand::Varying(0),
-                                ],
-                            );
-                            let value = self.register_allocator.alloc();
-                            self.pop_into_register(&value);
                             self.access_set(Access::Property { access }, false, |_| {
                                 return &value;
                             });
@@ -228,14 +221,9 @@ impl ByteCompiler<'_> {
                                     }
 
                                     if let Some(init) = default_init {
-                                        compiler.push_from_register(&dst);
-                                        let skip = compiler
-                                            .emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
+                                        let skip = compiler.emit_jump_if_not_undefined(&dst);
                                         compiler.compile_expr2(init, &dst);
-                                        let skip2 = compiler.jump();
                                         compiler.patch_jump(skip);
-                                        compiler.pop_into_register(&dst);
-                                        compiler.patch_jump(skip2);
                                     }
 
                                     return &dst;
@@ -262,23 +250,26 @@ impl ByteCompiler<'_> {
                                         &[
                                             Operand2::Register(&dst),
                                             Operand2::Operand(InstructionOperand::Register(&key)),
-                                            Operand2::Operand(InstructionOperand::Register(&object)),
-                                            Operand2::Operand(InstructionOperand::Register(&object)),
+                                            Operand2::Operand(InstructionOperand::Register(
+                                                &object,
+                                            )),
+                                            Operand2::Operand(InstructionOperand::Register(
+                                                &object,
+                                            )),
                                         ],
                                     );
                                     self.register_allocator.dealloc(key);
                                 }
                             }
 
-                            self.push_from_register(&dst);
-                            self.register_allocator.dealloc(dst);
-
                             if let Some(init) = default_init {
-                                let skip =
-                                    self.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                                self.compile_expr(init, true);
+                                let skip = self.emit_jump_if_not_undefined(&dst);
+                                self.compile_expr2(init, &dst);
                                 self.patch_jump(skip);
                             }
+
+                            self.push_from_register(&dst);
+                            self.register_allocator.dealloc(dst);
 
                             self.compile_declaration_pattern(pattern, def);
                         }
@@ -291,8 +282,14 @@ impl ByteCompiler<'_> {
                 }
             }
             Pattern::Array(pattern) => {
-                self.emit_opcode(Opcode::ValueNotNullOrUndefined);
-                self.emit_opcode(Opcode::GetIterator);
+                let object = self.register_allocator.alloc();
+                self.pop_into_register(&object);
+                self.emit2(
+                    Opcode::ValueNotNullOrUndefined,
+                    &[Operand2::Register(&object)],
+                );
+                self.emit2(Opcode::GetIterator, &[Operand2::Register(&object)]);
+                self.register_allocator.dealloc(object);
 
                 let handler_index = self.push_handler();
                 for element in pattern.bindings() {
@@ -311,7 +308,11 @@ impl ByteCompiler<'_> {
                 self.patch_handler(iterator_close_handler);
                 self.current_stack_value_count -= 2;
 
-                let jump = self.jump_if_false();
+                let value = self.register_allocator.alloc();
+                self.pop_into_register(&value);
+                let jump = self.jump_if_false(&value);
+                self.register_allocator.dealloc(value);
+
                 self.emit_opcode(Opcode::Throw);
                 self.patch_jump(jump);
                 self.emit_opcode(Opcode::ReThrow);
@@ -332,20 +333,33 @@ impl ByteCompiler<'_> {
         match element {
             // ArrayBindingPattern : [ Elision ]
             Elision => {
-                self.emit_opcode(Opcode::IteratorNextWithoutPop);
+                self.emit_opcode(Opcode::IteratorNext);
             }
             // SingleNameBinding : BindingIdentifier Initializer[opt]
             SingleName {
                 ident,
                 default_init,
             } => {
-                self.emit_opcode(Opcode::IteratorNextWithoutPop);
-                self.emit_opcode(Opcode::IteratorValueWithoutPop);
+                self.emit_opcode(Opcode::IteratorNext);
+                let value = self.register_allocator.alloc();
+                self.emit2(Opcode::IteratorDone, &[Operand2::Register(&value)]);
+                let done = self.jump_if_true(&value);
+                self.emit_opcode(Opcode::IteratorValue);
+                let skip_push = self.jump();
+                self.patch_jump(done);
+                self.emit_opcode(Opcode::PushUndefined);
+                self.patch_jump(skip_push);
+                self.pop_into_register(&value);
+
                 if let Some(init) = default_init {
-                    let skip = self.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                    self.compile_expr(init, true);
+                    let skip = self.emit_jump_if_not_undefined(&value);
+                    self.compile_expr2(init, &value);
                     self.patch_jump(skip);
                 }
+
+                self.push_from_register(&value);
+                self.register_allocator.dealloc(value);
+
                 self.emit_binding(def, ident.to_js_string(self.interner()));
             }
             PropertyAccess {
@@ -354,19 +368,23 @@ impl ByteCompiler<'_> {
             } => {
                 let value = self.register_allocator.alloc();
                 self.access_set(Access::Property { access }, false, |compiler| {
-                    compiler.emit_opcode(Opcode::IteratorNextWithoutPop);
-                    compiler.emit_opcode(Opcode::IteratorValueWithoutPop);
+                    compiler.emit_opcode(Opcode::IteratorNext);
+                    compiler.emit2(Opcode::IteratorDone, &[Operand2::Register(&value)]);
+                    let done = compiler.jump_if_true(&value);
+                    compiler.emit_opcode(Opcode::IteratorValue);
+                    let skip_push = compiler.jump();
+                    compiler.patch_jump(done);
+                    compiler.emit_opcode(Opcode::PushUndefined);
+                    compiler.patch_jump(skip_push);
+
+                    compiler.pop_into_register(&value);
 
                     if let Some(init) = default_init {
-                        let skip = compiler.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
+                        let skip = compiler.emit_jump_if_not_undefined(&value);
                         compiler.compile_expr2(init, &value);
-                        let skip2 = compiler.jump();
                         compiler.patch_jump(skip);
-                        compiler.pop_into_register(&value);
-                        compiler.patch_jump(skip2);
-                    } else {
-                        compiler.pop_into_register(&value);
                     }
+
                     return &value;
                 });
                 self.register_allocator.dealloc(value);
@@ -376,14 +394,25 @@ impl ByteCompiler<'_> {
                 pattern,
                 default_init,
             } => {
-                self.emit_opcode(Opcode::IteratorNextWithoutPop);
-                self.emit_opcode(Opcode::IteratorValueWithoutPop);
+                self.emit_opcode(Opcode::IteratorNext);
+                let value = self.register_allocator.alloc();
+                self.emit2(Opcode::IteratorDone, &[Operand2::Register(&value)]);
+                let done = self.jump_if_true(&value);
+                self.emit_opcode(Opcode::IteratorValue);
+                let skip_push = self.jump();
+                self.patch_jump(done);
+                self.emit_opcode(Opcode::PushUndefined);
+                self.patch_jump(skip_push);
+                self.pop_into_register(&value);
 
                 if let Some(init) = default_init {
-                    let skip = self.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                    self.compile_expr(init, true);
+                    let skip = self.emit_jump_if_not_undefined(&value);
+                    self.compile_expr2(init, &value);
                     self.patch_jump(skip);
                 }
+
+                self.push_from_register(&value);
+                self.register_allocator.dealloc(value);
 
                 self.compile_declaration_pattern(pattern, def);
             }

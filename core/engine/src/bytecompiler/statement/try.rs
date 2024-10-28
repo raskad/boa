@@ -143,13 +143,21 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::SetAccumulatorFromStack);
         self.current_stack_value_count -= 1;
 
-        // Rethrow error if error happend!
-        let do_not_throw_exit = self.jump_if_false();
+        let value = self.register_allocator.alloc();
+        self.pop_into_register(&value);
+
+        // Rethrow error if error happened!
+        let do_not_throw_exit = self.jump_if_false(&value);
+        self.register_allocator.dealloc(value);
 
         if has_catch {
             self.emit_opcode(Opcode::ReThrow);
         } else if self.is_generator() {
-            let is_generator_exit = self.jump_if_true();
+            let value = self.register_allocator.alloc();
+            self.pop_into_register(&value);
+            let is_generator_exit = self.jump_if_true(&value);
+            self.register_allocator.dealloc(value);
+
             self.emit_opcode(Opcode::Throw);
             self.patch_jump(is_generator_exit);
 

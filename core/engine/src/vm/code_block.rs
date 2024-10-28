@@ -443,10 +443,10 @@ impl CodeBlock {
                 format!("/{pattern}/{flags}")
             }
             Instruction::Jump { address: value }
-            | Instruction::JumpIfTrue { address: value }
-            | Instruction::JumpIfFalse { address: value }
-            | Instruction::JumpIfNotUndefined { address: value }
-            | Instruction::JumpIfNullOrUndefined { address: value }
+            | Instruction::JumpIfTrue { address: value, .. }
+            | Instruction::JumpIfFalse { address: value, .. }
+            | Instruction::JumpIfNotUndefined { address: value, .. }
+            | Instruction::JumpIfNullOrUndefined { address: value, .. }
             | Instruction::Case { address: value }
             | Instruction::Default { address: value } => value.to_string(),
             Instruction::LogicalAnd {
@@ -488,8 +488,8 @@ impl CodeBlock {
             }
             Instruction::CopyDataProperties {
                 excluded_key_count: value1,
-                excluded_key_count_computed: value2,
-            } => format!("{}, {}", value1.value(), value2.value()),
+                ..
+            } => format!("{}", value1.value()),
             Instruction::GeneratorDelegateNext {
                 return_method_undefined: value1,
                 throw_method_undefined: value2,
@@ -530,27 +530,27 @@ impl CodeBlock {
                         .to_std_string_escaped()
                 )
             }
-            Instruction::DefineOwnPropertyByName { index }
+            Instruction::DefineOwnPropertyByName { index, .. }
             | Instruction::DefineClassStaticMethodByName { index, .. }
             | Instruction::DefineClassMethodByName { index, .. }
-            | Instruction::SetPropertyGetterByName { index }
+            | Instruction::SetPropertyGetterByName { index, .. }
             | Instruction::DefineClassStaticGetterByName { index, .. }
             | Instruction::DefineClassGetterByName { index, .. }
-            | Instruction::SetPropertySetterByName { index }
+            | Instruction::SetPropertySetterByName { index, .. }
             | Instruction::DefineClassStaticSetterByName { index, .. }
             | Instruction::DefineClassSetterByName { index, .. }
             | Instruction::ThrowMutateImmutable { index }
-            | Instruction::DeletePropertyByName { index }
+            | Instruction::DeletePropertyByName { index, .. }
             | Instruction::SetPrivateField { index, .. }
-            | Instruction::DefinePrivateField { index }
-            | Instruction::SetPrivateMethod { index }
-            | Instruction::SetPrivateSetter { index }
-            | Instruction::SetPrivateGetter { index }
+            | Instruction::DefinePrivateField { index, .. }
+            | Instruction::SetPrivateMethod { index, .. }
+            | Instruction::SetPrivateSetter { index, .. }
+            | Instruction::SetPrivateGetter { index, .. }
             | Instruction::GetPrivateField { index, .. }
-            | Instruction::PushClassFieldPrivate { index }
-            | Instruction::PushClassPrivateGetter { index }
-            | Instruction::PushClassPrivateSetter { index }
-            | Instruction::PushClassPrivateMethod { index } => {
+            | Instruction::PushClassFieldPrivate { index, .. }
+            | Instruction::PushClassPrivateGetter { index, .. }
+            | Instruction::PushClassPrivateSetter { index, .. }
+            | Instruction::PushClassPrivateMethod { index, .. } => {
                 format!(
                     "{:04}: '{}'",
                     index.value(),
@@ -639,6 +639,7 @@ impl CodeBlock {
             Instruction::CreateGlobalFunctionBinding {
                 index,
                 configurable,
+                ..
             }
             | Instruction::CreateGlobalVarBinding {
                 index,
@@ -651,6 +652,7 @@ impl CodeBlock {
             }
             Instruction::PushClassField {
                 is_anonymous_function,
+                ..
             } => {
                 format!("is_anonymous_function: {is_anonymous_function}")
             }
@@ -700,7 +702,7 @@ impl CodeBlock {
             | Instruction::PushUndefined
             | Instruction::PushEmptyObject { .. }
             | Instruction::SetHomeObject { .. }
-            | Instruction::TypeOf
+            | Instruction::TypeOf { .. }
             | Instruction::Void
             | Instruction::LogicalNot
             | Instruction::Pos
@@ -715,7 +717,7 @@ impl CodeBlock {
             | Instruction::SetPropertySetterByValue { .. }
             | Instruction::DefineClassStaticSetterByValue { .. }
             | Instruction::DefineClassSetterByValue { .. }
-            | Instruction::DeletePropertyByValue
+            | Instruction::DeletePropertyByValue { .. }
             | Instruction::DeleteSuperThrow
             | Instruction::ToPropertyKey { .. }
             | Instruction::ToBoolean
@@ -733,26 +735,26 @@ impl CodeBlock {
             | Instruction::CompletePromiseCapability
             | Instruction::PopEnvironment
             | Instruction::IncrementLoopIteration
-            | Instruction::CreateForInIterator
-            | Instruction::GetIterator
-            | Instruction::GetAsyncIterator
+            | Instruction::CreateForInIterator { .. }
+            | Instruction::GetIterator { .. }
+            | Instruction::GetAsyncIterator { .. }
             | Instruction::IteratorNext
             | Instruction::IteratorNextWithoutPop
             | Instruction::IteratorFinishAsyncNext
             | Instruction::IteratorValue
             | Instruction::IteratorValueWithoutPop
             | Instruction::IteratorResult
-            | Instruction::IteratorDone
+            | Instruction::IteratorDone { .. }
             | Instruction::IteratorToArray
-            | Instruction::IteratorReturn
-            | Instruction::IteratorStackEmpty
-            | Instruction::RequireObjectCoercible
-            | Instruction::ValueNotNullOrUndefined
+            | Instruction::IteratorReturn { .. }
+            | Instruction::IteratorStackEmpty { .. }
+            | Instruction::RequireObjectCoercible { .. }
+            | Instruction::ValueNotNullOrUndefined { .. }
             | Instruction::RestParameterInit
-            | Instruction::PushValueToArray
-            | Instruction::PushElisionToArray
-            | Instruction::PushIteratorToArray
-            | Instruction::PushNewArray
+            | Instruction::PushValueToArray { .. }
+            | Instruction::PushElisionToArray { .. }
+            | Instruction::PushIteratorToArray { .. }
+            | Instruction::PushNewArray { .. }
             | Instruction::GeneratorYield
             | Instruction::AsyncGeneratorYield
             | Instruction::GeneratorNext
@@ -764,9 +766,9 @@ impl CodeBlock {
             | Instruction::CallSpread
             | Instruction::NewSpread
             | Instruction::SuperCallSpread
-            | Instruction::SetPrototype
+            | Instruction::SetPrototype { .. }
             | Instruction::PushObjectEnvironment
-            | Instruction::IsObject
+            | Instruction::IsObject { .. }
             | Instruction::SetNameByLocator
             | Instruction::PopPrivateEnvironment
             | Instruction::ImportCall

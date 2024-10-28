@@ -13,15 +13,22 @@ use crate::{
 pub(crate) struct DefineOwnPropertyByName;
 
 impl DefineOwnPropertyByName {
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let object = context.vm.pop();
+    fn operation(
+        object: u32,
+        value: u32,
+        index: usize,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + object) as usize].clone();
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let name = context.vm.frame().code_block().constant_string(index);
+
         let object = if let Some(object) = object.as_object() {
             object.clone()
         } else {
             object.to_object(context)?
         };
-        let name = context.vm.frame().code_block().constant_string(index);
         object.__define_own_property__(
             &name.into(),
             PropertyDescriptor::builder()
@@ -42,18 +49,24 @@ impl Operation for DefineOwnPropertyByName {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u8>().into();
+        let value = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u16>().into();
+        let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>().into();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 }
 

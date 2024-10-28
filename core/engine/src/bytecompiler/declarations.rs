@@ -22,7 +22,7 @@ use boa_interner::{JStrRef, Sym};
 #[cfg(feature = "annex-b")]
 use boa_ast::operations::annex_b_function_declarations_names;
 
-use super::{Operand, ToJsString};
+use super::{Operand, Operand2, ToJsString};
 
 /// `GlobalDeclarationInstantiation ( script, env )`
 ///
@@ -394,7 +394,11 @@ impl ByteCompiler<'_> {
             self.emit_with_varying_operand(Opcode::HasRestrictedGlobalProperty, index);
 
             // d. If hasRestrictedGlobal is true, throw a SyntaxError exception.
-            let exit = self.jump_if_false();
+            let value = self.register_allocator.alloc();
+            self.pop_into_register(&value);
+            let exit = self.jump_if_false(&value);
+            self.register_allocator.dealloc(value);
+
             self.emit_syntax_error("cannot redefine non-configurable global property");
             self.patch_jump(exit);
         }
@@ -430,7 +434,10 @@ impl ByteCompiler<'_> {
                 self.emit_with_varying_operand(Opcode::CanDeclareGlobalFunction, index);
 
                 // 2. If fnDefinable is false, throw a TypeError exception.
-                let exit = self.jump_if_true();
+                let value = self.register_allocator.alloc();
+                self.pop_into_register(&value);
+                let exit = self.jump_if_true(&value);
+                self.register_allocator.dealloc(value);
                 self.emit_type_error("cannot declare global function");
                 self.patch_jump(exit);
 
@@ -463,7 +470,10 @@ impl ByteCompiler<'_> {
                     self.emit_with_varying_operand(Opcode::CanDeclareGlobalVar, index);
 
                     // b. If vnDefinable is false, throw a TypeError exception.
-                    let exit = self.jump_if_true();
+                    let value = self.register_allocator.alloc();
+                    self.pop_into_register(&value);
+                    let exit = self.jump_if_true(&value);
+                    self.register_allocator.dealloc(value);
                     self.emit_type_error("cannot declare global variable");
                     self.patch_jump(exit);
 
@@ -536,15 +546,19 @@ impl ByteCompiler<'_> {
             // b. Let fo be InstantiateFunctionObject of f with arguments env and privateEnv.
             let dst = self.register_allocator.alloc();
             self.emit_get_function(&dst, function_index);
-            self.push_from_register(&dst);
-            self.register_allocator.dealloc(dst);
 
             // c. Perform ? env.CreateGlobalFunctionBinding(fn, fo, false).
             let name_index = self.get_or_insert_name(name);
-            self.emit(
+            self.emit2(
                 Opcode::CreateGlobalFunctionBinding,
-                &[Operand::Bool(false), Operand::Varying(name_index)],
+                &[
+                    Operand2::Register(&dst),
+                    Operand2::Bool(false),
+                    Operand2::Varying(name_index),
+                ],
             );
+
+            self.register_allocator.dealloc(dst);
         }
 
         // 17. For each String vn of declaredVarNames, do
@@ -661,7 +675,10 @@ impl ByteCompiler<'_> {
                     self.emit_with_varying_operand(Opcode::CanDeclareGlobalFunction, index);
 
                     // b. If fnDefinable is false, throw a TypeError exception.
-                    let exit = self.jump_if_true();
+                    let value = self.register_allocator.alloc();
+                    self.pop_into_register(&value);
+                    let exit = self.jump_if_true(&value);
+                    self.register_allocator.dealloc(value);
                     self.emit_type_error("cannot declare global function");
                     self.patch_jump(exit);
                 }
@@ -717,7 +734,10 @@ impl ByteCompiler<'_> {
                         self.emit_with_varying_operand(Opcode::CanDeclareGlobalVar, index);
 
                         // ii. If vnDefinable is false, throw a TypeError exception.
-                        let exit = self.jump_if_true();
+                        let value = self.register_allocator.alloc();
+                        self.pop_into_register(&value);
+                        let exit = self.jump_if_true(&value);
+                        self.register_allocator.dealloc(value);
                         self.emit_type_error("cannot declare global function");
                         self.patch_jump(exit);
                     }
@@ -802,15 +822,19 @@ impl ByteCompiler<'_> {
                 // b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
                 let dst = self.register_allocator.alloc();
                 self.emit_get_function(&dst, index);
-                self.push_from_register(&dst);
-                self.register_allocator.dealloc(dst);
 
                 // i. Perform ? varEnv.CreateGlobalFunctionBinding(fn, fo, true).
                 let name_index = self.get_or_insert_name(name);
-                self.emit(
+                self.emit2(
                     Opcode::CreateGlobalFunctionBinding,
-                    &[Operand::Bool(true), Operand::Varying(name_index)],
+                    &[
+                        Operand2::Register(&dst),
+                        Operand2::Bool(true),
+                        Operand2::Varying(name_index),
+                    ],
                 );
+
+                self.register_allocator.dealloc(dst);
             }
             // d. Else,
             else {
@@ -1030,25 +1054,32 @@ impl ByteCompiler<'_> {
             } else {
                 self.emit_with_varying_operand(Opcode::GetArgument, i as u32);
             }
+
+            let value = self.register_allocator.alloc();
+            self.pop_into_register(&value);
+
             match parameter.variable().binding() {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
                     if let Some(init) = parameter.variable().init() {
-                        let skip = self.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                        self.compile_expr(init, true);
+                        let skip = self.emit_jump_if_not_undefined(&value);
+                        self.compile_expr2(init, &value);
                         self.patch_jump(skip);
                     }
+                    self.push_from_register(&value);
                     self.emit_binding(BindingOpcode::InitLexical, ident);
                 }
                 Binding::Pattern(pattern) => {
                     if let Some(init) = parameter.variable().init() {
-                        let skip = self.emit_opcode_with_operand(Opcode::JumpIfNotUndefined);
-                        self.compile_expr(init, true);
+                        let skip = self.emit_jump_if_not_undefined(&value);
+                        self.compile_expr2(init, &value);
                         self.patch_jump(skip);
                     }
+                    self.push_from_register(&value);
                     self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical);
                 }
             }
+            self.register_allocator.dealloc(value);
         }
 
         if generator {

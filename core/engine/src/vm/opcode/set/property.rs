@@ -252,16 +252,18 @@ impl Operation for SetPropertyByValue {
 pub(crate) struct SetPropertyGetterByName;
 
 impl SetPropertyGetterByName {
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let object = context.vm.pop();
+    fn operation(
+        object: u32,
+        value: u32,
+        index: usize,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + object) as usize].clone();
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let name = context.vm.frame().code_block().constant_string(index).into();
+
         let object = object.to_object(context)?;
-        let name = context
-            .vm
-            .frame()
-            .code_block()
-            .constant_string(index)
-            .into();
         let set = object
             .__get_own_property__(&name, &mut InternalMethodContext::new(context))?
             .as_ref()
@@ -287,18 +289,24 @@ impl Operation for SetPropertyGetterByName {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u8>().into();
+        let value = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u16>().into();
+        let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>().into();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 }
 
@@ -372,16 +380,18 @@ impl Operation for SetPropertyGetterByValue {
 pub(crate) struct SetPropertySetterByName;
 
 impl SetPropertySetterByName {
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        let object = context.vm.pop();
+    fn operation(
+        object: u32,
+        value: u32,
+        index: usize,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + object) as usize].clone();
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let name = context.vm.frame().code_block().constant_string(index).into();
+
         let object = object.to_object(context)?;
-        let name = context
-            .vm
-            .frame()
-            .code_block()
-            .constant_string(index)
-            .into();
 
         let get = object
             .__get_own_property__(&name, &mut InternalMethodContext::new(context))?
@@ -408,18 +418,24 @@ impl Operation for SetPropertySetterByName {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u8>().into();
+        let value = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u16>().into();
+        let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let object = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>().into();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(context, index)
+        Self::operation(object, value, index, context)
     }
 }
 

@@ -12,13 +12,10 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CreateForInIterator;
 
-impl Operation for CreateForInIterator {
-    const NAME: &'static str = "CreateForInIterator";
-    const INSTRUCTION: &'static str = "INST - CreateForInIterator";
-    const COST: u8 = 4;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.pop();
+impl CreateForInIterator {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + value) as usize].clone();
 
         let object = object.to_object(context)?;
         let iterator = ForInIterator::create_for_in_iterator(JsValue::new(object), context);
@@ -33,5 +30,26 @@ impl Operation for CreateForInIterator {
             .push(IteratorRecord::new(iterator, next_method));
 
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for CreateForInIterator {
+    const NAME: &'static str = "CreateForInIterator";
+    const INSTRUCTION: &'static str = "INST - CreateForInIterator";
+    const COST: u8 = 4;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, context)
     }
 }

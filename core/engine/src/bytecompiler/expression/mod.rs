@@ -44,17 +44,20 @@ impl ByteCompiler<'_> {
     }
 
     fn compile_conditional(&mut self, op: &Conditional, use_expr: bool) {
-        self.compile_expr(op.condition(), true);
-        let jelse = self.jump_if_false();
-        self.compile_expr(op.if_true(), true);
+        let dst = self.register_allocator.alloc();
+        self.compile_expr2(op.condition(), &dst);
+        let jelse = self.jump_if_false(&dst);
+        self.compile_expr2(op.if_true(), &dst);
         let exit = self.jump();
         self.patch_jump(jelse);
-        self.compile_expr(op.if_false(), true);
+        self.compile_expr2(op.if_false(), &dst);
         self.patch_jump(exit);
 
-        if !use_expr {
-            self.emit_opcode(Opcode::Pop);
+        if use_expr {
+            self.push_from_register(&dst);
         };
+
+        self.register_allocator.dealloc(dst);
     }
 
     fn compile_template_literal(&mut self, template_literal: &TemplateLiteral, use_expr: bool) {
@@ -122,26 +125,35 @@ impl ByteCompiler<'_> {
                 self.access_get(Access::Property { access }, use_expr);
             }
             Expression::Conditional(op) => self.compile_conditional(op, use_expr),
-            Expression::ArrayLiteral(array) => {
-                self.emit_opcode(Opcode::PushNewArray);
+            Expression::ArrayLiteral(literal) => {
+                let array = self.register_allocator.alloc();
+                let value = self.register_allocator.alloc();
 
-                for element in array.as_ref() {
+                self.emit2(Opcode::PushNewArray, &[Operand2::Register(&array)]);
+
+                for element in literal.as_ref() {
                     if let Some(element) = element {
-                        self.compile_expr(element, true);
+                        self.compile_expr2(element, &value);
                         if let Expression::Spread(_) = element {
-                            self.emit_opcode(Opcode::GetIterator);
-                            self.emit_opcode(Opcode::PushIteratorToArray);
+                            self.emit2(Opcode::GetIterator, &[Operand2::Register(&value)]);
+                            self.emit2(Opcode::PushIteratorToArray, &[Operand2::Register(&array)]);
                         } else {
-                            self.emit_opcode(Opcode::PushValueToArray);
+                            self.emit2(
+                                Opcode::PushValueToArray,
+                                &[Operand2::Register(&value), Operand2::Register(&array)],
+                            );
                         }
                     } else {
-                        self.emit_opcode(Opcode::PushElisionToArray);
+                        self.emit2(Opcode::PushElisionToArray, &[Operand2::Register(&array)]);
                     }
                 }
 
-                if !use_expr {
-                    self.emit_opcode(Opcode::Pop);
+                if use_expr {
+                    self.push_from_register(&array);
                 }
+
+                self.register_allocator.dealloc(array);
+                self.register_allocator.dealloc(value);
             }
             Expression::This => {
                 self.access_get(Access::This, use_expr);
@@ -189,11 +201,16 @@ impl ByteCompiler<'_> {
                 // stack: value
 
                 if r#yield.delegate() {
+                    let object = self.register_allocator.alloc();
+                    self.pop_into_register(&object);
+
                     if self.is_async() {
-                        self.emit_opcode(Opcode::GetAsyncIterator);
+                        self.emit2(Opcode::GetAsyncIterator, &[Operand2::Register(&object)]);
                     } else {
-                        self.emit_opcode(Opcode::GetIterator);
+                        self.emit2(Opcode::GetIterator, &[Operand2::Register(&object)]);
                     }
+
+                    self.register_allocator.dealloc(object);
 
                     // stack:
                     self.emit_opcode(Opcode::PushUndefined);
@@ -246,18 +263,15 @@ impl ByteCompiler<'_> {
                 }
             }
             Expression::TaggedTemplate(template) => {
+                let this = self.register_allocator.alloc();
+                let function = self.register_allocator.alloc();
+
                 match template.tag() {
                     Expression::PropertyAccess(PropertyAccess::Simple(access)) => {
-                        self.compile_expr(access.target(), true);
-                        self.emit_opcode(Opcode::Dup);
-
-                        let dst = self.register_allocator.alloc();
-                        let value = self.register_allocator.alloc();
-                        self.pop_into_register(&value);
-
+                        self.compile_expr2(access.target(), &this);
                         match access.field() {
                             PropertyAccessField::Const(ident) => {
-                                self.emit_get_property_by_name(&dst, &value, &value, *ident);
+                                self.emit_get_property_by_name(&function, &this, &this, *ident);
                             }
                             PropertyAccessField::Expr(field) => {
                                 let key = self.register_allocator.alloc();
@@ -265,47 +279,40 @@ impl ByteCompiler<'_> {
                                 self.emit2(
                                     Opcode::GetPropertyByValue,
                                     &[
-                                        Operand2::Register(&dst),
+                                        Operand2::Register(&function),
                                         Operand2::Operand(InstructionOperand::Register(&key)),
-                                        Operand2::Operand(InstructionOperand::Register(&value)),
-                                        Operand2::Operand(InstructionOperand::Register(&value)),
+                                        Operand2::Operand(InstructionOperand::Register(&this)),
+                                        Operand2::Operand(InstructionOperand::Register(&this)),
                                     ],
                                 );
                                 self.register_allocator.dealloc(key);
                             }
                         }
-
-                        self.push_from_register(&dst);
-                        self.register_allocator.dealloc(dst);
-                        self.register_allocator.dealloc(value);
                     }
                     Expression::PropertyAccess(PropertyAccess::Private(access)) => {
                         let index = self.get_or_insert_private_name(access.field());
-
-                        let object = self.register_allocator.alloc();
-                        self.compile_expr2(access.target(), &object);
-
-                        let dst = self.register_allocator.alloc();
+                        self.compile_expr2(access.target(), &this);
                         self.emit2(
                             Opcode::GetPrivateField,
                             &[
-                                Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Register(&function),
+                                Operand2::Operand(InstructionOperand::Register(&this)),
                                 Operand2::Varying(index),
                             ],
                         );
-
-                        self.push_from_register(&object);
-                        self.push_from_register(&dst);
-
-                        self.register_allocator.dealloc(object);
-                        self.register_allocator.dealloc(dst);
                     }
                     expr => {
                         self.emit_opcode(Opcode::PushUndefined);
-                        self.compile_expr(expr, true);
+                        self.pop_into_register(&this);
+                        self.compile_expr2(expr, &function);
                     }
                 }
+
+                self.push_from_register(&this);
+                self.push_from_register(&function);
+
+                self.register_allocator.dealloc(this);
+                self.register_allocator.dealloc(function);
 
                 let site = template.identifier();
                 let count = template.cookeds().len() as u32;
@@ -347,16 +354,28 @@ impl ByteCompiler<'_> {
                     .any(|arg| matches!(arg, Expression::Spread(_)));
 
                 if contains_spread {
-                    self.emit_opcode(Opcode::PushNewArray);
+                    let array = self.register_allocator.alloc();
+                    let value = self.register_allocator.alloc();
+
+                    self.emit2(Opcode::PushNewArray, &[Operand2::Register(&array)]);
+
                     for arg in super_call.arguments() {
-                        self.compile_expr(arg, true);
+                        self.compile_expr2(arg, &value);
                         if let Expression::Spread(_) = arg {
-                            self.emit_opcode(Opcode::GetIterator);
-                            self.emit_opcode(Opcode::PushIteratorToArray);
+                            self.emit2(Opcode::GetIterator, &[Operand2::Register(&value)]);
+                            self.emit2(Opcode::PushIteratorToArray, &[Operand2::Register(&array)]);
                         } else {
-                            self.emit_opcode(Opcode::PushValueToArray);
+                            self.emit2(
+                                Opcode::PushValueToArray,
+                                &[Operand2::Register(&value), Operand2::Register(&array)],
+                            );
                         }
                     }
+
+                    self.push_from_register(&array);
+
+                    self.register_allocator.dealloc(value);
+                    self.register_allocator.dealloc(array);
                 } else {
                     for arg in super_call.arguments() {
                         self.compile_expr(arg, true);
