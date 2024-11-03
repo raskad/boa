@@ -4,22 +4,19 @@ use boa_ast::{
 };
 
 use crate::{
-    bytecompiler::{Access, ByteCompiler, Operand2, ToJsString},
+    bytecompiler::{Access, ByteCompiler, Operand2, Register, ToJsString},
     vm::Opcode,
 };
 
 impl ByteCompiler<'_> {
-    pub(crate) fn compile_unary(&mut self, unary: &Unary, use_expr: bool) {
-        let dst = self.register_allocator.alloc();
-
+    pub(crate) fn compile_unary(&mut self, unary: &Unary, dst: &Register) {
         let opcode = match unary.op() {
             UnaryOp::Delete => {
                 if let Some(access) = Access::from_expression(unary.target()) {
-                    self.access_delete(access, &dst);
+                    self.access_delete(access, dst);
                 } else {
-                    self.compile_expr(unary.target(), false);
-                    self.emit_opcode(Opcode::PushTrue);
-                    self.pop_into_register(&dst);
+                    self.compile_expr(unary.target(), dst);
+                    self.push_true(dst);
                 }
                 None
             }
@@ -34,30 +31,23 @@ impl ByteCompiler<'_> {
                         let binding = self.lexical_scope.get_identifier_reference(identifier);
                         let index = self.get_or_insert_binding(binding);
                         self.emit_binding_access(Opcode::GetNameOrUndefined, &index);
-                        self.pop_into_register(&dst);
+                        self.pop_into_register(dst);
                     }
-                    expr => self.compile_expr2(expr, &dst),
+                    expr => self.compile_expr(expr, dst),
                 }
-                self.emit2(Opcode::TypeOf, &[Operand2::Register(&dst)]);
+                self.emit2(Opcode::TypeOf, &[Operand2::Register(dst)]);
                 None
             }
             UnaryOp::Void => {
-                self.compile_expr2(unary.target(), &dst);
-                self.emit_opcode(Opcode::PushUndefined);
-                self.pop_into_register(&dst);
+                self.compile_expr(unary.target(), dst);
+                self.push_undefined(dst);
                 None
             }
         };
 
         if let Some(opcode) = opcode {
-            self.compile_expr2(unary.target(), &dst);
-            self.emit2(opcode, &[Operand2::Register(&dst)]);
+            self.compile_expr(unary.target(), dst);
+            self.emit2(opcode, &[Operand2::Register(dst)]);
         }
-
-        if use_expr {
-            self.push_from_register(&dst);
-        }
-
-        self.register_allocator.dealloc(dst);
     }
 }

@@ -81,7 +81,14 @@ impl ByteCompiler<'_> {
             self.async_generator_yield();
         } else {
             // 3. Otherwise, return ? GeneratorYield(CreateIterResultObject(value, false)).
-            self.emit(Opcode::CreateIteratorResult, &[Operand::Bool(false)]);
+            let value = self.register_allocator.alloc();
+            self.pop_into_register(&value);
+            self.emit2(
+                Opcode::CreateIteratorResult,
+                &[Operand2::Register(&value), Operand2::Bool(false)],
+            );
+            self.push_from_register(&value);
+            self.register_allocator.dealloc(value);
             self.emit_opcode(Opcode::GeneratorYield);
         }
 
@@ -116,7 +123,10 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::Pop);
 
         // Stack: received
-        self.emit_resume_kind(GeneratorResumeKind::Return);
+        let value = self.register_allocator.alloc();
+        self.emit_resume_kind(GeneratorResumeKind::Return, &value);
+        self.push_from_register(&value);
+        self.register_allocator.dealloc(value);
 
         // Stack: resume_kind(Return) received
         self.patch_jump(non_normal_resume);

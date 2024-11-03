@@ -7,24 +7,22 @@ use boa_ast::{
     property::{MethodDefinitionKind, PropertyName},
     Expression,
 };
-use boa_interner::Sym; 
+use boa_interner::Sym;
 
 impl ByteCompiler<'_> {
-    pub(crate) fn compile_object_literal(&mut self, literal: &ObjectLiteral, use_expr: bool) {
-        let object = self.register_allocator.alloc();
-        self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&object)]);
+    pub(crate) fn compile_object_literal(&mut self, literal: &ObjectLiteral, dst: &Register) {
+        self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&dst)]);
 
         for property in literal.properties() {
             match property {
                 PropertyDefinition::IdentifierReference(ident) => {
                     let value = self.register_allocator.alloc();
-                    self.access_get(Access::Variable { name: *ident }, true);
-                    self.pop_into_register(&value);
+                    self.access_get(Access::Variable { name: *ident }, &value);
                     let index = self.get_or_insert_name(*ident);
                     self.emit2(
                         Opcode::DefineOwnPropertyByName,
                         &[
-                            Operand2::Register(&object),
+                            Operand2::Register(&dst),
                             Operand2::Register(&value),
                             Operand2::Varying(index),
                         ],
@@ -34,18 +32,18 @@ impl ByteCompiler<'_> {
                 PropertyDefinition::Property(name, expr) => match name {
                     PropertyName::Literal(name) => {
                         let value = self.register_allocator.alloc();
-                        self.compile_expr2(expr, &value);
+                        self.compile_expr(expr, &value);
                         if *name == Sym::__PROTO__ && !self.json_parse {
                             self.emit2(
                                 Opcode::SetPrototype,
-                                &[Operand2::Register(&object), Operand2::Register(&value)],
+                                &[Operand2::Register(&dst), Operand2::Register(&value)],
                             );
                         } else {
                             let index = self.get_or_insert_name((*name).into());
                             self.emit2(
                                 Opcode::DefineOwnPropertyByName,
                                 &[
-                                    Operand2::Register(&object),
+                                    Operand2::Register(&dst),
                                     Operand2::Register(&value),
                                     Operand2::Varying(index),
                                 ],
@@ -55,13 +53,13 @@ impl ByteCompiler<'_> {
                     }
                     PropertyName::Computed(name_node) => {
                         let key = self.register_allocator.alloc();
-                        self.compile_expr2(name_node, &key);
+                        self.compile_expr(name_node, &key);
                         self.emit2(
                             Opcode::ToPropertyKey,
                             &[Operand2::Register(&key), Operand2::Register(&key)],
                         );
                         let function = self.register_allocator.alloc();
-                        self.compile_expr2(expr, &function);
+                        self.compile_expr(expr, &function);
                         if expr.is_anonymous_function_definition() {
                             self.emit2(
                                 Opcode::SetFunctionName,
@@ -77,7 +75,7 @@ impl ByteCompiler<'_> {
                             &[
                                 Operand2::Register(&function),
                                 Operand2::Register(&key),
-                                Operand2::Register(&object),
+                                Operand2::Register(&dst),
                             ],
                         );
                         self.register_allocator.dealloc(key);
@@ -95,7 +93,7 @@ impl ByteCompiler<'_> {
                             let method = self.object_method(m.into(), kind);
                             self.emit2(
                                 Opcode::SetHomeObject,
-                                &[Operand2::Register(&method), Operand2::Register(&object)],
+                                &[Operand2::Register(&method), Operand2::Register(&dst)],
                             );
                             let index = self.get_or_insert_name((*name).into());
                             let opcode = match kind {
@@ -106,7 +104,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 opcode,
                                 &[
-                                    Operand2::Register(&object),
+                                    Operand2::Register(&dst),
                                     Operand2::Register(&method),
                                     Operand2::Varying(index),
                                 ],
@@ -119,18 +117,18 @@ impl ByteCompiler<'_> {
                                 name_node,
                                 m.into(),
                                 kind,
-                                &object,
+                                &dst,
                             );
                         }
                     }
                 }
                 PropertyDefinition::SpreadObject(expr) => {
                     let source = self.register_allocator.alloc();
-                    self.compile_expr2(expr, &source);
+                    self.compile_expr(expr, &source);
                     self.emit2(
                         Opcode::CopyDataProperties,
                         &[
-                            Operand2::Register(&object),
+                            Operand2::Register(&dst),
                             Operand2::Register(&source),
                             Operand2::Varying(0),
                         ],
@@ -142,12 +140,6 @@ impl ByteCompiler<'_> {
                 }
             }
         }
-
-        if use_expr {
-            self.push_from_register(&object);
-        }
-
-        self.register_allocator.dealloc(object);
     }
 
     fn compile_object_literal_computed_method(
@@ -158,7 +150,7 @@ impl ByteCompiler<'_> {
         object: &Register,
     ) {
         let key = self.register_allocator.alloc();
-        self.compile_expr2(expr, &key);
+        self.compile_expr(expr, &key);
 
         self.emit2(
             Opcode::ToPropertyKey,

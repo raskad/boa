@@ -3,25 +3,6 @@ use crate::{
     Context, JsResult,
 };
 
-/// `ToBoolean` implements the Opcode Operation for `Opcode::ToBoolean`
-///
-/// Operation:
-///  - Pops value converts it to boolean and pushes it back.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ToBoolean;
-
-impl Operation for ToBoolean {
-    const NAME: &'static str = "ToBoolean";
-    const INSTRUCTION: &'static str = "INST - ToBoolean";
-    const COST: u8 = 1;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        context.vm.push(value.to_boolean());
-        Ok(CompletionType::Normal)
-    }
-}
-
 /// `ToPropertyKey` implements the Opcode Operation for `Opcode::ToPropertyKey`
 ///
 /// Operation:

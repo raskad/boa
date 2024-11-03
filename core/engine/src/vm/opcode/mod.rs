@@ -13,7 +13,6 @@ mod control_flow;
 mod copy;
 mod define;
 mod delete;
-mod dup;
 mod environment;
 mod generator;
 mod get;
@@ -26,10 +25,8 @@ mod new;
 mod nop;
 mod pop;
 mod push;
-mod require;
 mod rest_parameter;
 mod set;
-mod swap;
 mod switch;
 mod templates;
 mod to;
@@ -53,8 +50,6 @@ pub(crate) use copy::*;
 pub(crate) use define::*;
 #[doc(inline)]
 pub(crate) use delete::*;
-#[doc(inline)]
-pub(crate) use dup::*;
 #[doc(inline)]
 pub(crate) use environment::*;
 #[doc(inline)]
@@ -82,13 +77,9 @@ pub(crate) use push::*;
 #[doc(inline)]
 pub(crate) use r#await::*;
 #[doc(inline)]
-pub(crate) use require::*;
-#[doc(inline)]
 pub(crate) use rest_parameter::*;
 #[doc(inline)]
 pub(crate) use set::*;
-#[doc(inline)]
-pub(crate) use swap::*;
 #[doc(inline)]
 pub(crate) use switch::*;
 #[doc(inline)]
@@ -609,137 +600,103 @@ generate_opcodes! {
     /// Stack: value **=>**
     Pop,
 
-    /// Push a copy of the top value on the stack.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** value, value
-    Dup,
-
-    /// Swap the top two values on the stack.
-    ///
-    /// Operands:
-    ///
-    /// Stack: second, first **=>** first, second
-    Swap,
-
-    /// Rotates the top `n` values of the stack to the left by `1`.
-    ///
-    /// Equivalent to calling [`slice::rotate_left`] with argument `1` on the top `n` values of the
-    /// stack.
-    ///
-    /// Operands: n: `u8`
-    ///
-    /// Stack: v\[n\], v\[n-1\], ... , v\[1\], v\[0\] **=>** v\[n-1\], ... , v\[1\], v\[0\], v\[n\]
-    RotateLeft { n: u8 },
-
-    /// Rotates the top `n` values of the stack to the right by `1`.
-    ///
-    /// Equivalent to calling [`slice::rotate_right`] with argument `1` on the top `n` values of the
-    /// stack.
-    ///
-    /// Operands: n: `u8`
-    ///
-    /// Stack: v\[n\], v\[n-1\], ... , v\[1\], v\[0\] **=>** v\[0\], v\[n\], v\[n-1\], ... , v\[1\]
-    RotateRight { n: u8 },
-
     /// Push integer `0` on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `0`
-    PushZero,
+    PushZero { dst: VaryingOperand },
 
     /// Push integer `1` on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `1`
-    PushOne,
+    PushOne { dst: VaryingOperand },
 
     /// Push `i8` value on the stack.
     ///
     /// Operands: value: `i8`
     ///
     /// Stack: **=>** value
-    PushInt8 { value: i8 },
+    PushInt8 { dst: VaryingOperand, value: i8 },
 
     /// Push i16 value on the stack.
     ///
     /// Operands: value: `i16`
     ///
     /// Stack: **=>** value
-    PushInt16 { value: i16 },
+    PushInt16 { dst: VaryingOperand, value: i16 },
 
     /// Push i32 value on the stack.
     ///
     /// Operands: value: `i32`
     ///
     /// Stack: **=>** value
-    PushInt32 { value: i32 },
+    PushInt32 { dst: VaryingOperand, value: i32 },
 
     /// Push `f32` value on the stack.
     ///
     /// Operands: value: `f32`
     ///
     /// Stack: **=>** value
-    PushFloat { value: f32 },
+    PushFloat { dst: VaryingOperand, value: f32 },
 
     /// Push `f64` value on the stack.
     ///
     /// Operands: value: `f64`
     ///
     /// Stack: **=>** value
-    PushDouble { value: f64 },
+    PushDouble { dst: VaryingOperand, value: f64 },
 
     /// Push `NaN` integer on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `NaN`
-    PushNaN,
+    PushNaN { dst: VaryingOperand },
 
     /// Push `Infinity` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `Infinity`
-    PushPositiveInfinity,
+    PushPositiveInfinity { dst: VaryingOperand },
 
     /// Push `-Infinity` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `-Infinity`
-    PushNegativeInfinity,
+    PushNegativeInfinity { dst: VaryingOperand },
 
     /// Push `null` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `null`
-    PushNull,
+    PushNull { dst: VaryingOperand },
 
     /// Push `true` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `true`
-    PushTrue,
+    PushTrue { dst: VaryingOperand },
 
     /// Push `false` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `false`
-    PushFalse,
+    PushFalse { dst: VaryingOperand },
 
     /// Push `undefined` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `undefined`
-    PushUndefined,
+    PushUndefined { dst: VaryingOperand },
 
     /// Push literal value on the stack.
     ///
@@ -749,14 +706,14 @@ generate_opcodes! {
     /// Operands: index: `VaryingOperand`
     ///
     /// Stack: **=>** (`literals[index]`)
-    PushLiteral { index: VaryingOperand },
+    PushLiteral { dst: VaryingOperand, index: VaryingOperand },
 
     /// Push regexp value on the stack.
     ///
     /// Operands: pattern_index: `VaryingOperand`, flags: `VaryingOperand`
     ///
     /// Stack: **=>** regexp
-    PushRegExp { pattern_index: VaryingOperand, flags_index: VaryingOperand },
+    PushRegExp { dst: VaryingOperand, pattern_index: VaryingOperand, flags_index: VaryingOperand },
 
     /// Push empty object `{}` value on the stack.
     ///
@@ -1036,13 +993,6 @@ generate_opcodes! {
     ///
     /// Stack: value **=>** (`typeof` value)
     TypeOf { value: VaryingOperand },
-
-    /// Unary `void` operator.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** `undefined`
-    Void,
 
     /// Unary logical `!` operator.
     ///
@@ -1705,13 +1655,6 @@ generate_opcodes! {
     /// Stack: **=>**
     ThrowNewSyntaxError { message: VaryingOperand },
 
-    /// Pops value converts it to boolean and pushes it back.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** (`ToBoolean(value)`)
-    ToBoolean,
-
     /// Pushes `this` value
     ///
     /// Operands:
@@ -1738,7 +1681,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** super_constructor
-    SuperCallPrepare,
+    SuperCallPrepare { dst: VaryingOperand },
 
     /// Execute the `super()` method.
     ///
@@ -1770,14 +1713,14 @@ generate_opcodes! {
     /// Stack: result **=>** result
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
-    BindThisValue,
+    BindThisValue { value: VaryingOperand },
 
     /// Dynamically import a module.
     ///
     /// Operands:
     ///
     /// Stack: specifier **=>** promise
-    ImportCall,
+    ImportCall { value: VaryingOperand },
 
     /// Pop the two values of the stack, strict equal compares the two values,
     /// if true jumps to address, otherwise push the second pop'ed value.
@@ -1785,14 +1728,7 @@ generate_opcodes! {
     /// Operands: address: `u32`
     ///
     /// Stack: value, cond **=>** cond (if `cond !== value`).
-    Case { address: u32 },
-
-    /// Pops the top of stack and jump to address.
-    ///
-    /// Operands: address: `u32`
-    ///
-    /// Stack: `value` **=>**
-    Default { address: u32 },
+    Case { address: u32, value: VaryingOperand, condition: VaryingOperand },
 
     /// Get function from the pre-compiled inner functions.
     ///
@@ -1946,7 +1882,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object **=>**
-    PushObjectEnvironment,
+    PushObjectEnvironment { object: VaryingOperand },
 
     /// Pop the current environment.
     ///
@@ -1955,7 +1891,7 @@ generate_opcodes! {
     /// Stack: **=>**
     PopEnvironment,
 
-    /// Increment loop itearation count.
+    /// Increment loop iteration count.
     ///
     /// Used for limiting the loop iteration.
     ///
@@ -1996,13 +1932,6 @@ generate_opcodes! {
     /// Iterator Stack: `iterator` **=>** `iterator`
     IteratorNext,
 
-    /// Calls the `next` method of `iterator`, updating its record with the next value.
-    ///
-    /// Operands:
-    ///
-    /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorNextWithoutPop,
-
     /// Returns `true` if the current iterator is done, or `false` otherwise
     ///
     /// Stack: **=>** done
@@ -2025,21 +1954,14 @@ generate_opcodes! {
     /// Stack: **=>** `value`
     ///
     /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorValue,
-
-    /// Gets the `value` property of the current iterator record.
-    ///
-    /// Stack: **=>** `value`
-    ///
-    /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorValueWithoutPop,
+    IteratorValue { value: VaryingOperand },
 
     /// Gets the last iteration result of the current iterator record.
     ///
     /// Stack: **=>** `result`
     ///
     /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorResult,
+    IteratorResult { value: VaryingOperand },
 
     /// Consume the iterator and construct and array with all the values.
     ///
@@ -2048,7 +1970,7 @@ generate_opcodes! {
     /// Stack: **=>** array
     ///
     /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorToArray,
+    IteratorToArray { array: VaryingOperand },
 
     /// Pushes `true` to the stack if the iterator stack is empty.
     ///
@@ -2067,7 +1989,7 @@ generate_opcodes! {
     /// Stack:
     /// - value **=>**
     ///
-    CreateIteratorResult { done: bool },
+    CreateIteratorResult { value: VaryingOperand, done: bool },
 
     /// Calls `return` on the current iterator and returns the result.
     ///
@@ -2081,14 +2003,7 @@ generate_opcodes! {
     /// Operands: value_count: `u32`
     ///
     /// Stack: `value_1`,...`value_n` **=>** `string`
-    ConcatToString { value_count: VaryingOperand },
-
-    /// Call RequireObjectCoercible on the stack value.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** value
-    RequireObjectCoercible { value: VaryingOperand },
+    ConcatToString { string: VaryingOperand, value_count: VaryingOperand },
 
     /// Require the stack value to be neither null nor undefined.
     ///
@@ -2177,14 +2092,14 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** `new.target`
-    NewTarget,
+    NewTarget { dst: VaryingOperand },
 
     /// Push the current `import.meta` to the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `import.meta`
-    ImportMeta,
+    ImportMeta { dst: VaryingOperand },
 
     /// Pushes `true` to the stack if the top stack value is an object, or `false` otherwise.
     ///
@@ -2285,13 +2200,6 @@ generate_opcodes! {
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-createglobalvarbinding
     CreateGlobalVarBinding { configurable: bool, index: VaryingOperand },
-
-    /// No-operation instruction, does nothing.
-    ///
-    /// Operands:
-    ///
-    /// Stack: **=>**
-    Nop,
 
     /// Opcode prefix modifier, makes all [`VaryingOperand`]s of an instruction [`u16`] sized.
     ///
@@ -2401,6 +2309,28 @@ generate_opcodes! {
     Reserved46 => Reserved,
     /// Reserved [`Opcode`].
     Reserved47 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved48 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved49 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved50 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved51 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved52 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved53 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved54 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved55 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved56 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved57 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved58 => Reserved,
 }
 
 /// Specific opcodes for bindings.

@@ -13,14 +13,15 @@ pub(crate) struct PushLiteral;
 
 impl PushLiteral {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
+    fn operation(dst: u32, index: usize, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let constant = &context.vm.frame().code_block().constants[index];
         let value: JsValue = match constant {
             Constant::BigInt(v) => v.clone().into(),
             Constant::String(v) => v.clone().into(),
             _ => unreachable!("constant should be a string or bigint"),
         };
-        context.vm.push(value);
+        context.vm.stack[(rp + dst) as usize] = value.into();
         Ok(CompletionType::Normal)
     }
 }
@@ -31,18 +32,21 @@ impl Operation for PushLiteral {
     const COST: u8 = 1;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(context, index)
+        Self::operation(dst, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(dst, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>().into();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(context, index)
+        Self::operation(dst, index, context)
     }
 }
 
@@ -55,16 +59,17 @@ pub(crate) struct PushRegExp;
 
 impl PushRegExp {
     fn operation(
-        context: &mut Context,
+        dst: u32,
         pattern_index: usize,
         flags_index: usize,
+        context: &mut Context,
     ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let code_block = context.vm.frame().code_block();
         let pattern = code_block.constant_string(pattern_index);
         let flags = code_block.constant_string(flags_index);
-
         let regexp = JsRegExp::new(pattern, flags, context)?;
-        context.vm.push(regexp);
+        context.vm.stack[(rp + dst) as usize] = regexp.into();
         Ok(CompletionType::Normal)
     }
 }
@@ -75,20 +80,23 @@ impl Operation for PushRegExp {
     const COST: u8 = 5;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
         let pattern_index = context.vm.read::<u8>() as usize;
         let flags_index = context.vm.read::<u8>() as usize;
-        Self::operation(context, pattern_index, flags_index)
+        Self::operation(dst, pattern_index, flags_index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
         let pattern_index = context.vm.read::<u16>() as usize;
         let flags_index = context.vm.read::<u16>() as usize;
-        Self::operation(context, pattern_index, flags_index)
+        Self::operation(dst, pattern_index, flags_index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>();
         let pattern_index = context.vm.read::<u32>() as usize;
         let flags_index = context.vm.read::<u32>() as usize;
-        Self::operation(context, pattern_index, flags_index)
+        Self::operation(dst, pattern_index, flags_index, context)
     }
 }

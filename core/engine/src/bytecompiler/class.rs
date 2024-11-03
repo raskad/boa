@@ -124,16 +124,26 @@ impl ByteCompiler<'_> {
 
             compiler.compile_statement_list(expr.body().statement_list(), false, false);
 
-            compiler.emit_opcode(Opcode::PushUndefined);
+            let value = compiler.register_allocator.alloc();
+            compiler.push_undefined(&value);
+            compiler.push_from_register(&value);
+            compiler.register_allocator.dealloc(value);
         } else if class.super_ref.is_some() {
             // We push an empty, unused function scope since the compiler expects a function scope.
             let _ = compiler.push_scope(&Scope::new(compiler.lexical_scope.clone(), true));
             compiler.emit_opcode(Opcode::SuperCallDerived);
-            compiler.emit_opcode(Opcode::BindThisValue);
+            let value = compiler.register_allocator.alloc();
+            compiler.pop_into_register(&value);
+            compiler.emit2(Opcode::BindThisValue, &[Operand2::Register(&value)]);
+            compiler.push_from_register(&value);
+            compiler.register_allocator.dealloc(value);
         } else {
             // We push an empty, unused function scope since the compiler expects a function scope.
             let _ = compiler.push_scope(&Scope::new(compiler.lexical_scope.clone(), true));
-            compiler.emit_opcode(Opcode::PushUndefined);
+            let value = compiler.register_allocator.alloc();
+            compiler.push_undefined(&value);
+            compiler.push_from_register(&value);
+            compiler.register_allocator.dealloc(value);
         }
         compiler.emit_opcode(Opcode::SetAccumulatorFromStack);
 
@@ -152,7 +162,7 @@ impl ByteCompiler<'_> {
         let prototype_register = self.register_allocator.alloc();
 
         if let Some(node) = class.super_ref {
-            self.compile_expr2(node, &prototype_register);
+            self.compile_expr(node, &prototype_register);
 
             self.emit2(
                 Opcode::PushClassPrototype,
@@ -163,8 +173,7 @@ impl ByteCompiler<'_> {
                 ],
             );
         } else {
-            self.emit_opcode(Opcode::PushUndefined);
-            self.pop_into_register(&prototype_register);
+            self.push_undefined(&prototype_register);
         }
 
         let proto_register = self.register_allocator.alloc();
@@ -287,7 +296,7 @@ impl ByteCompiler<'_> {
                     }
                     ClassElementName::PropertyName(PropertyName::Computed(name)) => {
                         let key = self.register_allocator.alloc();
-                        self.compile_expr2(name, &key);
+                        self.compile_expr(name, &key);
                         self.emit2(
                             Opcode::ToPropertyKey,
                             &[Operand2::Register(&key), Operand2::Register(&key)],
@@ -431,13 +440,15 @@ impl ByteCompiler<'_> {
                     let name = self.register_allocator.alloc();
                     match field.name() {
                         PropertyName::Literal(ident) => {
-                            self.emit_push_literal(Literal::String(
-                                self.interner().resolve_expect(*ident).into_common(false),
-                            ));
-                            self.pop_into_register(&name);
+                            self.emit_push_literal(
+                                Literal::String(
+                                    self.interner().resolve_expect(*ident).into_common(false),
+                                ),
+                                &name,
+                            );
                         }
                         PropertyName::Computed(expr) => {
-                            self.compile_expr2(expr, &name);
+                            self.compile_expr(expr, &name);
                         }
                     }
                     let mut field_compiler = ByteCompiler::new(
@@ -455,10 +466,16 @@ impl ByteCompiler<'_> {
                     // Function environment
                     let _ = field_compiler.push_scope(field.scope());
                     let is_anonymous_function = if let Some(node) = &field.field() {
-                        field_compiler.compile_expr(node, true);
+                        let value = field_compiler.register_allocator.alloc();
+                        field_compiler.compile_expr(node, &value);
+                        field_compiler.push_from_register(&value);
+                        field_compiler.register_allocator.dealloc(value);
                         node.is_anonymous_function_definition()
                     } else {
-                        field_compiler.emit_opcode(Opcode::PushUndefined);
+                        let value = field_compiler.register_allocator.alloc();
+                        field_compiler.push_undefined(&value);
+                        field_compiler.push_from_register(&value);
+                        field_compiler.register_allocator.dealloc(value);
                         false
                     };
 
@@ -500,9 +517,15 @@ impl ByteCompiler<'_> {
                     );
                     let _ = field_compiler.push_scope(field.scope());
                     if let Some(node) = field.field() {
-                        field_compiler.compile_expr(node, true);
+                        let value = field_compiler.register_allocator.alloc();
+                        field_compiler.compile_expr(node, &value);
+                        field_compiler.push_from_register(&value);
+                        field_compiler.register_allocator.dealloc(value);
                     } else {
-                        field_compiler.emit_opcode(Opcode::PushUndefined);
+                        let value = field_compiler.register_allocator.alloc();
+                        field_compiler.push_undefined(&value);
+                        field_compiler.push_from_register(&value);
+                        field_compiler.register_allocator.dealloc(value);
                     }
                     field_compiler.emit_opcode(Opcode::SetAccumulatorFromStack);
 
@@ -531,7 +554,7 @@ impl ByteCompiler<'_> {
                         }
                         PropertyName::Computed(name) => {
                             let name_register = self.register_allocator.alloc();
-                            self.compile_expr2(name, &name_register);
+                            self.compile_expr(name, &name_register);
                             StaticFieldName::Register(name_register)
                         }
                     };
@@ -548,10 +571,16 @@ impl ByteCompiler<'_> {
                     );
                     let _ = field_compiler.push_scope(field.scope());
                     let is_anonymous_function = if let Some(node) = &field.field() {
-                        field_compiler.compile_expr(node, true);
+                        let value = field_compiler.register_allocator.alloc();
+                        field_compiler.compile_expr(node, &value);
+                        field_compiler.push_from_register(&value);
+                        field_compiler.register_allocator.dealloc(value);
                         node.is_anonymous_function_definition()
                     } else {
-                        field_compiler.emit_opcode(Opcode::PushUndefined);
+                        let value = field_compiler.register_allocator.alloc();
+                        field_compiler.push_undefined(&value);
+                        field_compiler.push_from_register(&value);
+                        field_compiler.register_allocator.dealloc(value);
                         false
                     };
 
@@ -571,17 +600,19 @@ impl ByteCompiler<'_> {
                 ClassElement::PrivateStaticFieldDefinition(name, field) => {
                     let value = self.register_allocator.alloc();
                     if let Some(expr) = &field {
-                        self.compile_expr2(expr, &value);
+                        self.compile_expr(expr, &value);
                     } else {
-                        self.emit_opcode(Opcode::PushUndefined);
-                        self.pop_into_register(&value);
+                        self.push_undefined(&value);
                     }
                     let index = self.get_or_insert_private_name(*name);
-                    self.emit2(Opcode::DefinePrivateField, &[
-                        Operand2::Register(&class_register),
-                        Operand2::Register(&value),
-                        Operand2::Varying(index),
-                    ]);
+                    self.emit2(
+                        Opcode::DefinePrivateField,
+                        &[
+                            Operand2::Register(&class_register),
+                            Operand2::Register(&value),
+                            Operand2::Varying(index),
+                        ],
+                    );
                     self.register_allocator.dealloc(value);
                 }
                 ClassElement::StaticBlock(block) => {
@@ -657,11 +688,14 @@ impl ByteCompiler<'_> {
                     self.pop_into_register(&value);
                     match name {
                         StaticFieldName::Index(name) => {
-                            self.emit2(Opcode::DefineOwnPropertyByName, &[
-                                Operand2::Register(&class_register),
-                                Operand2::Register(&value),
-                                Operand2::Varying(name),
-                            ]);
+                            self.emit2(
+                                Opcode::DefineOwnPropertyByName,
+                                &[
+                                    Operand2::Register(&class_register),
+                                    Operand2::Register(&value),
+                                    Operand2::Varying(name),
+                                ],
+                            );
                         }
                         StaticFieldName::Register(key) => {
                             if is_anonymous_function {

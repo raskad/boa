@@ -13,12 +13,9 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NewTarget;
 
-impl Operation for NewTarget {
-    const NAME: &'static str = "NewTarget";
-    const INSTRUCTION: &'static str = "INST - NewTarget";
-    const COST: u8 = 2;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl NewTarget {
+    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let new_target = if let Some(new_target) = context
             .vm
             .environments
@@ -30,8 +27,29 @@ impl Operation for NewTarget {
         } else {
             JsValue::undefined()
         };
-        context.vm.push(new_target);
+        context.vm.stack[(rp + dst) as usize] = new_target.into();
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for NewTarget {
+    const NAME: &'static str = "NewTarget";
+    const INSTRUCTION: &'static str = "INST - NewTarget";
+    const COST: u8 = 2;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>().into();
+        Self::operation(dst, context)
     }
 }
 
@@ -42,12 +60,10 @@ impl Operation for NewTarget {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ImportMeta;
 
-impl Operation for ImportMeta {
-    const NAME: &'static str = "ImportMeta";
-    const INSTRUCTION: &'static str = "INST - ImportMeta";
-    const COST: u8 = 6;
+impl ImportMeta {
+    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
         // Meta Properties
         //
         // ImportMeta : import . meta
@@ -90,8 +106,29 @@ impl Operation for ImportMeta {
 
         //     b. Return importMeta.
         //     f. Return importMeta.
-        context.vm.push(import_meta);
+        context.vm.stack[(rp + dst) as usize] = import_meta.into();
 
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for ImportMeta {
+    const NAME: &'static str = "ImportMeta";
+    const INSTRUCTION: &'static str = "INST - ImportMeta";
+    const COST: u8 = 6;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>().into();
+        Self::operation(dst, context)
     }
 }

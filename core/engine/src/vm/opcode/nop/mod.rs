@@ -3,23 +3,6 @@ use crate::{
     Context, JsResult,
 };
 
-/// `Nop` implements the Opcode Operation for `Opcode::Nop`
-///
-/// Operation:
-///  - No-operation instruction, does nothing
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Nop;
-
-impl Operation for Nop {
-    const NAME: &'static str = "Nop";
-    const INSTRUCTION: &'static str = "INST - Nop";
-    const COST: u8 = 1;
-
-    fn execute(_: &mut Context) -> JsResult<CompletionType> {
-        Ok(CompletionType::Normal)
-    }
-}
-
 /// `Reserved` implements the Opcode Operation for `Opcode::Reserved`
 ///
 /// Operation:

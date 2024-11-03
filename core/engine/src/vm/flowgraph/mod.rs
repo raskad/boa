@@ -73,8 +73,6 @@ impl CodeBlock {
                     graph.add_node(previous_pc, NodeShape::None, label.into(), Color::None);
                     graph.add_edge(previous_pc, pc, None, Color::None, EdgeStyle::Line);
                 }
-                Instruction::RotateLeft { .. }
-                | Instruction::RotateRight { .. }
                 | Instruction::CreateIteratorResult { .. } => {
                     graph.add_node(previous_pc, NodeShape::None, label.into(), Color::None);
                     graph.add_edge(previous_pc, pc, None, Color::None, EdgeStyle::Line);
@@ -158,7 +156,7 @@ impl CodeBlock {
                         EdgeStyle::Line,
                     );
                 }
-                Instruction::Case { address } => {
+                Instruction::Case { address, .. } => {
                     graph.add_node(previous_pc, NodeShape::None, label.into(), Color::None);
                     graph.add_edge(
                         previous_pc,
@@ -172,16 +170,6 @@ impl CodeBlock {
                         address as usize,
                         Some("YES".into()),
                         Color::Green,
-                        EdgeStyle::Line,
-                    );
-                }
-                Instruction::Default { address } => {
-                    graph.add_node(previous_pc, NodeShape::None, label.into(), Color::None);
-                    graph.add_edge(
-                        previous_pc,
-                        address as usize,
-                        None,
-                        Color::None,
                         EdgeStyle::Line,
                     );
                 }
@@ -369,23 +357,20 @@ impl CodeBlock {
                     }
                 }
                 Instruction::Pop
-                | Instruction::Dup
-                | Instruction::Swap
-                | Instruction::PushZero
-                | Instruction::PushOne
-                | Instruction::PushNaN
-                | Instruction::PushPositiveInfinity
-                | Instruction::PushNegativeInfinity
-                | Instruction::PushNull
-                | Instruction::PushTrue
-                | Instruction::PushFalse
-                | Instruction::PushUndefined
+                | Instruction::PushZero { .. }
+                | Instruction::PushOne { .. }
+                | Instruction::PushNaN { .. }
+                | Instruction::PushPositiveInfinity { .. }
+                | Instruction::PushNegativeInfinity { .. }
+                | Instruction::PushNull { .. }
+                | Instruction::PushTrue { .. }
+                | Instruction::PushFalse { .. }
+                | Instruction::PushUndefined { .. }
                 | Instruction::PushEmptyObject { .. }
                 | Instruction::PushClassPrototype { .. }
                 | Instruction::SetClassPrototype { .. }
                 | Instruction::SetHomeObject { .. }
                 | Instruction::TypeOf { .. }
-                | Instruction::Void
                 | Instruction::LogicalNot
                 | Instruction::Pos
                 | Instruction::Neg
@@ -402,7 +387,6 @@ impl CodeBlock {
                 | Instruction::DeletePropertyByValue { .. }
                 | Instruction::DeleteSuperThrow
                 | Instruction::ToPropertyKey { .. }
-                | Instruction::ToBoolean
                 | Instruction::This { .. }
                 | Instruction::ThisForObjectEnvironmentName { .. }
                 | Instruction::Super { .. }
@@ -411,16 +395,13 @@ impl CodeBlock {
                 | Instruction::GetIterator { .. }
                 | Instruction::GetAsyncIterator { .. }
                 | Instruction::IteratorNext
-                | Instruction::IteratorNextWithoutPop
                 | Instruction::IteratorFinishAsyncNext
-                | Instruction::IteratorValue
-                | Instruction::IteratorValueWithoutPop
-                | Instruction::IteratorResult
+                | Instruction::IteratorValue { .. }
+                | Instruction::IteratorResult { .. }
                 | Instruction::IteratorDone { .. }
-                | Instruction::IteratorToArray
+                | Instruction::IteratorToArray { .. }
                 | Instruction::IteratorReturn { .. }
                 | Instruction::IteratorStackEmpty { .. }
-                | Instruction::RequireObjectCoercible { .. }
                 | Instruction::ValueNotNullOrUndefined { .. }
                 | Instruction::RestParameterInit
                 | Instruction::PushValueToArray { .. }
@@ -436,34 +417,31 @@ impl CodeBlock {
                 | Instruction::PushClassField { .. }
                 | Instruction::SuperCallDerived
                 | Instruction::Await
-                | Instruction::NewTarget
-                | Instruction::ImportMeta
+                | Instruction::NewTarget { .. }
+                | Instruction::ImportMeta { .. }
                 | Instruction::CallEvalSpread { .. }
                 | Instruction::CallSpread
                 | Instruction::NewSpread
                 | Instruction::SuperCallSpread
-                | Instruction::SuperCallPrepare
+                | Instruction::SuperCallPrepare { .. }
                 | Instruction::SetPrototype { .. }
                 | Instruction::IsObject { .. }
                 | Instruction::SetNameByLocator
-                | Instruction::PushObjectEnvironment
+                | Instruction::PushObjectEnvironment { .. }
                 | Instruction::PopPrivateEnvironment
-                | Instruction::ImportCall
+                | Instruction::ImportCall { .. }
                 | Instruction::GetAccumulator
                 | Instruction::SetAccumulatorFromStack
                 | Instruction::Exception
                 | Instruction::MaybeException
                 | Instruction::CheckReturn
-                | Instruction::BindThisValue
+                | Instruction::BindThisValue { .. }
                 | Instruction::CreateMappedArgumentsObject
                 | Instruction::CreateUnmappedArgumentsObject
                 | Instruction::CreateGlobalFunctionBinding { .. }
                 | Instruction::CreateGlobalVarBinding { .. }
-                | Instruction::PopIntoRegister { .. }
-                | Instruction::PushFromRegister { .. }
                 | Instruction::PopIntoLocal { .. }
-                | Instruction::PushFromLocal { .. }
-                | Instruction::Nop => {
+                | Instruction::PushFromLocal { .. }  => {
                     graph.add_node(previous_pc, NodeShape::None, label.into(), Color::None);
                     graph.add_edge(previous_pc, pc, None, Color::None, EdgeStyle::Line);
                 }
@@ -518,7 +496,18 @@ impl CodeBlock {
                 | Instruction::Reserved44
                 | Instruction::Reserved45
                 | Instruction::Reserved46
-                | Instruction::Reserved47 => unreachable!("Reserved opcodes are unrechable"),
+                | Instruction::Reserved47
+                | Instruction::Reserved48
+                | Instruction::Reserved49
+                | Instruction::Reserved50
+                | Instruction::Reserved51
+                | Instruction::Reserved52
+                | Instruction::Reserved53
+                | Instruction::Reserved54
+                | Instruction::Reserved55
+                | Instruction::Reserved56
+                | Instruction::Reserved57
+                | Instruction::Reserved58 => unreachable!("Reserved opcodes are unreachable"),
             }
         }
 

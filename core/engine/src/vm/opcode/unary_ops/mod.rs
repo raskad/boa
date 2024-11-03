@@ -9,12 +9,10 @@ use std::ops::Neg as StdNeg;
 pub(crate) mod decrement;
 pub(crate) mod increment;
 pub(crate) mod logical;
-pub(crate) mod void;
 
 pub(crate) use decrement::*;
 pub(crate) use increment::*;
 pub(crate) use logical::*;
-pub(crate) use void::*;
 
 /// `TypeOf` implements the Opcode Operation for `Opcode::TypeOf`
 ///

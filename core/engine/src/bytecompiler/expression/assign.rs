@@ -1,5 +1,5 @@
 use crate::{
-    bytecompiler::{Access, ByteCompiler, InstructionOperand, Operand2, ToJsString},
+    bytecompiler::{Access, ByteCompiler, InstructionOperand, Operand2, Register, ToJsString},
     vm::{BindingOpcode, Opcode},
 };
 use boa_ast::{
@@ -11,23 +11,18 @@ use boa_ast::{
 };
 
 impl ByteCompiler<'_> {
-    pub(crate) fn compile_assign(&mut self, assign: &Assign, use_expr: bool) {
+    pub(crate) fn compile_assign(&mut self, assign: &Assign, dst: &Register) {
         if assign.op() == AssignOp::Assign {
             match Access::from_assign_target(assign.lhs()) {
                 Ok(access) => {
-                    let value = self.register_allocator.alloc();
-                    self.access_set(access, use_expr, |compiler| {
-                        compiler.compile_expr2(assign.rhs(), &value);
-                        return &value;
+                    self.access_set(access, |compiler| {
+                        compiler.compile_expr(assign.rhs(), &dst);
+                        return &dst;
                     });
-                    self.register_allocator.dealloc(value);
                 }
                 Err(pattern) => {
-                    self.compile_expr(assign.rhs(), true);
-                    if use_expr {
-                        self.emit_opcode(Opcode::Dup);
-                    }
-                    self.compile_declaration_pattern(pattern, BindingOpcode::SetName);
+                    self.compile_expr(assign.rhs(), &dst);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::SetName, &dst);
                 }
             }
         } else {
@@ -59,8 +54,6 @@ impl ByteCompiler<'_> {
             );
             let mut early_exit = None;
 
-            let lhs = self.register_allocator.alloc();
-
             match access {
                 Access::Variable { name } => {
                     let name = name.to_js_string(self.interner());
@@ -74,24 +67,24 @@ impl ByteCompiler<'_> {
                     } else {
                         self.emit_binding_access(Opcode::GetNameAndLocator, &index);
                     }
-                    self.pop_into_register(&lhs);
+                    self.pop_into_register(&dst);
 
                     if short_circuit {
                         early_exit =
                             Some(self.emit_opcode_with_operand2(
                                 opcode,
-                                InstructionOperand::Register(&lhs),
+                                InstructionOperand::Register(&dst),
                             ));
 
-                        self.compile_expr2(assign.rhs(), &lhs);
+                        self.compile_expr(assign.rhs(), &dst);
                     } else {
                         let rhs = self.register_allocator.alloc();
-                        self.compile_expr2(assign.rhs(), &rhs);
+                        self.compile_expr(assign.rhs(), &rhs);
                         self.emit2(
                             opcode,
                             &[
-                                Operand2::Register(&lhs),
-                                Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                Operand2::Register(&dst),
+                                Operand2::Operand(InstructionOperand::Register(&dst)),
                                 Operand2::Operand(InstructionOperand::Register(&rhs)),
                             ],
                         );
@@ -102,77 +95,63 @@ impl ByteCompiler<'_> {
                         match self.lexical_scope.set_mutable_binding(name.clone()) {
                             Ok(binding) => {
                                 let index = self.get_or_insert_binding(binding);
-                                self.push_from_register(&lhs);
+                                self.push_from_register(&dst);
                                 self.emit_binding_access(Opcode::SetName, &index);
-                                if use_expr {
-                                    self.push_from_register(&lhs);
-                                }
                             }
                             Err(BindingLocatorError::MutateImmutable) => {
                                 let index = self.get_or_insert_string(name);
                                 self.emit_with_varying_operand(Opcode::ThrowMutateImmutable, index);
                             }
-                            Err(BindingLocatorError::Silent) => {
-                                if use_expr {
-                                    self.push_from_register(&lhs);
-                                }
-                            }
+                            Err(BindingLocatorError::Silent) => {}
                         }
                     } else {
-                        self.push_from_register(&lhs);
+                        self.push_from_register(&dst);
                         self.emit_binding_access(Opcode::SetNameByLocator, &index);
-                        if use_expr {
-                            self.push_from_register(&lhs);
-                        }
                     }
                 }
                 Access::Property { access } => match access {
                     PropertyAccess::Simple(access) => match access.field() {
                         PropertyAccessField::Const(name) => {
                             let object = self.register_allocator.alloc();
-                            self.compile_expr2(access.target(), &object);
+                            self.compile_expr(access.target(), &object);
 
-                            self.emit_get_property_by_name(&lhs, &object, &object, *name);
+                            self.emit_get_property_by_name(&dst, &object, &object, *name);
 
                             if short_circuit {
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
-                                    InstructionOperand::Register(&lhs),
+                                    InstructionOperand::Register(&dst),
                                 ));
-                                self.compile_expr2(assign.rhs(), &lhs);
+                                self.compile_expr(assign.rhs(), &dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
-                                self.compile_expr2(assign.rhs(), &rhs);
+                                self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&lhs),
-                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Register(&dst),
+                                        Operand2::Operand(InstructionOperand::Register(&dst)),
                                         Operand2::Operand(InstructionOperand::Register(&rhs)),
                                     ],
                                 );
                                 self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_set_property_by_name(&lhs, &object, &object, *name);
+                            self.emit_set_property_by_name(&dst, &object, &object, *name);
 
                             self.register_allocator.dealloc(object);
-
-                            if use_expr {
-                                self.push_from_register(&lhs);
-                            }
                         }
                         PropertyAccessField::Expr(expr) => {
                             let object = self.register_allocator.alloc();
-                            self.compile_expr2(access.target(), &object);
+                            self.compile_expr(access.target(), &object);
 
                             let key = self.register_allocator.alloc();
-                            self.compile_expr2(expr, &key);
+                            self.compile_expr(expr, &key);
 
                             self.emit2(
                                 Opcode::GetPropertyByValuePush,
                                 &[
-                                    Operand2::Register(&lhs),
+                                    Operand2::Register(&dst),
                                     Operand2::Operand(InstructionOperand::Register(&key)),
                                     Operand2::Operand(InstructionOperand::Register(&object)),
                                     Operand2::Operand(InstructionOperand::Register(&object)),
@@ -182,17 +161,17 @@ impl ByteCompiler<'_> {
                             if short_circuit {
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
-                                    InstructionOperand::Register(&lhs),
+                                    InstructionOperand::Register(&dst),
                                 ));
-                                self.compile_expr2(assign.rhs(), &lhs);
+                                self.compile_expr(assign.rhs(), &dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
-                                self.compile_expr2(assign.rhs(), &rhs);
+                                self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&lhs),
-                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Register(&dst),
+                                        Operand2::Operand(InstructionOperand::Register(&dst)),
                                         Operand2::Operand(InstructionOperand::Register(&rhs)),
                                     ],
                                 );
@@ -202,7 +181,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::SetPropertyByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                    Operand2::Operand(InstructionOperand::Register(&dst)),
                                     Operand2::Operand(InstructionOperand::Register(&key)),
                                     Operand2::Operand(InstructionOperand::Register(&object)),
                                     Operand2::Operand(InstructionOperand::Register(&object)),
@@ -211,22 +190,18 @@ impl ByteCompiler<'_> {
 
                             self.register_allocator.dealloc(key);
                             self.register_allocator.dealloc(object);
-
-                            if use_expr {
-                                self.push_from_register(&lhs);
-                            }
                         }
                     },
                     PropertyAccess::Private(access) => {
                         let index = self.get_or_insert_private_name(access.field());
 
                         let object = self.register_allocator.alloc();
-                        self.compile_expr2(access.target(), &object);
+                        self.compile_expr(access.target(), &object);
 
                         self.emit2(
                             Opcode::GetPrivateField,
                             &[
-                                Operand2::Register(&lhs),
+                                Operand2::Register(&dst),
                                 Operand2::Operand(InstructionOperand::Register(&object)),
                                 Operand2::Varying(index),
                             ],
@@ -235,18 +210,18 @@ impl ByteCompiler<'_> {
                         if short_circuit {
                             early_exit = Some(self.emit_opcode_with_operand2(
                                 opcode,
-                                InstructionOperand::Register(&lhs),
+                                InstructionOperand::Register(&dst),
                             ));
-                            self.compile_expr2(assign.rhs(), &lhs);
+                            self.compile_expr(assign.rhs(), &dst);
                         } else {
                             let rhs = self.register_allocator.alloc();
-                            self.compile_expr2(assign.rhs(), &rhs);
+                            self.compile_expr(assign.rhs(), &rhs);
 
                             self.emit2(
                                 opcode,
                                 &[
-                                    Operand2::Register(&lhs),
-                                    Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                    Operand2::Register(&dst),
+                                    Operand2::Operand(InstructionOperand::Register(&dst)),
                                     Operand2::Operand(InstructionOperand::Register(&rhs)),
                                 ],
                             );
@@ -256,17 +231,13 @@ impl ByteCompiler<'_> {
                         self.emit2(
                             Opcode::SetPrivateField,
                             &[
-                                Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                Operand2::Operand(InstructionOperand::Register(&dst)),
                                 Operand2::Operand(InstructionOperand::Register(&object)),
                                 Operand2::Varying(index),
                             ],
                         );
 
                         self.register_allocator.dealloc(object);
-
-                        if use_expr {
-                            self.push_from_register(&lhs);
-                        }
                     }
                     PropertyAccess::Super(access) => match access.field() {
                         PropertyAccessField::Const(name) => {
@@ -275,36 +246,32 @@ impl ByteCompiler<'_> {
                             self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
                             self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
 
-                            self.emit_get_property_by_name(&lhs, &receiver, &object, *name);
+                            self.emit_get_property_by_name(&dst, &receiver, &object, *name);
 
                             if short_circuit {
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
-                                    InstructionOperand::Register(&lhs),
+                                    InstructionOperand::Register(&dst),
                                 ));
-                                self.compile_expr2(assign.rhs(), &lhs);
+                                self.compile_expr(assign.rhs(), &dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
-                                self.compile_expr2(assign.rhs(), &rhs);
+                                self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&lhs),
-                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Register(&dst),
+                                        Operand2::Operand(InstructionOperand::Register(&dst)),
                                         Operand2::Operand(InstructionOperand::Register(&rhs)),
                                     ],
                                 );
                                 self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_set_property_by_name(&lhs, &receiver, &object, *name);
+                            self.emit_set_property_by_name(&dst, &receiver, &object, *name);
 
                             self.register_allocator.dealloc(receiver);
                             self.register_allocator.dealloc(object);
-
-                            if use_expr {
-                                self.push_from_register(&lhs);
-                            }
                         }
                         PropertyAccessField::Expr(expr) => {
                             let object = self.register_allocator.alloc();
@@ -313,12 +280,12 @@ impl ByteCompiler<'_> {
                             self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
 
                             let key = self.register_allocator.alloc();
-                            self.compile_expr2(expr, &key);
+                            self.compile_expr(expr, &key);
 
                             self.emit2(
                                 Opcode::GetPropertyByValuePush,
                                 &[
-                                    Operand2::Register(&lhs),
+                                    Operand2::Register(&dst),
                                     Operand2::Operand(InstructionOperand::Register(&key)),
                                     Operand2::Operand(InstructionOperand::Register(&receiver)),
                                     Operand2::Operand(InstructionOperand::Register(&object)),
@@ -328,17 +295,17 @@ impl ByteCompiler<'_> {
                             if short_circuit {
                                 early_exit = Some(self.emit_opcode_with_operand2(
                                     opcode,
-                                    InstructionOperand::Register(&lhs),
+                                    InstructionOperand::Register(&dst),
                                 ));
-                                self.compile_expr2(assign.rhs(), &lhs);
+                                self.compile_expr(assign.rhs(), &dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
-                                self.compile_expr2(assign.rhs(), &rhs);
+                                self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&lhs),
-                                        Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                        Operand2::Register(&dst),
+                                        Operand2::Operand(InstructionOperand::Register(&dst)),
                                         Operand2::Operand(InstructionOperand::Register(&rhs)),
                                     ],
                                 );
@@ -348,7 +315,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::SetPropertyByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&lhs)),
+                                    Operand2::Operand(InstructionOperand::Register(&dst)),
                                     Operand2::Operand(InstructionOperand::Register(&key)),
                                     Operand2::Operand(InstructionOperand::Register(&receiver)),
                                     Operand2::Operand(InstructionOperand::Register(&object)),
@@ -358,10 +325,6 @@ impl ByteCompiler<'_> {
                             self.register_allocator.dealloc(key);
                             self.register_allocator.dealloc(receiver);
                             self.register_allocator.dealloc(object);
-
-                            if use_expr {
-                                self.push_from_register(&lhs);
-                            }
                         }
                     },
                 },
@@ -370,13 +333,9 @@ impl ByteCompiler<'_> {
 
             if let Some(early_exit) = early_exit {
                 let exit = self.emit_opcode_with_operand(Opcode::Jump);
-
                 self.patch_jump(early_exit);
-                self.push_from_register(&lhs);
                 self.patch_jump(exit);
             }
-
-            self.register_allocator.dealloc(lhs);
         }
     }
 }

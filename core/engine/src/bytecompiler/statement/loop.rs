@@ -8,7 +8,6 @@ use boa_ast::{
     },
 };
 use boa_interner::Sym;
-use serde::de::value;
 
 use crate::{
     bytecompiler::{Access, ByteCompiler, Operand, Operand2, ToJsString},
@@ -27,7 +26,11 @@ impl ByteCompiler<'_> {
 
         if let Some(init) = for_loop.init() {
             match init {
-                ForLoopInitializer::Expression(expr) => self.compile_expr(expr, false),
+                ForLoopInitializer::Expression(expr) => {
+                    let value = self.register_allocator.alloc();
+                    self.compile_expr(expr, &value);
+                    self.register_allocator.dealloc(value);
+                }
                 ForLoopInitializer::Var(decl) => {
                     self.compile_var_decl(decl);
                 }
@@ -97,17 +100,18 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::IncrementLoopIteration);
 
         if let Some(final_expr) = for_loop.final_expr() {
-            self.compile_expr(final_expr, false);
+            let value = self.register_allocator.alloc();
+            self.compile_expr(final_expr, &value);
+            self.register_allocator.dealloc(value);
         }
 
         self.patch_jump(initial_jump);
 
         let value = self.register_allocator.alloc();
         if let Some(condition) = for_loop.condition() {
-            self.compile_expr2(condition, &value);
+            self.compile_expr(condition, &value);
         } else {
-            self.emit_opcode(Opcode::PushTrue);
-            self.pop_into_register(&value);
+            self.push_true(&value);
         }
         let exit = self.jump_if_false(&value);
         self.register_allocator.dealloc(value);
@@ -137,7 +141,10 @@ impl ByteCompiler<'_> {
             if let Binding::Identifier(ident) = var.binding() {
                 let ident = ident.to_js_string(self.interner());
                 if let Some(init) = var.init() {
-                    self.compile_expr(init, true);
+                    let value = self.register_allocator.alloc();
+                    self.compile_expr(init, &value);
+                    self.push_from_register(&value);
+                    self.register_allocator.dealloc(value);
                     self.emit_binding(BindingOpcode::InitVar, ident);
                 }
             }
@@ -149,12 +156,12 @@ impl ByteCompiler<'_> {
             let outer_scope = self.lexical_scope.clone();
             let scope_index = self.push_scope(scope);
             self.emit_with_varying_operand(Opcode::PushScope, scope_index);
-            self.compile_expr2(for_in_loop.target(), &value);
+            self.compile_expr(for_in_loop.target(), &value);
             self.pop_scope();
             self.lexical_scope = outer_scope;
             self.emit_opcode(Opcode::PopEnvironment);
         } else {
-            self.compile_expr2(for_in_loop.target(), &value);
+            self.compile_expr(for_in_loop.target(), &value);
         }
 
         let early_exit = self.jump_if_null_or_undefined(&value);
@@ -172,9 +179,7 @@ impl ByteCompiler<'_> {
         let value = self.register_allocator.alloc();
         self.emit2(Opcode::IteratorDone, &[Operand2::Register(&value)]);
         let exit = self.jump_if_true(&value);
-        self.register_allocator.dealloc(value);
-
-        self.emit_opcode(Opcode::IteratorValue);
+        self.emit2(Opcode::IteratorValue, &[Operand2::Register(&value)]);
 
         let mut outer_scope = None;
 
@@ -186,38 +191,40 @@ impl ByteCompiler<'_> {
 
         match for_in_loop.initializer() {
             IterableLoopInitializer::Identifier(ident) => {
+                self.push_from_register(&value);
                 let ident = ident.to_js_string(self.interner());
                 self.emit_binding(BindingOpcode::InitVar, ident);
             }
             IterableLoopInitializer::Access(access) => {
-                let value = self.register_allocator.alloc();
-                self.pop_into_register(&value);
-                self.access_set(Access::Property { access }, false, |_| return &value);
-                self.register_allocator.dealloc(value);
+                self.access_set(Access::Property { access }, |_| return &value);
             }
             IterableLoopInitializer::Var(declaration) => match declaration.binding() {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
+                    self.push_from_register(&value);
                     self.emit_binding(BindingOpcode::InitVar, ident);
                 }
                 Binding::Pattern(pattern) => {
-                    self.compile_declaration_pattern(pattern, BindingOpcode::InitVar);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::InitVar, &value);
                 }
             },
             IterableLoopInitializer::Let(declaration)
             | IterableLoopInitializer::Const(declaration) => match declaration {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
+                    self.push_from_register(&value);
                     self.emit_binding(BindingOpcode::InitLexical, ident);
                 }
                 Binding::Pattern(pattern) => {
-                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &value);
                 }
             },
             IterableLoopInitializer::Pattern(pattern) => {
-                self.compile_declaration_pattern(pattern, BindingOpcode::SetName);
+                self.compile_declaration_pattern(pattern, BindingOpcode::SetName, &value);
             }
         }
+
+        self.register_allocator.dealloc(value);
 
         self.compile_stmt(for_in_loop.body(), use_expr, true);
 
@@ -236,7 +243,10 @@ impl ByteCompiler<'_> {
 
         let skip_early_exit = self.jump();
         self.patch_jump(early_exit);
-        self.emit_opcode(Opcode::PushUndefined);
+        let value = self.register_allocator.alloc();
+        self.push_undefined(&value);
+        self.push_from_register(&value);
+        self.register_allocator.dealloc(value);
         self.patch_jump(skip_early_exit);
     }
 
@@ -252,12 +262,12 @@ impl ByteCompiler<'_> {
             let outer_scope = self.lexical_scope.clone();
             let scope_index = self.push_scope(scope);
             self.emit_with_varying_operand(Opcode::PushScope, scope_index);
-            self.compile_expr2(for_of_loop.iterable(), &object);
+            self.compile_expr(for_of_loop.iterable(), &object);
             self.pop_scope();
             self.lexical_scope = outer_scope;
             self.emit_opcode(Opcode::PopEnvironment);
         } else {
-            self.compile_expr2(for_of_loop.iterable(), &object);
+            self.compile_expr(for_of_loop.iterable(), &object);
         }
 
         if for_of_loop.r#await() {
@@ -278,7 +288,10 @@ impl ByteCompiler<'_> {
 
         self.emit_opcode(Opcode::IteratorNext);
         if for_of_loop.r#await() {
-            self.emit_opcode(Opcode::IteratorResult);
+            let value = self.register_allocator.alloc();
+            self.emit2(Opcode::IteratorResult, &[Operand2::Register(&value)]);
+            self.push_from_register(&value);
+            self.register_allocator.dealloc(value);
             self.emit_opcode(Opcode::Await);
             self.emit_opcode(Opcode::IteratorFinishAsyncNext);
             self.emit_opcode(Opcode::GeneratorNext);
@@ -287,9 +300,7 @@ impl ByteCompiler<'_> {
         let value = self.register_allocator.alloc();
         self.emit2(Opcode::IteratorDone, &[Operand2::Register(&value)]);
         let exit = self.jump_if_true(&value);
-        self.register_allocator.dealloc(value);
-
-        self.emit_opcode(Opcode::IteratorValue);
+        self.emit2(Opcode::IteratorValue, &[Operand2::Register(&value)]);
 
         let mut outer_scope = None;
 
@@ -306,6 +317,7 @@ impl ByteCompiler<'_> {
                 let ident = ident.to_js_string(self.interner());
                 match self.lexical_scope.set_mutable_binding(ident.clone()) {
                     Ok(binding) => {
+                        self.push_from_register(&value);
                         let index = self.get_or_insert_binding(binding);
                         self.emit_binding_access(Opcode::DefInitVar, &index);
                     }
@@ -313,18 +325,11 @@ impl ByteCompiler<'_> {
                         let index = self.get_or_insert_string(ident);
                         self.emit_with_varying_operand(Opcode::ThrowMutateImmutable, index);
                     }
-                    Err(BindingLocatorError::Silent) => {
-                        self.emit_opcode(Opcode::Pop);
-                    }
+                    Err(BindingLocatorError::Silent) => {}
                 }
             }
             IterableLoopInitializer::Access(access) => {
-                let value = self.register_allocator.alloc();
-                self.pop_into_register(&value);
-                self.access_set(Access::Property { access }, false, |_| {
-                    return &value;
-                });
-                self.register_allocator.dealloc(value);
+                self.access_set(Access::Property { access }, |_| return &value)
             }
             IterableLoopInitializer::Var(declaration) => {
                 // ignore initializers since those aren't allowed on for-of loops.
@@ -332,10 +337,11 @@ impl ByteCompiler<'_> {
                 match declaration.binding() {
                     Binding::Identifier(ident) => {
                         let ident = ident.to_js_string(self.interner());
+                        self.push_from_register(&value);
                         self.emit_binding(BindingOpcode::InitVar, ident);
                     }
                     Binding::Pattern(pattern) => {
-                        self.compile_declaration_pattern(pattern, BindingOpcode::InitVar);
+                        self.compile_declaration_pattern(pattern, BindingOpcode::InitVar, &value);
                     }
                 }
             }
@@ -343,16 +349,19 @@ impl ByteCompiler<'_> {
             | IterableLoopInitializer::Const(declaration) => match declaration {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
+                    self.push_from_register(&value);
                     self.emit_binding(BindingOpcode::InitLexical, ident);
                 }
                 Binding::Pattern(pattern) => {
-                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &value);
                 }
             },
             IterableLoopInitializer::Pattern(pattern) => {
-                self.compile_declaration_pattern(pattern, BindingOpcode::SetName);
+                self.compile_declaration_pattern(pattern, BindingOpcode::SetName, &value);
             }
         }
+
+        self.register_allocator.dealloc(value);
 
         self.compile_stmt(for_of_loop.body(), use_expr, true);
 
@@ -400,7 +409,7 @@ impl ByteCompiler<'_> {
         self.push_loop_control_info(label, start_address, use_expr);
 
         let value = self.register_allocator.alloc();
-        self.compile_expr2(while_loop.condition(), &value);
+        self.compile_expr(while_loop.condition(), &value);
         let exit = self.jump_if_false(&value);
         self.register_allocator.dealloc(value);
 
@@ -428,7 +437,7 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::IncrementLoopIteration);
 
         let value = self.register_allocator.alloc();
-        self.compile_expr2(do_while_loop.cond(), &value);
+        self.compile_expr(do_while_loop.cond(), &value);
         let exit = self.jump_if_false(&value);
         self.register_allocator.dealloc(value);
 

@@ -45,16 +45,15 @@ impl ByteCompiler<'_> {
                     ExportDeclaration::DefaultClassDeclaration(cl) => self.class(cl.into(), false),
                     ExportDeclaration::DefaultAssignmentExpression(expr) => {
                         let function = self.register_allocator.alloc();
-                        self.compile_expr2(expr, &function);
+                        self.compile_expr(expr, &function);
 
                         if expr.is_anonymous_function_definition() {
                             let default = self
                                 .interner()
                                 .resolve_expect(Sym::DEFAULT)
                                 .into_common(false);
-                            self.emit_push_literal(Literal::String(default));
                             let key = self.register_allocator.alloc();
-                            self.pop_into_register(&key);
+                            self.emit_push_literal(Literal::String(default), &key);
                             self.emit2(Opcode::SetFunctionName, &[
                                 Operand2::Register(&function),
                                 Operand2::Register(&key),

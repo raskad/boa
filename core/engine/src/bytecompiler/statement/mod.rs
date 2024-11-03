@@ -43,20 +43,29 @@ impl ByteCompiler<'_> {
             }
             Statement::Continue(node) => {
                 if root_statement && (use_expr || self.jump_control_info_has_use_expr()) {
-                    self.emit_opcode(Opcode::PushUndefined);
+                    let value = self.register_allocator.alloc();
+                    self.push_undefined(&value);
+                    self.push_from_register(&value);
+                    self.register_allocator.dealloc(value);
                     self.emit_opcode(Opcode::SetAccumulatorFromStack);
                 }
                 self.compile_continue(*node, use_expr);
             }
             Statement::Break(node) => {
                 if root_statement && (use_expr || self.jump_control_info_has_use_expr()) {
-                    self.emit_opcode(Opcode::PushUndefined);
+                    let value = self.register_allocator.alloc();
+                    self.push_undefined(&value);
+                    self.push_from_register(&value);
+                    self.register_allocator.dealloc(value);
                     self.emit_opcode(Opcode::SetAccumulatorFromStack);
                 }
                 self.compile_break(*node, use_expr);
             }
             Statement::Throw(throw) => {
-                self.compile_expr(throw.target(), true);
+                let value = self.register_allocator.alloc();
+                self.compile_expr(throw.target(), &value);
+                self.push_from_register(&value);
+                self.register_allocator.dealloc(value);
                 self.emit(Opcode::Throw, &[]);
             }
             Statement::Switch(switch) => {
@@ -64,23 +73,33 @@ impl ByteCompiler<'_> {
             }
             Statement::Return(ret) => {
                 if let Some(expr) = ret.target() {
-                    self.compile_expr(expr, true);
+                    let value = self.register_allocator.alloc();
+                    self.compile_expr(expr, &value);
+                    self.push_from_register(&value);
+                    self.register_allocator.dealloc(value);
+
                     if self.is_async_generator() {
                         self.emit_opcode(Opcode::Await);
                         self.emit_opcode(Opcode::GeneratorNext);
                     }
                 } else {
-                    self.emit_opcode(Opcode::PushUndefined);
+                    let value = self.register_allocator.alloc();
+                    self.push_undefined(&value);
+                    self.push_from_register(&value);
+                    self.register_allocator.dealloc(value);
                 }
 
                 self.r#return(true);
             }
             Statement::Try(t) => self.compile_try(t, use_expr),
             Statement::Expression(expr) => {
-                self.compile_expr(expr, use_expr);
+                let value = self.register_allocator.alloc();
+                self.compile_expr(expr, &value);
                 if use_expr {
+                    self.push_from_register(&value);
                     self.emit_opcode(Opcode::SetAccumulatorFromStack);
                 }
+                self.register_allocator.dealloc(value);
             }
             Statement::With(with) => self.compile_with(with, use_expr),
             Statement::Empty => {}

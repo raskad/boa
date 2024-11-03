@@ -50,17 +50,34 @@ impl Operation for PushScope {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PushObjectEnvironment;
 
+impl PushObjectEnvironment {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let object = context.vm.stack[(rp + value) as usize].clone();
+        let object = object.to_object(context)?;
+        context.vm.environments.push_object(object);
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for PushObjectEnvironment {
     const NAME: &'static str = "PushObjectEnvironment";
     const INSTRUCTION: &'static str = "INST - PushObjectEnvironment";
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.pop();
-        let object = object.to_object(context)?;
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
 
-        context.vm.environments.push_object(object);
-        Ok(CompletionType::Normal)
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, context)
     }
 }
 

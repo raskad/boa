@@ -2,7 +2,7 @@ use crate::{
     builtins::{iterable::create_iter_result_object, Array},
     js_string,
     vm::{opcode::Operation, CompletionType, GeneratorResumeKind},
-    Context, JsResult, JsValue,
+    Context, JsResult,
 };
 
 /// `IteratorNext` implements the Opcode Operation for `Opcode::IteratorNext`
@@ -28,36 +28,6 @@ impl Operation for IteratorNext {
         iterator.step(context)?;
 
         context.vm.frame_mut().iterators.push(iterator);
-
-        Ok(CompletionType::Normal)
-    }
-}
-
-/// `IteratorNextWithoutPop` implements the Opcode Operation for `Opcode::IteratorNextWithoutPop`
-///
-/// Operation:
-///  - Calls the `next` method of `iterator`, updating its record with the next value.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct IteratorNextWithoutPop;
-
-impl Operation for IteratorNextWithoutPop {
-    const NAME: &'static str = "IteratorNextWithoutPop";
-    const INSTRUCTION: &'static str = "INST - IteratorNextWithoutPop";
-    const COST: u8 = 6;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let mut iterator = context
-            .vm
-            .frame_mut()
-            .iterators
-            .pop()
-            .expect("iterator stack should have at least an iterator");
-
-        let result = iterator.step(context);
-
-        context.vm.frame_mut().iterators.push(iterator);
-
-        result?;
 
         Ok(CompletionType::Normal)
     }
@@ -113,12 +83,9 @@ impl Operation for IteratorFinishAsyncNext {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IteratorResult;
 
-impl Operation for IteratorResult {
-    const NAME: &'static str = "IteratorResult";
-    const INSTRUCTION: &'static str = "INST - IteratorResult";
-    const COST: u8 = 3;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl IteratorResult {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let last_result = context
             .vm
             .frame()
@@ -128,10 +95,29 @@ impl Operation for IteratorResult {
             .last_result()
             .object()
             .clone();
-
-        context.vm.push(last_result);
-
+        context.vm.stack[(rp + value) as usize] = last_result.into();
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for IteratorResult {
+    const NAME: &'static str = "IteratorResult";
+    const INSTRUCTION: &'static str = "INST - IteratorResult";
+    const COST: u8 = 3;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, context)
     }
 }
 
@@ -142,12 +128,9 @@ impl Operation for IteratorResult {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IteratorValue;
 
-impl Operation for IteratorValue {
-    const NAME: &'static str = "IteratorValue";
-    const INSTRUCTION: &'static str = "INST - IteratorValue";
-    const COST: u8 = 5;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl IteratorValue {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let mut iterator = context
             .vm
             .frame_mut()
@@ -155,8 +138,8 @@ impl Operation for IteratorValue {
             .pop()
             .expect("iterator on the call frame must exist");
 
-        let value = iterator.value(context)?;
-        context.vm.push(value);
+        let iter_value = iterator.value(context)?;
+        context.vm.stack[(rp + value) as usize] = iter_value.into();
 
         context.vm.frame_mut().iterators.push(iterator);
 
@@ -164,37 +147,24 @@ impl Operation for IteratorValue {
     }
 }
 
-/// `IteratorValueWithoutPop` implements the Opcode Operation for `Opcode::IteratorValueWithoutPop`
-///
-/// Operation:
-///  - Gets the `value` property of the current iterator record.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct IteratorValueWithoutPop;
-
-impl Operation for IteratorValueWithoutPop {
-    const NAME: &'static str = "IteratorValueWithoutPop";
-    const INSTRUCTION: &'static str = "INST - IteratorValueWithoutPop";
+impl Operation for IteratorValue {
+    const NAME: &'static str = "IteratorValue";
+    const INSTRUCTION: &'static str = "INST - IteratorValue";
     const COST: u8 = 5;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let mut iterator = context
-            .vm
-            .frame_mut()
-            .iterators
-            .pop()
-            .expect("iterator on the call frame must exist");
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
 
-        let value = if iterator.done() {
-            Ok(JsValue::undefined())
-        } else {
-            iterator.value(context)
-        };
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
 
-        context.vm.frame_mut().iterators.push(iterator);
-
-        context.vm.push(value?);
-
-        Ok(CompletionType::Normal)
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, context)
     }
 }
 
@@ -316,12 +286,10 @@ impl Operation for IteratorReturn {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IteratorToArray;
 
-impl Operation for IteratorToArray {
-    const NAME: &'static str = "IteratorToArray";
-    const INSTRUCTION: &'static str = "INST - IteratorToArray";
-    const COST: u8 = 8;
+impl IteratorToArray {
+    fn operation(array: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
         let mut iterator = context
             .vm
             .frame_mut()
@@ -354,12 +322,30 @@ impl Operation for IteratorToArray {
         }
 
         context.vm.frame_mut().iterators.push(iterator);
-
-        let array = Array::create_array_from_list(values, context);
-
-        context.vm.push(array);
-
+        let result = Array::create_array_from_list(values, context);
+        context.vm.stack[(rp + array) as usize] = result.into();
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for IteratorToArray {
+    const NAME: &'static str = "IteratorToArray";
+    const INSTRUCTION: &'static str = "INST - IteratorToArray";
+    const COST: u8 = 8;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let array = context.vm.read::<u8>().into();
+        Self::operation(array, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let array = context.vm.read::<u16>().into();
+        Self::operation(array, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let array = context.vm.read::<u32>().into();
+        Self::operation(array, context)
     }
 }
 
@@ -407,19 +393,36 @@ impl Operation for IteratorStackEmpty {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CreateIteratorResult;
 
+impl CreateIteratorResult {
+    fn operation(value: u32, done: bool, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let val = context.vm.stack[(rp + value) as usize].clone();
+        let result = create_iter_result_object(val, done, context);
+        context.vm.stack[(rp + value) as usize] = result;
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for CreateIteratorResult {
     const NAME: &'static str = "CreateIteratorResult";
     const INSTRUCTION: &'static str = "INST - CreateIteratorResult";
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
+        let value = context.vm.read::<u8>().into();
         let done = context.vm.read::<u8>() != 0;
+        Self::operation(value, done, context)
+    }
 
-        let result = create_iter_result_object(value, done, context);
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        let done = context.vm.read::<u8>() != 0;
+        Self::operation(value, done, context)
+    }
 
-        context.vm.push(result);
-
-        Ok(CompletionType::Normal)
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        let done = context.vm.read::<u8>() != 0;
+        Self::operation(value, done, context)
     }
 }

@@ -165,12 +165,9 @@ impl Operation for Super {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SuperCallPrepare;
 
-impl Operation for SuperCallPrepare {
-    const NAME: &'static str = "SuperCallPrepare";
-    const INSTRUCTION: &'static str = "INST - SuperCallPrepare";
-    const COST: u8 = 3;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl SuperCallPrepare {
+    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let this_env = context
             .vm
             .environments
@@ -181,11 +178,30 @@ impl Operation for SuperCallPrepare {
         let super_constructor = active_function
             .__get_prototype_of__(&mut InternalMethodContext::new(context))
             .expect("function object must have prototype");
-
-        context
-            .vm
-            .push(super_constructor.map_or_else(JsValue::null, JsValue::from));
+        context.vm.stack[(rp + dst) as usize] =
+            super_constructor.map_or_else(JsValue::null, JsValue::from);
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for SuperCallPrepare {
+    const NAME: &'static str = "SuperCallPrepare";
+    const INSTRUCTION: &'static str = "INST - SuperCallPrepare";
+    const COST: u8 = 3;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>();
+        Self::operation(dst, context)
     }
 }
 
@@ -320,7 +336,9 @@ impl Operation for SuperCallDerived {
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let argument_count = context.vm.frame().argument_count as usize;
+        let rp = context.vm.frame().rp;
+        let argument_count = context.vm.frame().argument_count;
+        let arguments_start_index = rp - argument_count;
 
         let this_env = context
             .vm
@@ -345,16 +363,15 @@ impl Operation for SuperCallDerived {
                 .into());
         }
 
-        let arguments_start_index = context.vm.stack.len() - argument_count;
-        context
-            .vm
-            .stack
-            .insert(arguments_start_index, super_constructor.clone().into());
-
+        context.vm.push(super_constructor.clone());
+        for i in 0..argument_count {
+            let value = context.vm.stack[(arguments_start_index + i) as usize].clone();
+            context.vm.push(value);
+        }
         context.vm.push(new_target);
 
         super_constructor
-            .__construct__(argument_count)
+            .__construct__(argument_count as usize)
             .resolve(context)?;
         Ok(CompletionType::Normal)
     }
@@ -367,19 +384,15 @@ impl Operation for SuperCallDerived {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BindThisValue;
 
-impl Operation for BindThisValue {
-    const NAME: &'static str = "BindThisValue";
-    const INSTRUCTION: &'static str = "INST - BindThisValue";
-    const COST: u8 = 6;
+impl BindThisValue {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
         // Taken from `SuperCall : super Arguments` steps 7-12.
         //
         // <https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation>
 
-        let result = context
-            .vm
-            .pop()
+        let result = context.vm.stack[(rp + value) as usize]
             .as_object()
             .expect("construct result should be an object")
             .clone();
@@ -403,7 +416,28 @@ impl Operation for BindThisValue {
         result.initialize_instance_elements(&active_function, context)?;
 
         // 12. Return result.
-        context.vm.push(result);
+        context.vm.stack[(rp + value) as usize] = result.into();
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for BindThisValue {
+    const NAME: &'static str = "BindThisValue";
+    const INSTRUCTION: &'static str = "INST - BindThisValue";
+    const COST: u8 = 6;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, context)
     }
 }

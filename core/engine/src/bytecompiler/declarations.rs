@@ -598,16 +598,24 @@ impl ByteCompiler<'_> {
         for d in declarations {
             match d {
                 LexicallyScopedDeclaration::FunctionDeclaration(function) => {
-                    self.function_with_binding(function.into(), NodeKind::Declaration, false);
+                    let dst = self.register_allocator.alloc();
+                    self.function_with_binding(function.into(), NodeKind::Declaration, &dst);
+                    self.register_allocator.dealloc(dst);
                 }
                 LexicallyScopedDeclaration::GeneratorDeclaration(function) => {
-                    self.function_with_binding(function.into(), NodeKind::Declaration, false);
+                    let dst = self.register_allocator.alloc();
+                    self.function_with_binding(function.into(), NodeKind::Declaration, &dst);
+                    self.register_allocator.dealloc(dst);
                 }
                 LexicallyScopedDeclaration::AsyncFunctionDeclaration(function) => {
-                    self.function_with_binding(function.into(), NodeKind::Declaration, false);
+                    let dst = self.register_allocator.alloc();
+                    self.function_with_binding(function.into(), NodeKind::Declaration, &dst);
+                    self.register_allocator.dealloc(dst);
                 }
                 LexicallyScopedDeclaration::AsyncGeneratorDeclaration(function) => {
-                    self.function_with_binding(function.into(), NodeKind::Declaration, false);
+                    let dst = self.register_allocator.alloc();
+                    self.function_with_binding(function.into(), NodeKind::Declaration, &dst);
+                    self.register_allocator.dealloc(dst);
                 }
                 _ => {}
             }
@@ -706,7 +714,10 @@ impl ByteCompiler<'_> {
                     // i. Perform ! varEnv.CreateMutableBinding(F, true).
                     // ii. Perform ! varEnv.InitializeBinding(F, undefined).
                     let index = self.get_or_insert_binding(binding);
-                    self.emit_opcode(Opcode::PushUndefined);
+                    let value = self.register_allocator.alloc();
+                    self.push_undefined(&value);
+                    self.push_from_register(&value);
+                    self.register_allocator.dealloc(value);
                     self.emit_binding_access(Opcode::DefInitVar, &index);
                 }
             }
@@ -888,7 +899,10 @@ impl ByteCompiler<'_> {
             // 2. Perform ! varEnv.CreateMutableBinding(vn, true).
             // 3. Perform ! varEnv.InitializeBinding(vn, undefined).
             let index = self.get_or_insert_binding(binding);
-            self.emit_opcode(Opcode::PushUndefined);
+            let value = self.register_allocator.alloc();
+            self.push_undefined(&value);
+            self.push_from_register(&value);
+            self.register_allocator.dealloc(value);
             self.emit_binding_access(Opcode::DefInitVar, &index);
         }
 
@@ -1063,7 +1077,7 @@ impl ByteCompiler<'_> {
                     let ident = ident.to_js_string(self.interner());
                     if let Some(init) = parameter.variable().init() {
                         let skip = self.emit_jump_if_not_undefined(&value);
-                        self.compile_expr2(init, &value);
+                        self.compile_expr(init, &value);
                         self.patch_jump(skip);
                     }
                     self.push_from_register(&value);
@@ -1072,11 +1086,10 @@ impl ByteCompiler<'_> {
                 Binding::Pattern(pattern) => {
                     if let Some(init) = parameter.variable().init() {
                         let skip = self.emit_jump_if_not_undefined(&value);
-                        self.compile_expr2(init, &value);
+                        self.compile_expr(init, &value);
                         self.patch_jump(skip);
                     }
-                    self.push_from_register(&value);
-                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &value);
                 }
             }
             self.register_allocator.dealloc(value);
@@ -1122,7 +1135,10 @@ impl ByteCompiler<'_> {
                         // 3. If parameterBindings does not contain n, or if functionNames contains n, then
                         if !parameter_bindings.contains(&n) || function_names.contains(&n) {
                             // a. Let initialValue be undefined.
-                            self.emit_opcode(Opcode::PushUndefined);
+                            let value = self.register_allocator.alloc();
+                            self.push_undefined(&value);
+                            self.push_from_register(&value);
+                            self.register_allocator.dealloc(value);
                         }
                         // 4. Else,
                         else {
@@ -1136,7 +1152,10 @@ impl ByteCompiler<'_> {
 
                         // 5. Perform ! varEnv.InitializeBinding(n, initialValue).
                         let index = self.get_or_insert_binding(binding);
-                        self.emit_opcode(Opcode::PushUndefined);
+                        let value = self.register_allocator.alloc();
+                        self.push_undefined(&value);
+                        self.push_from_register(&value);
+                        self.register_allocator.dealloc(value);
                         self.emit_binding_access(Opcode::DefInitVar, &index);
 
                         // 6. NOTE: A var with the same name as a formal parameter initially has
@@ -1163,7 +1182,10 @@ impl ByteCompiler<'_> {
                         // 3. Perform ! env.InitializeBinding(n, undefined).
                         let binding = scope.get_binding_reference(&n).expect("binding must exist");
                         let index = self.get_or_insert_binding(binding);
-                        self.emit_opcode(Opcode::PushUndefined);
+                        let value = self.register_allocator.alloc();
+                        self.push_undefined(&value);
+                        self.push_from_register(&value);
+                        self.register_allocator.dealloc(value);
                         self.emit_binding_access(Opcode::DefInitVar, &index);
                     }
                 }
@@ -1197,7 +1219,10 @@ impl ByteCompiler<'_> {
                             .get_binding_reference(&f_string)
                             .expect("binding must exist");
                         let index = self.get_or_insert_binding(binding);
-                        self.emit_opcode(Opcode::PushUndefined);
+                        let value = self.register_allocator.alloc();
+                        self.push_undefined(&value);
+                        self.push_from_register(&value);
+                        self.register_allocator.dealloc(value);
                         self.emit_binding_access(Opcode::DefInitVar, &index);
 
                         // c. Append F to instantiatedVarNames.
@@ -1228,7 +1253,9 @@ impl ByteCompiler<'_> {
             // a. Let fn be the sole element of the BoundNames of f.
             // b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
             // c. Perform ! varEnv.SetMutableBinding(fn, fo, false).
-            self.function_with_binding(function, NodeKind::Declaration, false);
+            let dst = self.register_allocator.alloc();
+            self.function_with_binding(function, NodeKind::Declaration, &dst);
+            self.register_allocator.dealloc(dst);
         }
 
         // 37. Return unused.

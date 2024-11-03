@@ -105,8 +105,12 @@ impl JumpRecord {
                 JumpRecordAction::HandleFinally { index: value } => {
                     // Note: +1 because 0 is reserved for default entry in jump table (for fallthrough).
                     let index = value as i32 + 1;
-                    compiler.emit_push_integer(index);
-                    compiler.emit_opcode(Opcode::PushFalse);
+                    let value = compiler.register_allocator.alloc();
+                    compiler.emit_push_integer(index, &value);
+                    compiler.push_from_register(&value);
+                    compiler.push_false(&value);
+                    compiler.push_from_register(&value);
+                    compiler.register_allocator.dealloc(value);
                 }
                 JumpRecordAction::CloseIterator { r#async } => {
                     compiler.iterator_close(r#async);

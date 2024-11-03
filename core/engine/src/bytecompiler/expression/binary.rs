@@ -10,12 +10,12 @@ use crate::{
 
 impl ByteCompiler<'_> {
     pub(crate) fn compile_binary(&mut self, binary: &Binary, dst: &Register) {
-        self.compile_expr2(binary.lhs(), &dst);
+        self.compile_expr(binary.lhs(), &dst);
 
         match binary.op() {
             BinaryOp::Arithmetic(op) => {
                 let rhs = self.register_allocator.alloc();
-                self.compile_expr2(binary.rhs(), &rhs);
+                self.compile_expr(binary.rhs(), &rhs);
 
                 let opcode = match op {
                     ArithmeticOp::Add => Opcode::Add,
@@ -39,7 +39,7 @@ impl ByteCompiler<'_> {
             }
             BinaryOp::Bitwise(op) => {
                 let rhs = self.register_allocator.alloc();
-                self.compile_expr2(binary.rhs(), &rhs);
+                self.compile_expr(binary.rhs(), &rhs);
 
                 let opcode = match op {
                     BitwiseOp::And => Opcode::BitAnd,
@@ -63,7 +63,7 @@ impl ByteCompiler<'_> {
             }
             BinaryOp::Relational(op) => {
                 let rhs = self.register_allocator.alloc();
-                self.compile_expr2(binary.rhs(), &rhs);
+                self.compile_expr(binary.rhs(), &rhs);
 
                 let opcode = match op {
                     RelationalOp::Equal => Opcode::Eq,
@@ -98,18 +98,18 @@ impl ByteCompiler<'_> {
 
                 let exit =
                     self.emit_opcode_with_operand2(opcode, InstructionOperand::Register(dst));
-                self.compile_expr2(binary.rhs(), dst);
+                self.compile_expr(binary.rhs(), dst);
                 self.patch_jump(exit);
             }
             BinaryOp::Comma => {
-                self.compile_expr2(binary.rhs(), dst);
+                self.compile_expr(binary.rhs(), dst);
             }
         }
     }
 
     pub(crate) fn compile_binary_in_private(&mut self, binary: &BinaryInPrivate, dst: &Register) {
         let index = self.get_or_insert_private_name(*binary.lhs());
-        self.compile_expr2(binary.rhs(), dst);
+        self.compile_expr(binary.rhs(), dst);
         self.emit2(
             Opcode::InPrivate,
             &[

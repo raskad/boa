@@ -1,5 +1,3 @@
-use boa_parser::source;
-
 use crate::{
     vm::{opcode::Operation, CompletionType},
     Context, JsResult,

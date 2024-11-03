@@ -1,5 +1,5 @@
 use crate::{
-    bytecompiler::{jump_control::JumpControlInfoFlags, ByteCompiler, ToJsString},
+    bytecompiler::{jump_control::JumpControlInfoFlags, ByteCompiler, Register, ToJsString},
     vm::{BindingOpcode, Opcode},
 };
 use boa_ast::{
@@ -25,8 +25,12 @@ impl ByteCompiler<'_> {
         self.compile_block(t.block(), use_expr);
 
         if has_finally {
-            self.emit_opcode(Opcode::PushZero);
-            self.emit_opcode(Opcode::PushFalse);
+            let value = self.register_allocator.alloc();
+            self.push_zero(&value);
+            self.push_from_register(&value);
+            self.push_false(&value);
+            self.push_from_register(&value);
+            self.register_allocator.dealloc(value);
 
             // stack: false, 0
         }
@@ -46,7 +50,10 @@ impl ByteCompiler<'_> {
 
         self.emit_opcode(Opcode::Exception);
         if let Some(catch) = t.catch() {
-            self.compile_catch_stmt(catch, has_finally, use_expr);
+            let error = self.register_allocator.alloc();
+            self.pop_into_register(&error);
+            self.compile_catch_stmt(catch, &error, use_expr);
+            self.register_allocator.dealloc(error);
         } else {
             // Note: implicit !has_catch
             if self.is_generator() && has_finally {
@@ -55,17 +62,27 @@ impl ByteCompiler<'_> {
                 // This is false because when the `Exception` opcode is executed,
                 // it rethrows the empty exception, so if we reached this section,
                 // that means it's not an `return()` generator exception.
-                self.emit_opcode(Opcode::PushFalse);
+                let value = self.register_allocator.alloc();
+                self.push_false(&value);
+                self.push_from_register(&value);
+                self.register_allocator.dealloc(value);
             }
 
             // Should we rethrow the exception?
-            self.emit_opcode(Opcode::PushTrue);
+            let value = self.register_allocator.alloc();
+            self.push_true(&value);
+            self.push_from_register(&value);
+            self.register_allocator.dealloc(value);
         }
 
         if has_finally {
             if has_catch {
-                self.emit_opcode(Opcode::PushZero);
-                self.emit_opcode(Opcode::PushFalse);
+                let value = self.register_allocator.alloc();
+                self.push_zero(&value);
+                self.push_from_register(&value);
+                self.push_false(&value);
+                self.push_from_register(&value);
+                self.register_allocator.dealloc(value);
             }
 
             let exit = self.jump();
@@ -78,11 +95,17 @@ impl ByteCompiler<'_> {
             // Note: implicit has_finally
             if !has_catch && self.is_generator() {
                 // Is this a generator `return()` empty exception?
-                self.emit_opcode(Opcode::PushTrue);
+                let value = self.register_allocator.alloc();
+                self.push_true(&value);
+                self.push_from_register(&value);
+                self.register_allocator.dealloc(value);
             }
 
             // Should we rethrow the exception?
-            self.emit_opcode(Opcode::PushTrue);
+            let value = self.register_allocator.alloc();
+            self.push_true(&value);
+            self.push_from_register(&value);
+            self.register_allocator.dealloc(value);
 
             self.patch_jump(exit);
         }
@@ -107,7 +130,7 @@ impl ByteCompiler<'_> {
         }
     }
 
-    pub(crate) fn compile_catch_stmt(&mut self, catch: &Catch, _has_finally: bool, use_expr: bool) {
+    pub(crate) fn compile_catch_stmt(&mut self, catch: &Catch, error: &Register, use_expr: bool) {
         // stack: exception
 
         let outer_scope = self.lexical_scope.clone();
@@ -118,14 +141,13 @@ impl ByteCompiler<'_> {
             match binding {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
+                    self.push_from_register(&error);
                     self.emit_binding(BindingOpcode::InitLexical, ident);
                 }
                 Binding::Pattern(pattern) => {
-                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &error);
                 }
             }
-        } else {
-            self.emit_opcode(Opcode::Pop);
         }
 
         self.compile_catch_finally_block(catch.block(), use_expr);
@@ -184,7 +206,10 @@ impl ByteCompiler<'_> {
                 Some(StatementListItem::Statement(
                     Statement::Break(_) | Statement::Continue(_),
                 )) => {
-                    self.emit_opcode(Opcode::PushUndefined);
+                    let value = self.register_allocator.alloc();
+                    self.push_undefined(&value);
+                    self.push_from_register(&value);
+                    self.register_allocator.dealloc(value);
                     self.emit_opcode(Opcode::SetAccumulatorFromStack);
                     break;
                 }

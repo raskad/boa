@@ -415,16 +415,15 @@ impl CodeBlock {
                 _ => unreachable!(),
             }
             .to_owned(),
-            Instruction::RotateLeft { n } | Instruction::RotateRight { n } => n.to_string(),
             Instruction::Generator { r#async } => {
                 format!("async: {async}")
             }
-            Instruction::PushInt8 { value } => value.to_string(),
-            Instruction::PushInt16 { value } => value.to_string(),
-            Instruction::PushInt32 { value } => value.to_string(),
-            Instruction::PushFloat { value } => ryu_js::Buffer::new().format(*value).to_string(),
-            Instruction::PushDouble { value } => ryu_js::Buffer::new().format(*value).to_string(),
-            Instruction::PushLiteral { index }
+            Instruction::PushInt8 { value, .. } => value.to_string(),
+            Instruction::PushInt16 { value, .. } => value.to_string(),
+            Instruction::PushInt32 { value, .. } => value.to_string(),
+            Instruction::PushFloat { value, .. } => ryu_js::Buffer::new().format(*value).to_string(),
+            Instruction::PushDouble { value, .. } => ryu_js::Buffer::new().format(*value).to_string(),
+            Instruction::PushLiteral { index, .. }
             | Instruction::ThrowNewTypeError { message: index }
             | Instruction::ThrowNewSyntaxError { message: index }
             | Instruction::HasRestrictedGlobalProperty { index }
@@ -433,6 +432,7 @@ impl CodeBlock {
             Instruction::PushRegExp {
                 pattern_index: source_index,
                 flags_index: flag_index,
+                ..
             } => {
                 let pattern = self
                     .constant_string(source_index.value() as usize)
@@ -447,8 +447,7 @@ impl CodeBlock {
             | Instruction::JumpIfFalse { address: value, .. }
             | Instruction::JumpIfNotUndefined { address: value, .. }
             | Instruction::JumpIfNullOrUndefined { address: value, .. }
-            | Instruction::Case { address: value }
-            | Instruction::Default { address: value } => value.to_string(),
+            | Instruction::Case { address: value, .. } => value.to_string(),
             Instruction::LogicalAnd {
                 exit,
                 lhs,
@@ -481,7 +480,7 @@ impl CodeBlock {
             | Instruction::SuperCall {
                 argument_count: value,
             }
-            | Instruction::ConcatToString { value_count: value }
+            | Instruction::ConcatToString { value_count: value, .. }
             | Instruction::GetArgument { index: value } => value.value().to_string(),
             Instruction::PushScope { index } | Instruction::CallEvalSpread { index } => {
                 index.value().to_string()
@@ -633,7 +632,7 @@ impl CodeBlock {
             Instruction::JumpIfNotResumeKind { exit, resume_kind } => {
                 format!("ResumeKind: {resume_kind:?}, exit: {exit}")
             }
-            Instruction::CreateIteratorResult { done } => {
+            Instruction::CreateIteratorResult { done, .. } => {
                 format!("done: {done}")
             }
             Instruction::CreateGlobalFunctionBinding {
@@ -689,21 +688,18 @@ impl CodeBlock {
                 )
             }
             Instruction::Pop
-            | Instruction::Dup
-            | Instruction::Swap
-            | Instruction::PushZero
-            | Instruction::PushOne
-            | Instruction::PushNaN
-            | Instruction::PushPositiveInfinity
-            | Instruction::PushNegativeInfinity
-            | Instruction::PushNull
-            | Instruction::PushTrue
-            | Instruction::PushFalse
-            | Instruction::PushUndefined
+            | Instruction::PushZero { .. }
+            | Instruction::PushOne { .. }
+            | Instruction::PushNaN { .. }
+            | Instruction::PushPositiveInfinity { .. }
+            | Instruction::PushNegativeInfinity { .. }
+            | Instruction::PushNull { .. }
+            | Instruction::PushTrue { .. }
+            | Instruction::PushFalse { .. }
+            | Instruction::PushUndefined { .. }
             | Instruction::PushEmptyObject { .. }
             | Instruction::SetHomeObject { .. }
             | Instruction::TypeOf { .. }
-            | Instruction::Void
             | Instruction::LogicalNot
             | Instruction::Pos
             | Instruction::Neg
@@ -720,7 +716,6 @@ impl CodeBlock {
             | Instruction::DeletePropertyByValue { .. }
             | Instruction::DeleteSuperThrow
             | Instruction::ToPropertyKey { .. }
-            | Instruction::ToBoolean
             | Instruction::Throw
             | Instruction::ReThrow
             | Instruction::Exception
@@ -739,16 +734,13 @@ impl CodeBlock {
             | Instruction::GetIterator { .. }
             | Instruction::GetAsyncIterator { .. }
             | Instruction::IteratorNext
-            | Instruction::IteratorNextWithoutPop
             | Instruction::IteratorFinishAsyncNext
-            | Instruction::IteratorValue
-            | Instruction::IteratorValueWithoutPop
-            | Instruction::IteratorResult
+            | Instruction::IteratorValue { .. }
+            | Instruction::IteratorResult { .. }
             | Instruction::IteratorDone { .. }
-            | Instruction::IteratorToArray
+            | Instruction::IteratorToArray { .. }
             | Instruction::IteratorReturn { .. }
             | Instruction::IteratorStackEmpty { .. }
-            | Instruction::RequireObjectCoercible { .. }
             | Instruction::ValueNotNullOrUndefined { .. }
             | Instruction::RestParameterInit
             | Instruction::PushValueToArray { .. }
@@ -760,25 +752,23 @@ impl CodeBlock {
             | Instruction::GeneratorNext
             | Instruction::SuperCallDerived
             | Instruction::Await
-            | Instruction::NewTarget
-            | Instruction::ImportMeta
-            | Instruction::SuperCallPrepare
+            | Instruction::NewTarget { .. }
+            | Instruction::ImportMeta { .. }
+            | Instruction::SuperCallPrepare { .. }
             | Instruction::CallSpread
             | Instruction::NewSpread
             | Instruction::SuperCallSpread
             | Instruction::SetPrototype { .. }
-            | Instruction::PushObjectEnvironment
+            | Instruction::PushObjectEnvironment { .. }
             | Instruction::IsObject { .. }
             | Instruction::SetNameByLocator
             | Instruction::PopPrivateEnvironment
-            | Instruction::ImportCall
+            | Instruction::ImportCall { .. }
             | Instruction::GetAccumulator
             | Instruction::SetAccumulatorFromStack
-            | Instruction::BindThisValue
+            | Instruction::BindThisValue { .. }
             | Instruction::CreateMappedArgumentsObject
-            | Instruction::CreateUnmappedArgumentsObject
-            | Instruction::Nop => String::new(),
-
+            | Instruction::CreateUnmappedArgumentsObject => String::new(),
             Instruction::U16Operands
             | Instruction::U32Operands
             | Instruction::Reserved1
@@ -827,7 +817,18 @@ impl CodeBlock {
             | Instruction::Reserved44
             | Instruction::Reserved45
             | Instruction::Reserved46
-            | Instruction::Reserved47 => unreachable!("Reserved opcodes are unrechable"),
+            | Instruction::Reserved47
+            | Instruction::Reserved48
+            | Instruction::Reserved49
+            | Instruction::Reserved50
+            | Instruction::Reserved51
+            | Instruction::Reserved52
+            | Instruction::Reserved53
+            | Instruction::Reserved54
+            | Instruction::Reserved55
+            | Instruction::Reserved56
+            | Instruction::Reserved57
+            | Instruction::Reserved58 => unreachable!("Reserved opcodes are unreachable"),
         }
     }
 }
