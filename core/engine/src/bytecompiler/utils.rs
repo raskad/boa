@@ -100,7 +100,7 @@ impl ByteCompiler<'_> {
     /// This is equivalent to the [`AsyncGeneratorYield ( value )`][async_yield] operation from the spec.
     ///
     /// stack:
-    /// - value **=>** received
+    /// - value **=>** resume_kind, received
     ///
     /// [async_yield]: https://tc39.es/ecma262/#sec-asyncgeneratoryield
     pub(super) fn async_generator_yield(&mut self) {

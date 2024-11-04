@@ -8,6 +8,8 @@ use boa_ast::{
     Statement, StatementListItem,
 };
 
+use super::Operand2;
+
 impl ByteCompiler<'_> {
     /// Compile try statement.
     pub(crate) fn compile_try(&mut self, t: &Try, use_expr: bool) {
@@ -180,12 +182,18 @@ impl ByteCompiler<'_> {
             let is_generator_exit = self.jump_if_true(&value);
             self.register_allocator.dealloc(value);
 
-            self.emit_opcode(Opcode::Throw);
+            let error = self.register_allocator.alloc();
+            self.pop_into_register(&error);
+            self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
+            self.register_allocator.dealloc(error);
             self.patch_jump(is_generator_exit);
 
             self.emit_opcode(Opcode::ReThrow);
         } else {
-            self.emit_opcode(Opcode::Throw);
+            let error = self.register_allocator.alloc();
+            self.pop_into_register(&error);
+            self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
+            self.register_allocator.dealloc(error);
         }
 
         self.patch_jump(do_not_throw_exit);

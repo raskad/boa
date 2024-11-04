@@ -14,6 +14,23 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TemplateLookup;
 
+impl TemplateLookup {
+    fn operation(
+        jump: u32,
+        site: u64,
+        dst: u32,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        if let Some(template) = context.realm().lookup_template(site) {
+            let rp = context.vm.frame().rp;
+            context.vm.stack[(rp + dst) as usize] = template.into();
+            context.vm.frame_mut().pc = jump;
+        }
+
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for TemplateLookup {
     const NAME: &'static str = "TemplateLookup";
     const INSTRUCTION: &'static str = "INST - TemplateLookup";
@@ -22,13 +39,22 @@ impl Operation for TemplateLookup {
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
         let jump = context.vm.read::<u32>();
         let site = context.vm.read::<u64>();
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(jump, site, dst, context)
+    }
 
-        if let Some(template) = context.realm().lookup_template(site) {
-            context.vm.push(template);
-            context.vm.frame_mut().pc = jump;
-        }
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let jump = context.vm.read::<u32>();
+        let site = context.vm.read::<u64>();
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(jump, site, dst, context)
+    }
 
-        Ok(CompletionType::Normal)
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let jump = context.vm.read::<u32>();
+        let site = context.vm.read::<u64>();
+        let dst = context.vm.read::<u32>().into();
+        Self::operation(jump, site, dst, context)
     }
 }
 
@@ -41,15 +67,20 @@ pub(crate) struct TemplateCreate;
 
 impl TemplateCreate {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(context: &mut Context, count: u32, site: u64) -> JsResult<CompletionType> {
-        let template =
-            Array::array_create(count.into(), None, context).expect("cannot fail per spec");
-        let raw_obj =
-            Array::array_create(count.into(), None, context).expect("cannot fail per spec");
+    fn operation(
+        site: u64,
+        dst: u32,
+        count: u64,
+        values: &[(u32, u32)],
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let template = Array::array_create(count, None, context).expect("cannot fail per spec");
+        let raw_obj = Array::array_create(count, None, context).expect("cannot fail per spec");
 
-        for index in (0..count).rev() {
-            let raw_value = context.vm.pop();
-            let cooked_value = context.vm.pop();
+        for (index, (cooked, raw)) in values.iter().enumerate() {
+            let raw_value = context.vm.stack[(rp + raw) as usize].clone();
+            let cooked_value = context.vm.stack[(rp + cooked) as usize].clone();
             template
                 .define_property_or_throw(
                     index,
@@ -94,7 +125,7 @@ impl TemplateCreate {
 
         context.realm().push_template(site, template.clone());
 
-        context.vm.push(template);
+        context.vm.stack[(rp + dst) as usize] = template.into();
         Ok(CompletionType::Normal)
     }
 }
@@ -105,20 +136,41 @@ impl Operation for TemplateCreate {
     const COST: u8 = 6;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let count = u32::from(context.vm.read::<u8>());
         let site = context.vm.read::<u64>();
-        Self::operation(context, count, site)
+        let dst = context.vm.read::<u8>().into();
+        let count = context.vm.read::<u8>().into();
+        let mut values = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let cooked = context.vm.read::<u8>().into();
+            let raw = context.vm.read::<u8>().into();
+            values.push((cooked, raw));
+        }
+        Self::operation(site, dst, count, &values, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let count = u32::from(context.vm.read::<u16>());
         let site = context.vm.read::<u64>();
-        Self::operation(context, count, site)
+        let dst = context.vm.read::<u16>().into();
+        let count = context.vm.read::<u16>().into();
+        let mut values = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let cooked = context.vm.read::<u16>().into();
+            let raw = context.vm.read::<u16>().into();
+            values.push((cooked, raw));
+        }
+        Self::operation(site, dst, count, &values, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let count = context.vm.read::<u32>();
         let site = context.vm.read::<u64>();
-        Self::operation(context, count, site)
+        let dst = context.vm.read::<u32>().into();
+        let count = context.vm.read::<u32>().into();
+        let mut values = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let cooked = context.vm.read::<u32>().into();
+            let raw = context.vm.read::<u32>().into();
+            values.push((cooked, raw));
+        }
+        Self::operation(site, dst, count, &values, context)
     }
 }

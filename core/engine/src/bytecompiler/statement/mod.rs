@@ -2,7 +2,10 @@ use crate::{bytecompiler::ByteCompiler, vm::Opcode};
 
 use boa_ast::Statement;
 
-use super::jump_control::{JumpRecord, JumpRecordAction, JumpRecordKind};
+use super::{
+    jump_control::{JumpRecord, JumpRecordAction, JumpRecordKind},
+    Operand2,
+};
 
 mod block;
 mod r#break;
@@ -62,11 +65,10 @@ impl ByteCompiler<'_> {
                 self.compile_break(*node, use_expr);
             }
             Statement::Throw(throw) => {
-                let value = self.register_allocator.alloc();
-                self.compile_expr(throw.target(), &value);
-                self.push_from_register(&value);
-                self.register_allocator.dealloc(value);
-                self.emit(Opcode::Throw, &[]);
+                let error = self.register_allocator.alloc();
+                self.compile_expr(throw.target(), &error);
+                self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
+                self.register_allocator.dealloc(error);
             }
             Statement::Switch(switch) => {
                 self.compile_switch(switch, use_expr);

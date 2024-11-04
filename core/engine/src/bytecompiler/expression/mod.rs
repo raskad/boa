@@ -196,61 +196,57 @@ impl ByteCompiler<'_> {
                 } else {
                     self.push_undefined(&dst);
                 }
-                self.push_from_register(&dst);
-
-                // stack: value
 
                 if r#yield.delegate() {
-                    let object = self.register_allocator.alloc();
-                    self.pop_into_register(&object);
-
                     if self.is_async() {
-                        self.emit2(Opcode::GetAsyncIterator, &[Operand2::Register(&object)]);
+                        self.emit2(Opcode::GetAsyncIterator, &[Operand2::Register(dst)]);
                     } else {
-                        self.emit2(Opcode::GetIterator, &[Operand2::Register(&object)]);
+                        self.emit2(Opcode::GetIterator, &[Operand2::Register(dst)]);
                     }
 
-                    self.register_allocator.dealloc(object);
+                    let resume_kind = self.register_allocator.alloc();
+                    let is_return = self.register_allocator.alloc();
+                    self.push_undefined(dst);
+                    self.emit_resume_kind(GeneratorResumeKind::Normal, &resume_kind);
 
-                    // stack:
-                    let value = self.register_allocator.alloc();
-                    self.push_undefined(&value);
-                    self.push_from_register(&value);
-
-                    // stack: undefined
-                    self.emit_resume_kind(GeneratorResumeKind::Normal, &value);
-                    self.push_from_register(&value);
-
-                    self.register_allocator.dealloc(value);
-
-                    // stack: resume_kind, undefined
                     let start_address = self.next_opcode_location();
+
                     let (throw_method_undefined, return_method_undefined) =
-                        self.emit_opcode_with_two_operands(Opcode::GeneratorDelegateNext);
+                        self.generator_delegate_next(dst, &resume_kind, &is_return);
 
                     if self.is_async() {
-                        self.emit_opcode(Opcode::Pop);
+                        self.push_from_register(dst);
                         self.emit_opcode(Opcode::Await);
+                        self.pop_into_register(&resume_kind);
+                        self.pop_into_register(dst);
+                    } else {
+                        self.emit_resume_kind(GeneratorResumeKind::Normal, &resume_kind);
                     }
 
                     let (return_gen, exit) =
-                        self.emit_opcode_with_two_operands(Opcode::GeneratorDelegateResume);
-                    let value = self.register_allocator.alloc();
+                        self.generator_delegate_resume(dst, &resume_kind, &is_return);
+
                     if self.is_async() {
-                        self.emit2(Opcode::IteratorValue, &[Operand2::Register(&value)]);
-                        self.push_from_register(&value);
-                        self.register_allocator.dealloc(value);
+                        self.emit2(Opcode::IteratorValue, &[Operand2::Register(dst)]);
+                        self.push_from_register(dst);
                         self.async_generator_yield();
+                        self.pop_into_register(&resume_kind);
+                        self.pop_into_register(dst);
                     } else {
-                        self.emit2(Opcode::IteratorResult, &[Operand2::Register(&value)]);
-                        self.push_from_register(&value);
-                        self.register_allocator.dealloc(value);
+                        self.emit2(Opcode::IteratorResult, &[Operand2::Register(dst)]);
+                        self.push_from_register(dst);
                         self.emit_opcode(Opcode::GeneratorYield);
+                        self.pop_into_register(&resume_kind);
+                        self.pop_into_register(dst);
                     }
                     self.emit(Opcode::Jump, &[Operand::U32(start_address)]);
 
+                    self.register_allocator.dealloc(resume_kind);
+                    self.register_allocator.dealloc(is_return);
+
                     self.patch_jump(return_gen);
                     self.patch_jump(return_method_undefined);
+                    self.push_from_register(dst);
                     if self.is_async() {
                         self.emit_opcode(Opcode::Await);
                         self.emit_opcode(Opcode::Pop);
@@ -261,13 +257,14 @@ impl ByteCompiler<'_> {
 
                     self.patch_jump(throw_method_undefined);
                     self.iterator_close(self.is_async());
-                    self.emit_opcode(Opcode::Throw);
+                    self.emit_type_error("iterator does not have a throw method");
 
                     self.patch_jump(exit);
                 } else {
+                    self.push_from_register(&dst);
                     self.r#yield();
+                    self.pop_into_register(dst);
                 }
-                self.pop_into_register(&dst);
             }
             Expression::TaggedTemplate(template) => {
                 let this = self.register_allocator.alloc();
@@ -322,9 +319,9 @@ impl ByteCompiler<'_> {
 
                 let site = template.identifier();
                 let count = template.cookeds().len() as u32;
+                let jump_label = self.template_lookup(&dst, site);
 
-                let jump_label = self.emit_opcode_with_operand(Opcode::TemplateLookup);
-                self.emit_u64(site);
+                let mut part_registers = Vec::with_capacity(count as usize * 2);
 
                 for (cooked, raw) in template.cookeds().iter().zip(template.raws()) {
                     let value = self.register_allocator.alloc();
@@ -336,21 +333,29 @@ impl ByteCompiler<'_> {
                     } else {
                         self.push_undefined(&value);
                     }
-                    self.push_from_register(&value);
+                    part_registers.push(value);
+                    let value = self.register_allocator.alloc();
                     self.emit_push_literal(
                         Literal::String(raw.to_js_string(self.interner())),
                         &value,
                     );
-                    self.push_from_register(&value);
-                    self.register_allocator.dealloc(value);
+                    part_registers.push(value);
                 }
 
-                self.emit(
-                    Opcode::TemplateCreate,
-                    &[Operand::Varying(count), Operand::U64(site)],
-                );
+                let mut args = Vec::with_capacity(count as usize * 2 + 2);
+                args.push(Operand2::U64(site));
+                args.push(Operand2::Register(&dst));
+                args.push(Operand2::Varying(count));
+                for r in &part_registers {
+                    args.push(Operand2::Register(r));
+                }
+                self.emit2(Opcode::TemplateCreate, &args);
+                for r in part_registers {
+                    self.register_allocator.dealloc(r);
+                }
 
                 self.patch_jump(jump_label);
+                self.push_from_register(&dst);
 
                 for expr in template.exprs() {
                     let value = self.register_allocator.alloc();

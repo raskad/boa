@@ -294,22 +294,27 @@ impl ByteCompiler<'_> {
 
                 let no_exception_thrown = self.jump();
                 self.patch_handler(handler_index);
-                self.emit_opcode(Opcode::MaybeException);
 
-                // stack: hasPending, exception?
+                let has_exception = self.register_allocator.alloc();
+                let exception = self.register_allocator.alloc();
+                self.emit2(
+                    Opcode::MaybeException,
+                    &[
+                        Operand2::Register(&has_exception),
+                        Operand2::Register(&exception),
+                    ],
+                );
 
-                self.current_stack_value_count += 2;
                 let iterator_close_handler = self.push_handler();
                 self.iterator_close(false);
                 self.patch_handler(iterator_close_handler);
-                self.current_stack_value_count -= 2;
 
-                let value = self.register_allocator.alloc();
-                self.pop_into_register(&value);
-                let jump = self.jump_if_false(&value);
-                self.register_allocator.dealloc(value);
+                let jump = self.jump_if_false(&has_exception);
+                self.register_allocator.dealloc(has_exception);
 
-                self.emit_opcode(Opcode::Throw);
+                self.emit2(Opcode::Throw, &[Operand2::Register(&exception)]);
+                self.register_allocator.dealloc(exception);
+
                 self.patch_jump(jump);
                 self.emit_opcode(Opcode::ReThrow);
 

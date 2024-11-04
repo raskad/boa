@@ -1204,6 +1204,59 @@ impl<'ctx> ByteCompiler<'ctx> {
         Label { index }
     }
 
+    pub(crate) fn generator_delegate_next(
+        &mut self,
+        value: &Register,
+        resume_kind: &Register,
+        is_return: &Register,
+    ) -> (Label, Label) {
+        let index = self.next_opcode_location();
+        self.emit2(
+            Opcode::GeneratorDelegateNext,
+            &[
+                Operand2::U32(Self::DUMMY_ADDRESS),
+                Operand2::U32(Self::DUMMY_ADDRESS),
+                Operand2::Register(value),
+                Operand2::Register(resume_kind),
+                Operand2::Register(is_return),
+            ],
+        );
+        (Label { index }, Label { index: index + 4 })
+    }
+
+    pub(crate) fn generator_delegate_resume(
+        &mut self,
+        value: &Register,
+        resume_kind: &Register,
+        is_return: &Register,
+    ) -> (Label, Label) {
+        let index = self.next_opcode_location();
+        self.emit2(
+            Opcode::GeneratorDelegateResume,
+            &[
+                Operand2::U32(Self::DUMMY_ADDRESS),
+                Operand2::U32(Self::DUMMY_ADDRESS),
+                Operand2::Register(value),
+                Operand2::Register(resume_kind),
+                Operand2::Register(is_return),
+            ],
+        );
+        (Label { index }, Label { index: index + 4 })
+    }
+
+    pub(crate) fn template_lookup(&mut self, dst: &Register, site: u64) -> Label {
+        let index = self.next_opcode_location();
+        self.emit2(
+            Opcode::TemplateLookup,
+            &[
+                Operand2::U32(Self::DUMMY_ADDRESS),
+                Operand2::U64(site),
+                Operand2::Register(dst),
+            ],
+        );
+        Label { index }
+    }
+
     fn emit_resume_kind(&mut self, resume_kind: GeneratorResumeKind, dst: &Register) {
         self.emit_push_integer(resume_kind as i32, dst);
     }
@@ -1262,20 +1315,6 @@ impl<'ctx> ByteCompiler<'ctx> {
         let index = self.next_opcode_location();
         self.emit_u32(Self::DUMMY_ADDRESS);
         Label { index: index - 1 }
-    }
-
-    /// Emit an opcode with two dummy operands.
-    /// Return the `Label`s of the two operands.
-    pub(crate) fn emit_opcode_with_two_operands(&mut self, opcode: Opcode) -> (Label, Label) {
-        let index = self.next_opcode_location();
-        self.emit(
-            opcode,
-            &[
-                Operand::U32(Self::DUMMY_ADDRESS),
-                Operand::U32(Self::DUMMY_ADDRESS),
-            ],
-        );
-        (Label { index }, Label { index: index + 4 })
     }
 
     pub(crate) fn patch_jump_with_target(&mut self, label: Label, target: u32) {

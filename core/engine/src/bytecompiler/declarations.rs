@@ -390,12 +390,14 @@ impl ByteCompiler<'_> {
             let name = name.to_js_string(self.interner());
 
             // c. Let hasRestrictedGlobal be ? env.HasRestrictedGlobalProperty(name).
+            let value = self.register_allocator.alloc();
             let index = self.get_or_insert_string(name);
-            self.emit_with_varying_operand(Opcode::HasRestrictedGlobalProperty, index);
+            self.emit2(
+                Opcode::HasRestrictedGlobalProperty,
+                &[Operand2::Register(&value), Operand2::Varying(index)],
+            );
 
             // d. If hasRestrictedGlobal is true, throw a SyntaxError exception.
-            let value = self.register_allocator.alloc();
-            self.pop_into_register(&value);
             let exit = self.jump_if_false(&value);
             self.register_allocator.dealloc(value);
 
@@ -430,12 +432,14 @@ impl ByteCompiler<'_> {
             // a.iv. If declaredFunctionNames does not contain fn, then
             if !declared_function_names.contains(&name) {
                 // 1. Let fnDefinable be ? env.CanDeclareGlobalFunction(fn).
+                let value = self.register_allocator.alloc();
                 let index = self.get_or_insert_name(name);
-                self.emit_with_varying_operand(Opcode::CanDeclareGlobalFunction, index);
+                self.emit2(
+                    Opcode::CanDeclareGlobalFunction,
+                    &[Operand2::Register(&value), Operand2::Varying(index)],
+                );
 
                 // 2. If fnDefinable is false, throw a TypeError exception.
-                let value = self.register_allocator.alloc();
-                self.pop_into_register(&value);
                 let exit = self.jump_if_true(&value);
                 self.register_allocator.dealloc(value);
                 self.emit_type_error("cannot declare global function");
@@ -466,12 +470,14 @@ impl ByteCompiler<'_> {
                 // 1. If declaredFunctionNames does not contain vn, then
                 if !declared_function_names.contains(&name) {
                     // a. Let vnDefinable be ? env.CanDeclareGlobalVar(vn).
+                    let value = self.register_allocator.alloc();
                     let index = self.get_or_insert_name(name);
-                    self.emit_with_varying_operand(Opcode::CanDeclareGlobalVar, index);
+                    self.emit2(
+                        Opcode::CanDeclareGlobalVar,
+                        &[Operand2::Register(&value), Operand2::Varying(index)],
+                    );
 
                     // b. If vnDefinable is false, throw a TypeError exception.
-                    let value = self.register_allocator.alloc();
-                    self.pop_into_register(&value);
                     let exit = self.jump_if_true(&value);
                     self.register_allocator.dealloc(value);
                     self.emit_type_error("cannot declare global variable");
@@ -677,14 +683,15 @@ impl ByteCompiler<'_> {
             if !declared_function_names.contains(&name) {
                 // 1. If varEnv is a Global Environment Record, then
                 if var_env.is_global() {
-                    let index = self.get_or_insert_name(name);
-
                     // a. Let fnDefinable be ? varEnv.CanDeclareGlobalFunction(fn).
-                    self.emit_with_varying_operand(Opcode::CanDeclareGlobalFunction, index);
+                    let value = self.register_allocator.alloc();
+                    let index = self.get_or_insert_name(name);
+                    self.emit2(
+                        Opcode::CanDeclareGlobalFunction,
+                        &[Operand2::Register(&value), Operand2::Varying(index)],
+                    );
 
                     // b. If fnDefinable is false, throw a TypeError exception.
-                    let value = self.register_allocator.alloc();
-                    self.pop_into_register(&value);
                     let exit = self.jump_if_true(&value);
                     self.register_allocator.dealloc(value);
                     self.emit_type_error("cannot declare global function");
@@ -739,14 +746,15 @@ impl ByteCompiler<'_> {
                 if !declared_function_names.contains(&name) {
                     // a. If varEnv is a Global Environment Record, then
                     if var_env.is_global() {
-                        let index = self.get_or_insert_name(name);
-
                         // i. Let vnDefinable be ? varEnv.CanDeclareGlobalVar(vn).
-                        self.emit_with_varying_operand(Opcode::CanDeclareGlobalVar, index);
+                        let value = self.register_allocator.alloc();
+                        let index = self.get_or_insert_name(name);
+                        self.emit2(
+                            Opcode::CanDeclareGlobalVar,
+                            &[Operand2::Register(&value), Operand2::Varying(index)],
+                        );
 
                         // ii. If vnDefinable is false, throw a TypeError exception.
-                        let value = self.register_allocator.alloc();
-                        self.pop_into_register(&value);
                         let exit = self.jump_if_true(&value);
                         self.register_allocator.dealloc(value);
                         self.emit_type_error("cannot declare global function");

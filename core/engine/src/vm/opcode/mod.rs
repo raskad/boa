@@ -1611,7 +1611,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: value **=>**
-    Throw,
+    Throw { value: VaryingOperand },
 
     /// Rethrow thrown exception.
     ///
@@ -1639,7 +1639,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** (`true`, exception) or `false`
-    MaybeException,
+    MaybeException { has_exception: VaryingOperand, exception: VaryingOperand },
 
     /// Throw a new `TypeError` exception
     ///
@@ -2071,14 +2071,26 @@ generate_opcodes! {
     /// Operands: throw_method_undefined: `u32`, return_method_undefined: `u32`
     ///
     /// Stack: received **=>** result
-    GeneratorDelegateNext { throw_method_undefined: u32, return_method_undefined: u32 },
+    GeneratorDelegateNext {
+        throw_method_undefined: u32,
+        return_method_undefined: u32,
+        value: VaryingOperand,
+        resume_kind: VaryingOperand,
+        is_return: VaryingOperand
+    },
 
     /// Resume the async generator with yield delegate logic after it awaits a value.
     ///
     /// Operands: return: `u32`, exit: `u32`
     ///
     /// Stack: is_return, received **=>** value
-    GeneratorDelegateResume { r#return: u32, exit: u32 },
+    GeneratorDelegateResume {
+        r#return: u32,
+        exit: u32,
+        value: VaryingOperand,
+        resume_kind: VaryingOperand,
+        is_return: VaryingOperand
+    },
 
     /// Stops the current async function and schedules it to resume later.
     ///
@@ -2113,14 +2125,14 @@ generate_opcodes! {
     /// Operands: exit: `u32`, site: `u64`
     ///
     /// Stack: **=>** template (if cached)
-    TemplateLookup { exit: u32, site: u64 },
+    TemplateLookup { exit: u32, site: u64, dst: VaryingOperand },
 
     /// Create a new tagged template object and cache it.
     ///
     /// Operands: count: `VaryingOperand`, site: `u64`
     ///
     /// Stack: count * (cooked_value, raw_value) **=>** template
-    TemplateCreate { count: VaryingOperand, site: u64 },
+    TemplateCreate { site: u64, dst: VaryingOperand, count: VaryingOperand },
 
     /// Push a private environment.
     ///
@@ -2163,7 +2175,7 @@ generate_opcodes! {
     /// Stack: **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-hasrestrictedglobalproperty
-    HasRestrictedGlobalProperty { index: VaryingOperand },
+    HasRestrictedGlobalProperty { dst: VaryingOperand, index: VaryingOperand },
 
     /// Performs [`CanDeclareGlobalFunction ( N )`][spec]
     ///
@@ -2172,7 +2184,7 @@ generate_opcodes! {
     /// Stack: **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-candeclareglobalfunction
-    CanDeclareGlobalFunction { index: VaryingOperand },
+    CanDeclareGlobalFunction { dst: VaryingOperand, index: VaryingOperand },
 
     /// Performs [`CanDeclareGlobalVar ( N )`][spec]
     ///
@@ -2181,7 +2193,7 @@ generate_opcodes! {
     /// Stack: **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-candeclareglobalvar
-    CanDeclareGlobalVar { index: VaryingOperand },
+    CanDeclareGlobalVar { dst: VaryingOperand, index: VaryingOperand },
 
     /// Performs [`CreateGlobalFunctionBinding ( N, V, D )`][spec]
     ///

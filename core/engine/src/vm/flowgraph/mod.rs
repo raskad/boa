@@ -176,6 +176,7 @@ impl CodeBlock {
                 Instruction::GeneratorDelegateNext {
                     return_method_undefined,
                     throw_method_undefined,
+                    ..
                 } => {
                     graph.add_node(
                         previous_pc,
@@ -199,7 +200,7 @@ impl CodeBlock {
                         EdgeStyle::Line,
                     );
                 }
-                Instruction::GeneratorDelegateResume { r#return, exit } => {
+                Instruction::GeneratorDelegateResume { r#return, exit, .. } => {
                     graph.add_node(
                         previous_pc,
                         NodeShape::Diamond,
@@ -318,7 +319,7 @@ impl CodeBlock {
                         );
                     }
                 }
-                Instruction::Throw | Instruction::ReThrow => {
+                Instruction::Throw { .. } | Instruction::ReThrow => {
                     if let Some((i, handler)) = self.find_handler(previous_pc as u32) {
                         graph.add_node(previous_pc, NodeShape::Record, label.into(), Color::None);
                         graph.add_edge(
@@ -433,7 +434,7 @@ impl CodeBlock {
                 | Instruction::GetAccumulator
                 | Instruction::SetAccumulatorFromStack
                 | Instruction::Exception
-                | Instruction::MaybeException
+                | Instruction::MaybeException { .. }
                 | Instruction::CheckReturn
                 | Instruction::BindThisValue { .. }
                 | Instruction::CreateMappedArgumentsObject

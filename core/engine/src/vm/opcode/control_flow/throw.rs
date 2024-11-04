@@ -10,13 +10,11 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Throw;
 
-impl Operation for Throw {
-    const NAME: &'static str = "Throw";
-    const INSTRUCTION: &'static str = "INST - Throw";
-    const COST: u8 = 6;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let error = JsError::from_opaque(context.vm.pop());
+impl Throw {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let error = JsError::from_opaque(value);
         context.vm.pending_exception = Some(error);
 
         // Note: -1 because we increment after fetching the opcode.
@@ -26,6 +24,27 @@ impl Operation for Throw {
         }
 
         Ok(CompletionType::Throw)
+    }
+}
+
+impl Operation for Throw {
+    const NAME: &'static str = "Throw";
+    const INSTRUCTION: &'static str = "INST - Throw";
+    const COST: u8 = 6;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>();
+        Self::operation(value, context)
     }
 }
 
@@ -96,21 +115,45 @@ impl Operation for Exception {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MaybeException;
 
+impl MaybeException {
+    fn operation(
+        has_exception: u32,
+        exception: u32,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        if let Some(error) = context.vm.pending_exception.take() {
+            let error = error.to_opaque(context);
+            context.vm.stack[(rp + exception) as usize] = error;
+            context.vm.stack[(rp + has_exception) as usize] = true.into();
+        } else {
+            context.vm.stack[(rp + has_exception) as usize] = false.into();
+        }
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for MaybeException {
     const NAME: &'static str = "MaybeException";
     const INSTRUCTION: &'static str = "INST - MaybeException";
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        if let Some(error) = context.vm.pending_exception.take() {
-            let error = error.to_opaque(context);
-            context.vm.push(error);
-            context.vm.push(true);
-            return Ok(CompletionType::Normal);
-        }
+        let has_exception = context.vm.read::<u8>().into();
+        let exception = context.vm.read::<u8>().into();
+        Self::operation(has_exception, exception, context)
+    }
 
-        context.vm.push(false);
-        Ok(CompletionType::Normal)
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let has_exception = context.vm.read::<u16>().into();
+        let exception = context.vm.read::<u16>().into();
+        Self::operation(has_exception, exception, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let has_exception = context.vm.read::<u32>();
+        let exception = context.vm.read::<u32>();
+        Self::operation(has_exception, exception, context)
     }
 }
 

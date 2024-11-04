@@ -426,9 +426,9 @@ impl CodeBlock {
             Instruction::PushLiteral { index, .. }
             | Instruction::ThrowNewTypeError { message: index }
             | Instruction::ThrowNewSyntaxError { message: index }
-            | Instruction::HasRestrictedGlobalProperty { index }
-            | Instruction::CanDeclareGlobalFunction { index }
-            | Instruction::CanDeclareGlobalVar { index } => index.value().to_string(),
+            | Instruction::HasRestrictedGlobalProperty { index, .. }
+            | Instruction::CanDeclareGlobalFunction { index, .. }
+            | Instruction::CanDeclareGlobalVar { index, .. } => index.value().to_string(),
             Instruction::PushRegExp {
                 pattern_index: source_index,
                 flags_index: flag_index,
@@ -492,15 +492,17 @@ impl CodeBlock {
             Instruction::GeneratorDelegateNext {
                 return_method_undefined: value1,
                 throw_method_undefined: value2,
+                ..
             }
             | Instruction::GeneratorDelegateResume {
                 exit: value1,
                 r#return: value2,
+                ..
             } => {
                 format!("{value1}, {value2}")
             }
-            Instruction::TemplateLookup { exit: value, site } => format!("{value}, {site}"),
-            Instruction::TemplateCreate { count, site } => {
+            Instruction::TemplateLookup { exit: value, site,.. } => format!("{value}, {site}"),
+            Instruction::TemplateCreate { count, site, .. } => {
                 format!("{}, {site}", count.value())
             }
             Instruction::GetFunction { dst, index } => {
@@ -716,10 +718,10 @@ impl CodeBlock {
             | Instruction::DeletePropertyByValue { .. }
             | Instruction::DeleteSuperThrow
             | Instruction::ToPropertyKey { .. }
-            | Instruction::Throw
+            | Instruction::Throw { .. }
             | Instruction::ReThrow
             | Instruction::Exception
-            | Instruction::MaybeException
+            | Instruction::MaybeException { .. }
             | Instruction::This { .. }
             | Instruction::ThisForObjectEnvironmentName { .. }
             | Instruction::Super { .. }
