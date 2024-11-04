@@ -1667,7 +1667,7 @@ generate_opcodes! {
     /// Operands: index: `VaryingOperand`
     ///
     /// Stack: **=>** value
-    ThisForObjectEnvironmentName { index: VaryingOperand },
+    ThisForObjectEnvironmentName { dst: VaryingOperand, index: VaryingOperand },
 
     /// Pushes the current `super` value to the stack.
     ///

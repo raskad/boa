@@ -65,12 +65,13 @@ impl Operation for This {
 pub(crate) struct ThisForObjectEnvironmentName;
 
 impl ThisForObjectEnvironmentName {
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
+    fn operation(dst: u32, index: usize, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let binding_locator = context.vm.frame().code_block.bindings[index].clone();
         let this = context
             .this_from_object_environment_binding(&binding_locator)?
             .map_or(JsValue::undefined(), Into::into);
-        context.vm.push(this);
+        context.vm.stack[(rp + dst) as usize] = this;
         Ok(CompletionType::Normal)
     }
 }
@@ -81,18 +82,21 @@ impl Operation for ThisForObjectEnvironmentName {
     const COST: u8 = 1;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u8>();
-        Self::operation(context, index as usize)
+        let dst = context.vm.read::<u8>().into();
+        let index = context.vm.read::<u8>() as usize;
+        Self::operation(dst, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(dst, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u32>();
-        Self::operation(context, index as usize)
+        let dst = context.vm.read::<u32>();
+        let index = context.vm.read::<u32>() as usize;
+        Self::operation(dst, index, context)
     }
 }
 

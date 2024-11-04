@@ -2231,7 +2231,16 @@ impl<'ctx> ByteCompiler<'ctx> {
                         let name = self.resolve_identifier_expect(*ident);
                         let binding = self.lexical_scope.get_identifier_reference(name);
                         let index = self.get_or_insert_binding(binding);
-                        self.emit_binding_access(Opcode::ThisForObjectEnvironmentName, &index);
+                        let BindingKind::Stack(index) = index else {
+                            unreachable!("with binding cannot be local")
+                        };
+                        let value = self.register_allocator.alloc();
+                        self.emit2(
+                            Opcode::ThisForObjectEnvironmentName,
+                            &[Operand2::Register(&value), Operand2::Varying(index)],
+                        );
+                        self.push_from_register(&value);
+                        self.register_allocator.dealloc(value);
                     } else {
                         let value = self.register_allocator.alloc();
                         self.push_undefined(&value);
