@@ -63,11 +63,10 @@ impl ByteCompiler<'_> {
                     let index = self.get_or_insert_binding(binding);
 
                     if is_lexical {
-                        self.emit_binding_access(Opcode::GetName, &index);
+                        self.emit_binding_access(Opcode::GetName, &index, &dst);
                     } else {
-                        self.emit_binding_access(Opcode::GetNameAndLocator, &index);
+                        self.emit_binding_access(Opcode::GetNameAndLocator, &index, &dst);
                     }
-                    self.pop_into_register(&dst);
 
                     if short_circuit {
                         early_exit =
@@ -95,8 +94,7 @@ impl ByteCompiler<'_> {
                         match self.lexical_scope.set_mutable_binding(name.clone()) {
                             Ok(binding) => {
                                 let index = self.get_or_insert_binding(binding);
-                                self.push_from_register(&dst);
-                                self.emit_binding_access(Opcode::SetName, &index);
+                                self.emit_binding_access(Opcode::SetName, &index, &dst);
                             }
                             Err(BindingLocatorError::MutateImmutable) => {
                                 let index = self.get_or_insert_string(name);
@@ -105,8 +103,7 @@ impl ByteCompiler<'_> {
                             Err(BindingLocatorError::Silent) => {}
                         }
                     } else {
-                        self.push_from_register(&dst);
-                        self.emit_binding_access(Opcode::SetNameByLocator, &index);
+                        self.emit_binding_access(Opcode::SetNameByLocator, &index, &dst);
                     }
                 }
                 Access::Property { access } => match access {

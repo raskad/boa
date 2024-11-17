@@ -54,17 +54,19 @@ impl ByteCompiler<'_> {
                                 .into_common(false);
                             let key = self.register_allocator.alloc();
                             self.emit_push_literal(Literal::String(default), &key);
-                            self.emit2(Opcode::SetFunctionName, &[
-                                Operand2::Register(&function),
-                                Operand2::Register(&key),
-                                Operand2::U8(0),
-                            ]);
+                            self.emit2(
+                                Opcode::SetFunctionName,
+                                &[
+                                    Operand2::Register(&function),
+                                    Operand2::Register(&key),
+                                    Operand2::U8(0),
+                                ],
+                            );
                             self.register_allocator.dealloc(key);
                         }
 
                         let name = Sym::DEFAULT_EXPORT.to_js_string(self.interner());
-                        self.push_from_register(&function);
-                        self.emit_binding(BindingOpcode::InitLexical, name);
+                        self.emit_binding(BindingOpcode::InitLexical, name, &function);
                         self.register_allocator.dealloc(function);
                     }
                 }

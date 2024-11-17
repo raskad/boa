@@ -515,14 +515,14 @@ impl CodeBlock {
                 )
             }
             Instruction::DefVar { index }
-            | Instruction::DefInitVar { index }
-            | Instruction::PutLexicalValue { index }
-            | Instruction::GetName { index }
+            | Instruction::DefInitVar { index, .. }
+            | Instruction::PutLexicalValue { index, .. }
+            | Instruction::GetName { index, .. }
             | Instruction::GetLocator { index }
-            | Instruction::GetNameAndLocator { index }
-            | Instruction::GetNameOrUndefined { index }
-            | Instruction::SetName { index }
-            | Instruction::DeleteName { index } => {
+            | Instruction::GetNameAndLocator { index, .. }
+            | Instruction::GetNameOrUndefined { index, .. }
+            | Instruction::SetName { index, .. }
+            | Instruction::DeleteName { index, .. } => {
                 format!(
                     "{:04}: '{}'",
                     index.value(),
@@ -657,10 +657,10 @@ impl CodeBlock {
             } => {
                 format!("is_anonymous_function: {is_anonymous_function}")
             }
-            Instruction::PopIntoRegister { dst } | Instruction::PopIntoLocal { dst } => {
+            Instruction::PopIntoRegister { dst } | Instruction::PopIntoLocal { dst, .. } => {
                 format!("dst:reg{}", dst.value())
             }
-            Instruction::PushFromRegister { src } | Instruction::PushFromLocal { src } => {
+            Instruction::PushFromRegister { src } | Instruction::PushFromLocal { src, .. } => {
                 format!("src:reg{}", src.value())
             }
             Instruction::PushClassPrototype {
@@ -763,14 +763,14 @@ impl CodeBlock {
             | Instruction::SetPrototype { .. }
             | Instruction::PushObjectEnvironment { .. }
             | Instruction::IsObject { .. }
-            | Instruction::SetNameByLocator
+            | Instruction::SetNameByLocator { .. }
             | Instruction::PopPrivateEnvironment
             | Instruction::ImportCall { .. }
             | Instruction::GetAccumulator
             | Instruction::SetAccumulatorFromStack
             | Instruction::BindThisValue { .. }
-            | Instruction::CreateMappedArgumentsObject
-            | Instruction::CreateUnmappedArgumentsObject => String::new(),
+            | Instruction::CreateMappedArgumentsObject { .. }
+            | Instruction::CreateUnmappedArgumentsObject { .. } => String::new(),
             Instruction::U16Operands
             | Instruction::U32Operands
             | Instruction::Reserved1

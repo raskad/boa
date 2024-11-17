@@ -18,7 +18,7 @@ pub(crate) struct DefVar;
 
 impl DefVar {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
+    fn operation(index: usize, context: &mut Context) -> JsResult<CompletionType> {
         // TODO: spec specifies to return `empty` on empty vars, but we're trying to initialize.
         let binding_locator = context.vm.frame().code_block.bindings[index].clone();
 
@@ -37,18 +37,18 @@ impl Operation for DefVar {
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u8>();
-        Self::operation(context, index as usize)
+        let index = context.vm.read::<u8>() as usize;
+        Self::operation(index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u32>();
-        Self::operation(context, index as usize)
+        let index = context.vm.read::<u32>() as usize;
+        Self::operation(index, context)
     }
 }
 
@@ -60,8 +60,9 @@ impl Operation for DefVar {
 pub(crate) struct DefInitVar;
 
 impl DefInitVar {
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
+    fn operation(value: u32, index: usize, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
         let frame = context.vm.frame();
         let strict = frame.code_block.strict();
         let mut binding_locator = frame.code_block.bindings[index].clone();
@@ -78,18 +79,21 @@ impl Operation for DefInitVar {
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u8>();
-        Self::operation(context, index as usize)
+        let value = context.vm.read::<u8>().into();
+        let index = context.vm.read::<u8>() as usize;
+        Self::operation(value, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(value, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u32>();
-        Self::operation(context, index as usize)
+        let value = context.vm.read::<u32>();
+        let index = context.vm.read::<u32>() as usize;
+        Self::operation(value, index, context)
     }
 }
 
@@ -102,8 +106,9 @@ pub(crate) struct PutLexicalValue;
 
 impl PutLexicalValue {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(context: &mut Context, index: usize) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
+    fn operation(value: u32, index: usize, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
         let binding_locator = context.vm.frame().code_block.bindings[index].clone();
         context.vm.environments.put_lexical_value(
             binding_locator.scope(),
@@ -121,17 +126,20 @@ impl Operation for PutLexicalValue {
     const COST: u8 = 3;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u8>();
-        Self::operation(context, index as usize)
+        let value = context.vm.read::<u8>().into();
+        let index = context.vm.read::<u8>() as usize;
+        Self::operation(value, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(context, index)
+        Self::operation(value, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let index = context.vm.read::<u32>();
-        Self::operation(context, index as usize)
+        let value = context.vm.read::<u32>();
+        let index = context.vm.read::<u32>() as usize;
+        Self::operation(value, index, context)
     }
 }

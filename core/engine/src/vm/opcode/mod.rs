@@ -1044,14 +1044,14 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: value **=>**
-    DefInitVar { index: VaryingOperand },
+    DefInitVar { value: VaryingOperand, index: VaryingOperand },
 
     /// Initialize a lexical binding.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: value **=>**
-    PutLexicalValue { index: VaryingOperand },
+    PutLexicalValue { value: VaryingOperand, index: VaryingOperand },
 
     /// Throws an error because the binding access is illegal.
     ///
@@ -1074,7 +1074,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetName { index: VaryingOperand },
+    GetName { value: VaryingOperand, index: VaryingOperand },
 
     /// Find a binding on the environment and set the `current_binding` of the current frame.
     ///
@@ -1089,33 +1089,33 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetNameAndLocator { index: VaryingOperand },
+    GetNameAndLocator { value: VaryingOperand, index: VaryingOperand },
 
     /// Find a binding on the environment chain and push its value. If the binding does not exist push undefined.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetNameOrUndefined { index: VaryingOperand },
+    GetNameOrUndefined { value: VaryingOperand, index: VaryingOperand },
 
     /// Find a binding on the environment chain and assign its value.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: value **=>**
-    SetName { index: VaryingOperand },
+    SetName { value: VaryingOperand, index: VaryingOperand },
 
     /// Assigns a value to the binding pointed by the top of the `bindings_stack`.
     ///
     /// Stack: value **=>**
-    SetNameByLocator,
+    SetNameByLocator { value: VaryingOperand },
 
     /// Deletes a property of the global object.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** deleted
-    DeleteName { index: VaryingOperand },
+    DeleteName { value: VaryingOperand, index: VaryingOperand },
 
     /// Get a property by name from an object an push it on the stack.
     ///
@@ -1861,14 +1861,14 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: value **=>**
-    PopIntoLocal { dst: VaryingOperand },
+    PopIntoLocal { src: VaryingOperand, dst: VaryingOperand },
 
     /// Copy value at local binding register `src` and push it into the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** value
-    PushFromLocal { src: VaryingOperand },
+    PushFromLocal { src: VaryingOperand, dst: VaryingOperand },
 
     /// Push a declarative environment.
     ///
@@ -2157,7 +2157,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** `arguments`
-    CreateMappedArgumentsObject,
+    CreateMappedArgumentsObject { dst: VaryingOperand },
 
     /// Creates an unmapped `arguments` object.
     ///
@@ -2166,7 +2166,7 @@ generate_opcodes! {
     /// [spec]: https://tc39.es/ecma262/#sec-createmappedargumentsobject
     ///
     /// Stack: **=>** `arguments`
-    CreateUnmappedArgumentsObject,
+    CreateUnmappedArgumentsObject { dst: VaryingOperand },
 
     /// Performs [`HasRestrictedGlobalProperty ( N )`][spec]
     ///

@@ -28,15 +28,12 @@ impl ByteCompiler<'_> {
                 let is_lexical = binding.is_lexical();
                 let index = self.get_or_insert_binding(binding);
 
-                if is_lexical {
-                    self.emit_binding_access(Opcode::GetName, &index);
-                } else {
-                    self.emit_binding_access(Opcode::GetNameAndLocator, &index);
-                }
-
                 let src = self.register_allocator.alloc();
-
-                self.pop_into_register(&src);
+                if is_lexical {
+                    self.emit_binding_access(Opcode::GetName, &index, &src);
+                } else {
+                    self.emit_binding_access(Opcode::GetNameAndLocator, &index, &src);
+                }
 
                 self.emit2(
                     Opcode::ToNumeric,
@@ -56,8 +53,7 @@ impl ByteCompiler<'_> {
                     match self.lexical_scope.set_mutable_binding(name.clone()) {
                         Ok(binding) => {
                             let index = self.get_or_insert_binding(binding);
-                            self.push_from_register(&src);
-                            self.emit_binding_access(Opcode::SetName, &index);
+                            self.emit_binding_access(Opcode::SetName, &index, &src);
                         }
                         Err(BindingLocatorError::MutateImmutable) => {
                             let index = self.get_or_insert_string(name);
@@ -66,8 +62,7 @@ impl ByteCompiler<'_> {
                         Err(BindingLocatorError::Silent) => {}
                     }
                 } else {
-                    self.push_from_register(&src);
-                    self.emit_binding_access(Opcode::SetNameByLocator, &index);
+                    self.emit_binding_access(Opcode::SetNameByLocator, &index, &src);
                 }
                 if !post {
                     self.emit_move(dst, InstructionOperand::Register(&src));

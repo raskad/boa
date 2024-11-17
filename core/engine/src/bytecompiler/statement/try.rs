@@ -143,8 +143,7 @@ impl ByteCompiler<'_> {
             match binding {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
-                    self.push_from_register(&error);
-                    self.emit_binding(BindingOpcode::InitLexical, ident);
+                    self.emit_binding(BindingOpcode::InitLexical, ident, &error);
                 }
                 Binding::Pattern(pattern) => {
                     self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &error);

@@ -644,45 +644,41 @@ impl<'ctx> ByteCompiler<'ctx> {
         index
     }
 
-    fn emit_binding(&mut self, opcode: BindingOpcode, name: JsString) {
+    fn emit_binding(&mut self, opcode: BindingOpcode, name: JsString, value: &Register) {
         match opcode {
             BindingOpcode::Var => {
                 let binding = self.variable_scope.get_identifier_reference(name);
                 if !binding.locator().is_global() {
                     let index = self.get_or_insert_binding(binding);
-                    self.emit_binding_access(Opcode::DefVar, &index);
+                    self.emit_binding_access(Opcode::DefVar, &index, value);
                 }
             }
             BindingOpcode::InitVar => match self.lexical_scope.set_mutable_binding(name.clone()) {
                 Ok(binding) => {
                     let index = self.get_or_insert_binding(binding);
-                    self.emit_binding_access(Opcode::DefInitVar, &index);
+                    self.emit_binding_access(Opcode::DefInitVar, &index, value);
                 }
                 Err(BindingLocatorError::MutateImmutable) => {
                     let index = self.get_or_insert_string(name);
                     self.emit_with_varying_operand(Opcode::ThrowMutateImmutable, index);
                 }
-                Err(BindingLocatorError::Silent) => {
-                    self.emit_opcode(Opcode::Pop);
-                }
+                Err(BindingLocatorError::Silent) => {}
             },
             BindingOpcode::InitLexical => {
                 let binding = self.lexical_scope.get_identifier_reference(name);
                 let index = self.get_or_insert_binding(binding);
-                self.emit_binding_access(Opcode::PutLexicalValue, &index);
+                self.emit_binding_access(Opcode::PutLexicalValue, &index, value);
             }
             BindingOpcode::SetName => match self.lexical_scope.set_mutable_binding(name.clone()) {
                 Ok(binding) => {
                     let index = self.get_or_insert_binding(binding);
-                    self.emit_binding_access(Opcode::SetName, &index);
+                    self.emit_binding_access(Opcode::SetName, &index, value);
                 }
                 Err(BindingLocatorError::MutateImmutable) => {
                     let index = self.get_or_insert_string(name);
                     self.emit_with_varying_operand(Opcode::ThrowMutateImmutable, index);
                 }
-                Err(BindingLocatorError::Silent) => {
-                    self.emit_opcode(Opcode::Pop);
-                }
+                Err(BindingLocatorError::Silent) => {}
             },
         }
     }
@@ -871,29 +867,38 @@ impl<'ctx> ByteCompiler<'ctx> {
         }
     }
 
-    pub(crate) fn emit_binding_access(&mut self, opcode: Opcode, binding: &BindingKind) {
+    pub(crate) fn emit_binding_access(
+        &mut self,
+        opcode: Opcode,
+        binding: &BindingKind,
+        value: &Register,
+    ) {
         match binding {
             BindingKind::Stack(index) => match opcode {
-                Opcode::SetNameByLocator => self.emit_opcode(opcode),
-                _ => self.emit_with_varying_operand(opcode, *index),
+                Opcode::SetNameByLocator => self.emit2(opcode, &[Operand2::Register(value)]),
+                Opcode::GetLocator | Opcode::DefVar => {
+                    self.emit2(opcode, &[Operand2::Varying(*index)])
+                }
+                _ => self.emit2(
+                    opcode,
+                    &[Operand2::Register(value), Operand2::Varying(*index)],
+                ),
             },
             BindingKind::Local(index) => match opcode {
-                Opcode::GetName | Opcode::GetNameOrUndefined | Opcode::GetNameAndLocator => {
-                    self.emit_with_varying_operand(Opcode::PushFromLocal, *index);
-                }
+                Opcode::GetName | Opcode::GetNameOrUndefined | Opcode::GetNameAndLocator => self
+                    .emit2(
+                        Opcode::PushFromLocal,
+                        &[Operand2::Varying(*index), Operand2::Register(value)],
+                    ),
                 Opcode::GetLocator | Opcode::DefVar => {}
                 Opcode::SetName
                 | Opcode::DefInitVar
                 | Opcode::PutLexicalValue
-                | Opcode::SetNameByLocator => {
-                    self.emit_with_varying_operand(Opcode::PopIntoLocal, *index);
-                }
-                Opcode::DeleteName => {
-                    let value = self.register_allocator.alloc();
-                    self.push_false(&value);
-                    self.push_from_register(&value);
-                    self.register_allocator.dealloc(value);
-                }
+                | Opcode::SetNameByLocator => self.emit2(
+                    Opcode::PopIntoLocal,
+                    &[Operand2::Register(value), Operand2::Varying(*index)],
+                ),
+                Opcode::DeleteName => self.push_false(value),
                 _ => unreachable!("invalid opcode for binding access"),
             },
         }
@@ -1345,8 +1350,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                 let name = self.resolve_identifier_expect(name);
                 let binding = self.lexical_scope.get_identifier_reference(name);
                 let index = self.get_or_insert_binding(binding);
-                self.emit_binding_access(Opcode::GetName, &index);
-                self.pop_into_register(dst);
+                self.emit_binding_access(Opcode::GetName, &index, dst);
             }
             Access::Property { access } => match access {
                 PropertyAccess::Simple(access) => {
@@ -1435,9 +1439,11 @@ impl<'ctx> ByteCompiler<'ctx> {
                 let is_lexical = binding.is_lexical();
                 let index = self.get_or_insert_binding(binding);
 
+                let value = self.register_allocator.alloc();
                 if !is_lexical {
-                    self.emit_binding_access(Opcode::GetLocator, &index);
+                    self.emit_binding_access(Opcode::GetLocator, &index, &value);
                 }
+                self.register_allocator.dealloc(value);
 
                 let value = expr_fn(self);
 
@@ -1445,8 +1451,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                     match self.lexical_scope.set_mutable_binding(name.clone()) {
                         Ok(binding) => {
                             let index = self.get_or_insert_binding(binding);
-                            self.push_from_register(&value);
-                            self.emit_binding_access(Opcode::SetName, &index);
+                            self.emit_binding_access(Opcode::SetName, &index, &value);
                         }
                         Err(BindingLocatorError::MutateImmutable) => {
                             let index = self.get_or_insert_string(name);
@@ -1455,8 +1460,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                         Err(BindingLocatorError::Silent) => {}
                     }
                 } else {
-                    self.push_from_register(&value);
-                    self.emit_binding_access(Opcode::SetNameByLocator, &index);
+                    self.emit_binding_access(Opcode::SetNameByLocator, &index, &value);
                 }
             }
             Access::Property { access } => match access {
@@ -1589,8 +1593,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                 let name = name.to_js_string(self.interner());
                 let binding = self.lexical_scope.get_identifier_reference(name);
                 let index = self.get_or_insert_binding(binding);
-                self.emit_binding_access(Opcode::DeleteName, &index);
-                self.pop_into_register(dst);
+                self.emit_binding_access(Opcode::DeleteName, &index, dst);
             }
             Access::This => self.push_true(dst),
         }
@@ -1884,14 +1887,15 @@ impl<'ctx> ByteCompiler<'ctx> {
                     if let Some(expr) = variable.init() {
                         let binding = self.lexical_scope.get_identifier_reference(ident.clone());
                         let index = self.get_or_insert_binding(binding);
-                        self.emit_binding_access(Opcode::GetLocator, &index);
                         let value = self.register_allocator.alloc();
+                        self.emit_binding_access(Opcode::GetLocator, &index, &value);
                         self.compile_expr(expr, &value);
-                        self.push_from_register(&value);
+                        self.emit_binding_access(Opcode::SetNameByLocator, &index, &value);
                         self.register_allocator.dealloc(value);
-                        self.emit_binding_access(Opcode::SetNameByLocator, &index);
                     } else {
-                        self.emit_binding(BindingOpcode::Var, ident);
+                        let value = self.register_allocator.alloc();
+                        self.emit_binding(BindingOpcode::Var, ident, &value);
+                        self.register_allocator.dealloc(value);
                     }
                 }
                 Binding::Pattern(pattern) => {
@@ -1922,9 +1926,8 @@ impl<'ctx> ByteCompiler<'ctx> {
                             } else {
                                 self.push_undefined(&value);
                             };
-                            self.push_from_register(&value);
+                            self.emit_binding(BindingOpcode::InitLexical, ident, &value);
                             self.register_allocator.dealloc(value);
-                            self.emit_binding(BindingOpcode::InitLexical, ident);
                         }
                         Binding::Pattern(pattern) => {
                             let value = self.register_allocator.alloc();
@@ -1953,9 +1956,8 @@ impl<'ctx> ByteCompiler<'ctx> {
                                 .expect("const declaration must have initializer");
                             let value = self.register_allocator.alloc();
                             self.compile_expr(init, &value);
-                            self.push_from_register(&value);
+                            self.emit_binding(BindingOpcode::InitLexical, ident, &value);
                             self.register_allocator.dealloc(value);
-                            self.emit_binding(BindingOpcode::InitLexical, ident);
                         }
                         Binding::Pattern(pattern) => {
                             let value = self.register_allocator.alloc();
@@ -1998,21 +2000,21 @@ impl<'ctx> ByteCompiler<'ctx> {
                     let name = name.to_js_string(self.interner());
                     let binding = self.lexical_scope.get_identifier_reference(name.clone());
                     let index = self.get_or_insert_binding(binding);
-                    self.emit_binding_access(Opcode::GetName, &index);
 
+                    let value = self.register_allocator.alloc();
+                    self.emit_binding_access(Opcode::GetName, &index, &value);
                     match self.variable_scope.set_mutable_binding_var(name.clone()) {
                         Ok(binding) => {
                             let index = self.get_or_insert_binding(binding);
-                            self.emit_binding_access(Opcode::SetName, &index);
+                            self.emit_binding_access(Opcode::SetName, &index, &value);
                         }
                         Err(BindingLocatorError::MutateImmutable) => {
                             let index = self.get_or_insert_string(name);
                             self.emit_with_varying_operand(Opcode::ThrowMutateImmutable, index);
                         }
-                        Err(BindingLocatorError::Silent) => {
-                            self.emit_opcode(Opcode::Pop);
-                        }
+                        Err(BindingLocatorError::Silent) => {}
                     }
+                    self.register_allocator.dealloc(value);
                 }
             }
             Declaration::ClassDeclaration(class) => self.class(class.into(), false),
@@ -2077,11 +2079,11 @@ impl<'ctx> ByteCompiler<'ctx> {
         self.emit_get_function(&dst, index);
         match node_kind {
             NodeKind::Declaration => {
-                self.push_from_register(&dst);
                 self.emit_binding(
                     BindingOpcode::InitVar,
                     name.expect("function declaration must have a name")
                         .to_js_string(self.interner()),
+                    &dst,
                 );
             }
             NodeKind::Expression => {}

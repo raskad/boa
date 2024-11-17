@@ -62,15 +62,19 @@ impl ByteCompiler<'_> {
         self.push_empty_loop_jump_control(use_expr);
 
         if let Some((let_binding_indices, scope_index)) = &let_binding_indices {
+            let mut values = Vec::with_capacity(let_binding_indices.len());
             for index in let_binding_indices {
-                self.emit_binding_access(Opcode::GetName, index);
+                let value = self.register_allocator.alloc();
+                self.emit_binding_access(Opcode::GetName, index, &value);
+                values.push((index, value));
             }
 
             self.emit_opcode(Opcode::PopEnvironment);
             self.emit_with_varying_operand(Opcode::PushScope, *scope_index);
 
-            for index in let_binding_indices.iter().rev() {
-                self.emit_binding_access(Opcode::PutLexicalValue, index);
+            for (index, value) in values {
+                self.emit_binding_access(Opcode::PutLexicalValue, index, &value);
+                self.register_allocator.dealloc(value);
             }
         }
 
@@ -85,15 +89,19 @@ impl ByteCompiler<'_> {
             .set_start_address(start_address);
 
         if let Some((let_binding_indices, scope_index)) = &let_binding_indices {
+            let mut values = Vec::with_capacity(let_binding_indices.len());
             for index in let_binding_indices {
-                self.emit_binding_access(Opcode::GetName, index);
+                let value = self.register_allocator.alloc();
+                self.emit_binding_access(Opcode::GetName, index, &value);
+                values.push((index, value));
             }
 
             self.emit_opcode(Opcode::PopEnvironment);
             self.emit_with_varying_operand(Opcode::PushScope, *scope_index);
 
-            for index in let_binding_indices.iter().rev() {
-                self.emit_binding_access(Opcode::PutLexicalValue, index);
+            for (index, value) in values {
+                self.emit_binding_access(Opcode::PutLexicalValue, index, &value);
+                self.register_allocator.dealloc(value);
             }
         }
 
@@ -143,9 +151,8 @@ impl ByteCompiler<'_> {
                 if let Some(init) = var.init() {
                     let value = self.register_allocator.alloc();
                     self.compile_expr(init, &value);
-                    self.push_from_register(&value);
+                    self.emit_binding(BindingOpcode::InitVar, ident, &value);
                     self.register_allocator.dealloc(value);
-                    self.emit_binding(BindingOpcode::InitVar, ident);
                 }
             }
         }
@@ -191,9 +198,8 @@ impl ByteCompiler<'_> {
 
         match for_in_loop.initializer() {
             IterableLoopInitializer::Identifier(ident) => {
-                self.push_from_register(&value);
                 let ident = ident.to_js_string(self.interner());
-                self.emit_binding(BindingOpcode::InitVar, ident);
+                self.emit_binding(BindingOpcode::InitVar, ident, &value);
             }
             IterableLoopInitializer::Access(access) => {
                 self.access_set(Access::Property { access }, |_| return &value);
@@ -201,8 +207,7 @@ impl ByteCompiler<'_> {
             IterableLoopInitializer::Var(declaration) => match declaration.binding() {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
-                    self.push_from_register(&value);
-                    self.emit_binding(BindingOpcode::InitVar, ident);
+                    self.emit_binding(BindingOpcode::InitVar, ident, &value);
                 }
                 Binding::Pattern(pattern) => {
                     self.compile_declaration_pattern(pattern, BindingOpcode::InitVar, &value);
@@ -212,8 +217,7 @@ impl ByteCompiler<'_> {
             | IterableLoopInitializer::Const(declaration) => match declaration {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
-                    self.push_from_register(&value);
-                    self.emit_binding(BindingOpcode::InitLexical, ident);
+                    self.emit_binding(BindingOpcode::InitLexical, ident, &value);
                 }
                 Binding::Pattern(pattern) => {
                     self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &value);
@@ -317,9 +321,8 @@ impl ByteCompiler<'_> {
                 let ident = ident.to_js_string(self.interner());
                 match self.lexical_scope.set_mutable_binding(ident.clone()) {
                     Ok(binding) => {
-                        self.push_from_register(&value);
                         let index = self.get_or_insert_binding(binding);
-                        self.emit_binding_access(Opcode::DefInitVar, &index);
+                        self.emit_binding_access(Opcode::DefInitVar, &index, &value);
                     }
                     Err(BindingLocatorError::MutateImmutable) => {
                         let index = self.get_or_insert_string(ident);
@@ -337,8 +340,7 @@ impl ByteCompiler<'_> {
                 match declaration.binding() {
                     Binding::Identifier(ident) => {
                         let ident = ident.to_js_string(self.interner());
-                        self.push_from_register(&value);
-                        self.emit_binding(BindingOpcode::InitVar, ident);
+                        self.emit_binding(BindingOpcode::InitVar, ident, &value);
                     }
                     Binding::Pattern(pattern) => {
                         self.compile_declaration_pattern(pattern, BindingOpcode::InitVar, &value);
@@ -349,8 +351,7 @@ impl ByteCompiler<'_> {
             | IterableLoopInitializer::Const(declaration) => match declaration {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
-                    self.push_from_register(&value);
-                    self.emit_binding(BindingOpcode::InitLexical, ident);
+                    self.emit_binding(BindingOpcode::InitLexical, ident, &value);
                 }
                 Binding::Pattern(pattern) => {
                     self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &value);

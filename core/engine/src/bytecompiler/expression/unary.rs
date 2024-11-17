@@ -30,8 +30,7 @@ impl ByteCompiler<'_> {
                         let identifier = identifier.to_js_string(self.interner());
                         let binding = self.lexical_scope.get_identifier_reference(identifier);
                         let index = self.get_or_insert_binding(binding);
-                        self.emit_binding_access(Opcode::GetNameOrUndefined, &index);
-                        self.pop_into_register(dst);
+                        self.emit_binding_access(Opcode::GetNameOrUndefined, &index, dst);
                     }
                     expr => self.compile_expr(expr, dst),
                 }

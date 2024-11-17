@@ -1524,9 +1524,8 @@ impl SourceTextModule {
                         let index = compiler.get_or_insert_binding(binding);
                         let value = compiler.register_allocator.alloc();
                         compiler.push_undefined(&value);
-                        compiler.push_from_register(&value);
+                        compiler.emit_binding_access(Opcode::DefInitVar, &index, &value);
                         compiler.register_allocator.dealloc(value);
-                        compiler.emit_binding_access(Opcode::DefInitVar, &index);
 
                         // 3. Append dn to declaredVarNames.
                         declared_var_names.push(name);

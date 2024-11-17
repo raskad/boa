@@ -13,11 +13,10 @@ pub(crate) struct PopIntoLocal;
 impl PopIntoLocal {
     #[allow(clippy::unnecessary_wraps)]
     #[allow(clippy::needless_pass_by_value)]
-    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
-        context.vm.frame_mut().local_binings_initialized[dst as usize] = true;
-        let value = context.vm.pop();
-
+    fn operation(src: u32, dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
+        context.vm.frame_mut().local_binings_initialized[dst as usize] = true;
+        let value = context.vm.stack[(rp + src) as usize].clone();
         context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
@@ -29,18 +28,21 @@ impl Operation for PopIntoLocal {
     const COST: u8 = 2;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = u32::from(context.vm.read::<u8>());
-        Self::operation(dst, context)
+        let src = context.vm.read::<u8>().into();
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(src, dst, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = u32::from(context.vm.read::<u16>());
-        Self::operation(dst, context)
+        let src = context.vm.read::<u16>().into();
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(src, dst, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let src = context.vm.read::<u32>();
         let dst = context.vm.read::<u32>();
-        Self::operation(dst, context)
+        Self::operation(src, dst, context)
     }
 }
 
@@ -54,15 +56,15 @@ pub(crate) struct PushFromLocal;
 impl PushFromLocal {
     #[allow(clippy::unnecessary_wraps)]
     #[allow(clippy::needless_pass_by_value)]
-    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
-        if !context.vm.frame().local_binings_initialized[dst as usize] {
+    fn operation(src: u32, dst: u32, context: &mut Context) -> JsResult<CompletionType> {
+        if !context.vm.frame().local_binings_initialized[src as usize] {
             return Err(JsNativeError::reference()
                 .with_message("access to uninitialized binding")
                 .into());
         }
         let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + dst) as usize].clone();
-        context.vm.push(value);
+        let value = context.vm.stack[(rp + src) as usize].clone();
+        context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
 }
@@ -73,17 +75,20 @@ impl Operation for PushFromLocal {
     const COST: u8 = 2;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = u32::from(context.vm.read::<u8>());
-        Self::operation(dst, context)
+        let src = context.vm.read::<u8>().into();
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(src, dst, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = u32::from(context.vm.read::<u16>());
-        Self::operation(dst, context)
+        let src = context.vm.read::<u16>().into();
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(src, dst, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let src = context.vm.read::<u32>();
         let dst = context.vm.read::<u32>();
-        Self::operation(dst, context)
+        Self::operation(src, dst, context)
     }
 }

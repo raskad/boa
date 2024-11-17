@@ -102,10 +102,8 @@ impl ByteCompiler<'_> {
                                 self.patch_jump(skip);
                             }
 
-                            self.push_from_register(&dst);
+                            self.emit_binding(def, ident.to_js_string(self.interner()), &dst);
                             self.register_allocator.dealloc(dst);
-
-                            self.emit_binding(def, ident.to_js_string(self.interner()));
                         }
                         //  BindingRestProperty : ... BindingIdentifier
                         RestProperty { ident } => {
@@ -123,9 +121,8 @@ impl ByteCompiler<'_> {
                             while let Some(r) = excluded_keys_registers.pop() {
                                 self.register_allocator.dealloc(r);
                             }
-                            self.push_from_register(&value);
+                            self.emit_binding(def, ident.to_js_string(self.interner()), &value);
                             self.register_allocator.dealloc(value);
-                            self.emit_binding(def, ident.to_js_string(self.interner()));
                         }
                         AssignmentRestPropertyAccess { access } => {
                             let value = self.register_allocator.alloc();
@@ -357,10 +354,8 @@ impl ByteCompiler<'_> {
                     self.patch_jump(skip);
                 }
 
-                self.push_from_register(&value);
+                self.emit_binding(def, ident.to_js_string(self.interner()), &value);
                 self.register_allocator.dealloc(value);
-
-                self.emit_binding(def, ident.to_js_string(self.interner()));
             }
             PropertyAccess {
                 access,
@@ -414,9 +409,8 @@ impl ByteCompiler<'_> {
             SingleNameRest { ident } => {
                 let value = self.register_allocator.alloc();
                 self.emit2(Opcode::IteratorToArray, &[Operand2::Register(&value)]);
-                self.push_from_register(&value);
+                self.emit_binding(def, ident.to_js_string(self.interner()), &value);
                 self.register_allocator.dealloc(value);
-                self.emit_binding(def, ident.to_js_string(self.interner()));
             }
             PropertyAccessRest { access } => {
                 let value = self.register_allocator.alloc();

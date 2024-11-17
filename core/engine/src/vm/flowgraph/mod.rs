@@ -427,7 +427,7 @@ impl CodeBlock {
                 | Instruction::SuperCallPrepare { .. }
                 | Instruction::SetPrototype { .. }
                 | Instruction::IsObject { .. }
-                | Instruction::SetNameByLocator
+                | Instruction::SetNameByLocator { .. }
                 | Instruction::PushObjectEnvironment { .. }
                 | Instruction::PopPrivateEnvironment
                 | Instruction::ImportCall { .. }
@@ -437,8 +437,8 @@ impl CodeBlock {
                 | Instruction::MaybeException { .. }
                 | Instruction::CheckReturn
                 | Instruction::BindThisValue { .. }
-                | Instruction::CreateMappedArgumentsObject
-                | Instruction::CreateUnmappedArgumentsObject
+                | Instruction::CreateMappedArgumentsObject { .. }
+                | Instruction::CreateUnmappedArgumentsObject { .. }
                 | Instruction::CreateGlobalFunctionBinding { .. }
                 | Instruction::CreateGlobalVarBinding { .. }
                 | Instruction::PopIntoLocal { .. }

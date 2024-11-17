@@ -218,8 +218,11 @@ impl ByteCompiler<'_> {
         let mut static_elements = Vec::new();
 
         if outer_scope.is_some() {
-            self.push_from_register(&class_register);
-            self.emit_binding(BindingOpcode::InitLexical, class_name.clone());
+            self.emit_binding(
+                BindingOpcode::InitLexical,
+                class_name.clone(),
+                &class_register,
+            );
         }
 
         for element in class.elements {
@@ -740,9 +743,10 @@ impl ByteCompiler<'_> {
 
         self.emit_opcode(Opcode::PopPrivateEnvironment);
 
-        self.push_from_register(&class_register);
         if !expression {
-            self.emit_binding(BindingOpcode::InitVar, class_name);
+            self.emit_binding(BindingOpcode::InitVar, class_name, &class_register);
+        } else {
+            self.push_from_register(&class_register);
         }
 
         self.register_allocator.dealloc(class_register);

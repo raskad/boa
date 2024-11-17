@@ -13,12 +13,9 @@ use super::Operation;
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CreateMappedArgumentsObject;
 
-impl Operation for CreateMappedArgumentsObject {
-    const NAME: &'static str = "CreateMappedArgumentsObject";
-    const INSTRUCTION: &'static str = "INST - CreateMappedArgumentsObject";
-    const COST: u8 = 8;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl CreateMappedArgumentsObject {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let frame = context.vm.frame();
         let function_object = frame
             .function(&context.vm)
@@ -26,7 +23,6 @@ impl Operation for CreateMappedArgumentsObject {
             .expect("there should be a function object");
         let code = frame.code_block().clone();
         let args = frame.arguments(&context.vm).to_vec();
-
         let env = context
             .vm
             .environments
@@ -39,8 +35,29 @@ impl Operation for CreateMappedArgumentsObject {
             env,
             context,
         );
-        context.vm.push(arguments);
+        context.vm.stack[(rp + value) as usize] = arguments.into();
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for CreateMappedArgumentsObject {
+    const NAME: &'static str = "CreateMappedArgumentsObject";
+    const INSTRUCTION: &'static str = "INST - CreateMappedArgumentsObject";
+    const COST: u8 = 8;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, context)
     }
 }
 
@@ -51,15 +68,33 @@ impl Operation for CreateMappedArgumentsObject {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CreateUnmappedArgumentsObject;
 
+impl CreateUnmappedArgumentsObject {
+    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
+        let args = context.vm.frame().arguments(&context.vm).to_vec();
+        let arguments = UnmappedArguments::new(&args, context);
+        context.vm.stack[(rp + value) as usize] = arguments.into();
+        Ok(CompletionType::Normal)
+    }
+}
+
 impl Operation for CreateUnmappedArgumentsObject {
     const NAME: &'static str = "CreateUnmappedArgumentsObject";
     const INSTRUCTION: &'static str = "INST - CreateUnmappedArgumentsObject";
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let args = context.vm.frame().arguments(&context.vm).to_vec();
-        let arguments = UnmappedArguments::new(&args, context);
-        context.vm.push(arguments);
-        Ok(CompletionType::Normal)
+        let value = context.vm.read::<u8>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u16>().into();
+        Self::operation(value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let value = context.vm.read::<u32>().into();
+        Self::operation(value, context)
     }
 }
