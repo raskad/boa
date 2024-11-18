@@ -481,7 +481,7 @@ impl CodeBlock {
                 argument_count: value,
             }
             | Instruction::ConcatToString { value_count: value, .. }
-            | Instruction::GetArgument { index: value } => value.value().to_string(),
+            | Instruction::GetArgument { index: value, .. } => value.value().to_string(),
             Instruction::PushScope { index } | Instruction::CallEvalSpread { index } => {
                 index.value().to_string()
             }
@@ -689,6 +689,12 @@ impl CodeBlock {
                     class.to_string::<1>(*operand_types)
                 )
             }
+            | Instruction::RestParameterInit { dst } => {
+                format!(
+                    "dst:reg{}",
+                    dst.value(),
+                )
+            }
             Instruction::Pop
             | Instruction::PushZero { .. }
             | Instruction::PushOne { .. }
@@ -744,7 +750,7 @@ impl CodeBlock {
             | Instruction::IteratorReturn { .. }
             | Instruction::IteratorStackEmpty { .. }
             | Instruction::ValueNotNullOrUndefined { .. }
-            | Instruction::RestParameterInit
+            
             | Instruction::PushValueToArray { .. }
             | Instruction::PushElisionToArray { .. }
             | Instruction::PushIteratorToArray { .. }

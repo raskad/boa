@@ -404,7 +404,7 @@ impl CodeBlock {
                 | Instruction::IteratorReturn { .. }
                 | Instruction::IteratorStackEmpty { .. }
                 | Instruction::ValueNotNullOrUndefined { .. }
-                | Instruction::RestParameterInit
+                | Instruction::RestParameterInit { .. }
                 | Instruction::PushValueToArray { .. }
                 | Instruction::PushElisionToArray { .. }
                 | Instruction::PushIteratorToArray { .. }

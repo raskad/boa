@@ -11,18 +11,13 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RestParameterInit;
 
-impl Operation for RestParameterInit {
-    const NAME: &'static str = "RestParameterInit";
-    const INSTRUCTION: &'static str = "INST - RestParameterInit";
-    const COST: u8 = 6;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl RestParameterInit {
+    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let frame = context.vm.frame();
         let argument_count = frame.argument_count;
         let param_count = frame.code_block().parameter_length;
         let register_count = frame.code_block().register_count;
-
-        if argument_count >= param_count {
+        let array = if argument_count >= param_count {
             let rest_count = argument_count - param_count + 1;
 
             let len = context.vm.stack.len() as u32;
@@ -33,18 +28,38 @@ impl Operation for RestParameterInit {
 
             let array = Array::create_array_from_list(args.iter().cloned(), context);
             context.vm.stack.drain(start..end);
-            //context.vm.stack.splice(start..end, [array.clone().into()]);
 
             context.vm.frame_mut().rp -= (start..end).len() as u32;
             context.vm.frame_mut().argument_count -= (start..end).len() as u32;
 
-            context.vm.push(array);
+            array
         } else {
-            let array =
-                Array::array_create(0, None, context).expect("could not create an empty array");
-            context.vm.push(array);
-        }
+            Array::array_create(0, None, context).expect("could not create an empty array")
+        };
 
+        let rp = context.vm.frame().rp;
+        context.vm.stack[(rp + dst) as usize] = array.into();
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for RestParameterInit {
+    const NAME: &'static str = "RestParameterInit";
+    const INSTRUCTION: &'static str = "INST - RestParameterInit";
+    const COST: u8 = 6;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>();
+        Self::operation(dst, context)
     }
 }

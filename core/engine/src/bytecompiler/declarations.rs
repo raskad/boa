@@ -1076,14 +1076,15 @@ impl ByteCompiler<'_> {
         // 26. Else,
         //    a. Perform ? IteratorBindingInitialization of formals with arguments iteratorRecord and env.
         for (i, parameter) in formals.as_ref().iter().enumerate() {
-            if parameter.is_rest_param() {
-                self.emit_opcode(Opcode::RestParameterInit);
-            } else {
-                self.emit_with_varying_operand(Opcode::GetArgument, i as u32);
-            }
-
             let value = self.register_allocator.alloc();
-            self.pop_into_register(&value);
+            if parameter.is_rest_param() {
+                self.emit2(Opcode::RestParameterInit, &[Operand2::Register(&value)]);
+            } else {
+                self.emit2(
+                    Opcode::GetArgument,
+                    &[Operand2::Varying(i as u32), Operand2::Register(&value)],
+                );
+            }
 
             match parameter.variable().binding() {
                 Binding::Identifier(ident) => {

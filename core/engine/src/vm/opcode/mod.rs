@@ -1067,7 +1067,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetArgument { index: VaryingOperand },
+    GetArgument { index: VaryingOperand, dst: VaryingOperand },
 
     /// Find a binding on the environment chain and push its value.
     ///
@@ -2017,7 +2017,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: `argument_1` .. `argument_n` **=>** `array`
-    RestParameterInit,
+    RestParameterInit { dst: VaryingOperand },
 
     /// Yields from the current generator execution.
     ///
