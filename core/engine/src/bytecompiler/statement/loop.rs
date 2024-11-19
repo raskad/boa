@@ -383,9 +383,8 @@ impl ByteCompiler<'_> {
             let exit = self.jump();
             self.patch_handler(handler_index);
 
-            self.emit_opcode(Opcode::Exception);
             let error = self.register_allocator.alloc();
-            self.pop_into_register(&error);
+            self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
 
             // NOTE: Capture throw of the iterator close and ignore it.
             let handler_index = self.push_handler();

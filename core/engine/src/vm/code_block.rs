@@ -726,7 +726,7 @@ impl CodeBlock {
             | Instruction::ToPropertyKey { .. }
             | Instruction::Throw { .. }
             | Instruction::ReThrow
-            | Instruction::Exception
+            | Instruction::Exception { .. }
             | Instruction::MaybeException { .. }
             | Instruction::This { .. }
             | Instruction::ThisForObjectEnvironmentName { .. }

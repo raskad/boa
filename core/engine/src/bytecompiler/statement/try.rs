@@ -50,13 +50,14 @@ impl ByteCompiler<'_> {
             None
         };
 
-        self.emit_opcode(Opcode::Exception);
+        let error = self.register_allocator.alloc();
+        self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
+
         if let Some(catch) = t.catch() {
-            let error = self.register_allocator.alloc();
-            self.pop_into_register(&error);
             self.compile_catch_stmt(catch, &error, use_expr);
-            self.register_allocator.dealloc(error);
         } else {
+            self.push_from_register(&error);
+
             // Note: implicit !has_catch
             if self.is_generator() && has_finally {
                 // Is this a generator `return()` empty exception?
@@ -76,6 +77,8 @@ impl ByteCompiler<'_> {
             self.push_from_register(&value);
             self.register_allocator.dealloc(value);
         }
+
+        self.register_allocator.dealloc(error);
 
         if has_finally {
             if has_catch {

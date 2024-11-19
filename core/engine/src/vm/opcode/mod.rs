@@ -1632,7 +1632,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** exception
-    Exception,
+    Exception { dst: VaryingOperand },
 
     /// Get the thrown pending exception if it's set and push `true`, otherwise push only `false`.
     ///

@@ -83,19 +83,16 @@ impl Operation for ReThrow {
 /// `Exception` implements the Opcode Operation for `Opcode::Exception`
 ///
 /// Operation:
-///  - Get the thrown exception and push on the stack.
+///  - Get the thrown exception and push it on the stack.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Exception;
 
-impl Operation for Exception {
-    const NAME: &'static str = "Exception";
-    const INSTRUCTION: &'static str = "INST - Exception";
-    const COST: u8 = 2;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl Exception {
+    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         if let Some(error) = context.vm.pending_exception.take() {
             let error = error.to_opaque(context);
-            context.vm.push(error);
+            let rp = context.vm.frame().rp;
+            context.vm.stack[(rp + dst) as usize] = error;
             return Ok(CompletionType::Normal);
         }
 
@@ -105,6 +102,27 @@ impl Operation for Exception {
         //
         // This should be unreachable for regular functions.
         ReThrow::execute(context)
+    } 
+}
+
+impl Operation for Exception {
+    const NAME: &'static str = "Exception";
+    const INSTRUCTION: &'static str = "INST - Exception";
+    const COST: u8 = 2;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>();
+        Self::operation(dst, context)
     }
 }
 

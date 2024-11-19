@@ -431,7 +431,7 @@ impl CodeBlock {
                 | Instruction::PushObjectEnvironment { .. }
                 | Instruction::PopPrivateEnvironment
                 | Instruction::ImportCall { .. }
-                | Instruction::Exception
+                | Instruction::Exception { .. }
                 | Instruction::MaybeException { .. }
                 | Instruction::CheckReturn
                 | Instruction::BindThisValue { .. }
