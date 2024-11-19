@@ -1266,10 +1266,21 @@ impl<'ctx> ByteCompiler<'ctx> {
         self.emit_push_integer(resume_kind as i32, dst);
     }
 
-    fn jump_if_not_resume_kind(&mut self, resume_kind: GeneratorResumeKind) -> Label {
-        let label = self.emit_opcode_with_operand(Opcode::JumpIfNotResumeKind);
-        self.emit_u8(resume_kind as u8);
-        label
+    fn jump_if_not_resume_kind(
+        &mut self,
+        resume_kind: GeneratorResumeKind,
+        value: &Register,
+    ) -> Label {
+        let index = self.next_opcode_location();
+        self.emit2(
+            Opcode::JumpIfNotResumeKind,
+            &[
+                Operand2::U32(Self::DUMMY_ADDRESS),
+                Operand2::U8(resume_kind as u8),
+                Operand2::Register(value),
+            ],
+        );
+        Label { index }
     }
 
     /// Push a jump table with `count` of entries.

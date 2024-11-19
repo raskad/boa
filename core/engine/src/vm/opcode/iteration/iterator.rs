@@ -41,12 +41,9 @@ impl Operation for IteratorNext {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IteratorFinishAsyncNext;
 
-impl Operation for IteratorFinishAsyncNext {
-    const NAME: &'static str = "IteratorFinishAsyncNext";
-    const INSTRUCTION: &'static str = "INST - IteratorFinishAsyncNext";
-    const COST: u8 = 5;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+impl IteratorFinishAsyncNext {
+    fn operation(resume_kind: u32, value: u32, context: &mut Context) -> JsResult<CompletionType> {
+        let rp = context.vm.frame().rp;
         let mut iterator = context
             .vm
             .frame_mut()
@@ -54,25 +51,44 @@ impl Operation for IteratorFinishAsyncNext {
             .pop()
             .expect("iterator on the call frame must exist");
 
-        let generator_resume_kind = context.vm.pop().to_generator_resume_kind();
+        let resume_kind = context.vm.stack[(rp + resume_kind) as usize].to_generator_resume_kind();
 
-        if matches!(generator_resume_kind, GeneratorResumeKind::Throw) {
-            context.vm.push(generator_resume_kind);
-
+        if matches!(resume_kind, GeneratorResumeKind::Throw) {
             // If after awaiting the `next` call the iterator returned an error, it can be considered
             // as poisoned, meaning we can remove it from the iterator stack to avoid calling
             // cleanup operations on it.
             return Ok(CompletionType::Normal);
         }
 
-        let next_result = context.vm.pop();
+        let value = context.vm.stack[(rp + value) as usize].clone();
 
-        iterator.update_result(next_result, context)?;
-
+        iterator.update_result(value, context)?;
         context.vm.frame_mut().iterators.push(iterator);
-
-        context.vm.push(generator_resume_kind);
         Ok(CompletionType::Normal)
+    }
+}
+
+impl Operation for IteratorFinishAsyncNext {
+    const NAME: &'static str = "IteratorFinishAsyncNext";
+    const INSTRUCTION: &'static str = "INST - IteratorFinishAsyncNext";
+    const COST: u8 = 5;
+
+    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+        let resume_kind = context.vm.read::<u8>().into();
+        let value = context.vm.read::<u8>().into();
+        Self::operation(resume_kind, value, context)
+    }
+
+    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let resume_kind = context.vm.read::<u16>().into();
+        let value = context.vm.read::<u16>().into();
+        Self::operation(resume_kind, value, context)
+    }
+
+    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+        let resume_kind = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>().into();
+        Self::operation(resume_kind, value, context)
     }
 }
 

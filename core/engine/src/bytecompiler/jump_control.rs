@@ -16,6 +16,8 @@ use crate::{
 use bitflags::bitflags;
 use boa_interner::Sym;
 
+use super::Operand2;
+
 /// An actions to be performed for the local control flow.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum JumpRecordAction {
@@ -126,7 +128,10 @@ impl JumpRecord {
                 return_value_on_stack,
             } => {
                 if return_value_on_stack {
-                    compiler.emit_opcode(Opcode::SetAccumulatorFromStack);
+                    let value = compiler.register_allocator.alloc();
+                    compiler.pop_into_register(&value);
+                    compiler.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
+                    compiler.register_allocator.dealloc(value);
                 }
 
                 match (compiler.is_async(), compiler.is_generator()) {

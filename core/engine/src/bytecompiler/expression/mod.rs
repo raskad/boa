@@ -187,8 +187,14 @@ impl ByteCompiler<'_> {
                 self.compile_expr(expr.target(), &dst);
                 self.push_from_register(&dst);
                 self.emit_opcode(Opcode::Await);
-                self.emit_opcode(Opcode::GeneratorNext);
+                let resume_kind = self.register_allocator.alloc();
+                self.pop_into_register(&resume_kind);
                 self.pop_into_register(&dst);
+                self.emit2(
+                    Opcode::GeneratorNext,
+                    &[Operand2::Register(&resume_kind), Operand2::Register(&dst)],
+                );
+                self.register_allocator.dealloc(resume_kind);
             }
             Expression::Yield(r#yield) => {
                 if let Some(expr) = r#yield.target() {
@@ -228,10 +234,7 @@ impl ByteCompiler<'_> {
 
                     if self.is_async() {
                         self.emit2(Opcode::IteratorValue, &[Operand2::Register(dst)]);
-                        self.push_from_register(dst);
-                        self.async_generator_yield();
-                        self.pop_into_register(&resume_kind);
-                        self.pop_into_register(dst);
+                        self.async_generator_yield(dst, &resume_kind);
                     } else {
                         self.emit2(Opcode::IteratorResult, &[Operand2::Register(dst)]);
                         self.push_from_register(dst);
@@ -261,9 +264,7 @@ impl ByteCompiler<'_> {
 
                     self.patch_jump(exit);
                 } else {
-                    self.push_from_register(&dst);
-                    self.r#yield();
-                    self.pop_into_register(dst);
+                    self.r#yield(&dst);
                 }
             }
             Expression::TaggedTemplate(template) => {

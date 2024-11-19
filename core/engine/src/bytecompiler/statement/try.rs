@@ -160,11 +160,14 @@ impl ByteCompiler<'_> {
 
     pub(crate) fn compile_finally_stmt(&mut self, finally: &Finally, has_catch: bool) {
         // TODO: We could probably remove the Get/SetAccumulatorFromStack if we check that there is no break/continues statements.
-        self.current_stack_value_count += 1;
-        self.emit_opcode(Opcode::GetAccumulator);
+        let value = self.register_allocator.alloc();
+        self.emit2(
+            Opcode::SetRegisterFromAccumulator,
+            &[Operand2::Register(&value)],
+        );
         self.compile_catch_finally_block(finally.block(), true);
-        self.emit_opcode(Opcode::SetAccumulatorFromStack);
-        self.current_stack_value_count -= 1;
+        self.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
+        self.register_allocator.dealloc(value);
 
         let value = self.register_allocator.alloc();
         self.pop_into_register(&value);
@@ -215,9 +218,8 @@ impl ByteCompiler<'_> {
                 )) => {
                     let value = self.register_allocator.alloc();
                     self.push_undefined(&value);
-                    self.push_from_register(&value);
+                    self.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
                     self.register_allocator.dealloc(value);
-                    self.emit_opcode(Opcode::SetAccumulatorFromStack);
                     break;
                 }
                 Some(StatementListItem::Statement(Statement::Block(block))) => {

@@ -3,7 +3,7 @@ use crate::{
     vm::{GeneratorResumeKind, Opcode},
 };
 
-use super::{ByteCompiler, Literal, Operand, Operand2};
+use super::{ByteCompiler, Literal, Operand, Operand2, Register};
 
 impl ByteCompiler<'_> {
     /// Closes an iterator
@@ -32,8 +32,14 @@ impl ByteCompiler<'_> {
         if async_ {
             self.push_from_register(&value);
             self.emit_opcode(Opcode::Await);
-            self.emit_opcode(Opcode::GeneratorNext);
+            let resume_kind = self.register_allocator.alloc();
+            self.pop_into_register(&resume_kind);
             self.pop_into_register(&value);
+            self.emit2(
+                Opcode::GeneratorNext,
+                &[Operand2::Register(&resume_kind), Operand2::Register(&value)],
+            );
+            self.register_allocator.dealloc(resume_kind);
         }
 
         self.emit2(Opcode::IsObject, &[Operand2::Register(&value)]);
@@ -72,27 +78,38 @@ impl ByteCompiler<'_> {
     /// - value **=>** received
     ///
     /// [yield]: https://tc39.es/ecma262/#sec-yield
-    pub(super) fn r#yield(&mut self) {
+    pub(super) fn r#yield(&mut self, value: &Register) {
+        let resume_kind = self.register_allocator.alloc();
+
         // 1. Let generatorKind be GetGeneratorKind().
         if self.is_async() {
             // 2. If generatorKind is async, return ? AsyncGeneratorYield(? Await(value)).
+            self.push_from_register(&value);
             self.emit_opcode(Opcode::Await);
-            self.emit_opcode(Opcode::GeneratorNext);
-            self.async_generator_yield();
+            self.pop_into_register(&resume_kind);
+            self.pop_into_register(value);
+            self.emit2(
+                Opcode::GeneratorNext,
+                &[Operand2::Register(&resume_kind), Operand2::Register(value)],
+            );
+            self.async_generator_yield(value, &resume_kind);
         } else {
             // 3. Otherwise, return ? GeneratorYield(CreateIterResultObject(value, false)).
-            let value = self.register_allocator.alloc();
-            self.pop_into_register(&value);
             self.emit2(
                 Opcode::CreateIteratorResult,
-                &[Operand2::Register(&value), Operand2::Bool(false)],
+                &[Operand2::Register(value), Operand2::Bool(false)],
             );
-            self.push_from_register(&value);
-            self.register_allocator.dealloc(value);
+            self.push_from_register(value);
             self.emit_opcode(Opcode::GeneratorYield);
+            self.pop_into_register(&resume_kind);
+            self.pop_into_register(value);
         }
 
-        self.emit_opcode(Opcode::GeneratorNext);
+        self.emit2(
+            Opcode::GeneratorNext,
+            &[Operand2::Register(&resume_kind), Operand2::Register(value)],
+        );
+        self.register_allocator.dealloc(resume_kind);
     }
 
     /// Yields from the current async generator.
@@ -103,37 +120,26 @@ impl ByteCompiler<'_> {
     /// - value **=>** resume_kind, received
     ///
     /// [async_yield]: https://tc39.es/ecma262/#sec-asyncgeneratoryield
-    pub(super) fn async_generator_yield(&mut self) {
-        // Stack: value
+    pub(super) fn async_generator_yield(&mut self, value: &Register, resume_kind: &Register) {
+        self.push_from_register(value);
         self.emit_opcode(Opcode::AsyncGeneratorYield);
+        self.pop_into_register(resume_kind);
+        self.pop_into_register(value);
 
-        // Stack: resume_kind, received
-        let non_return_resume = self.jump_if_not_resume_kind(GeneratorResumeKind::Return);
+        let non_return_resume =
+            self.jump_if_not_resume_kind(GeneratorResumeKind::Return, resume_kind);
 
-        // Stack: resume_kind(Return), received
-        self.emit_opcode(Opcode::Pop);
-
-        // Stack: received
+        self.push_from_register(value);
         self.emit_opcode(Opcode::Await);
+        self.pop_into_register(resume_kind);
+        self.pop_into_register(value);
 
-        // Stack: resume_kind, received
-        let non_normal_resume = self.jump_if_not_resume_kind(GeneratorResumeKind::Normal);
+        let non_normal_resume =
+            self.jump_if_not_resume_kind(GeneratorResumeKind::Normal, resume_kind);
 
-        // Stack: resume_kind(Normal), received
-        self.emit_opcode(Opcode::Pop);
+        self.emit_resume_kind(GeneratorResumeKind::Return, &resume_kind);
 
-        // Stack: received
-        let value = self.register_allocator.alloc();
-        self.emit_resume_kind(GeneratorResumeKind::Return, &value);
-        self.push_from_register(&value);
-        self.register_allocator.dealloc(value);
-
-        // Stack: resume_kind(Return) received
         self.patch_jump(non_normal_resume);
-
-        // Stack: resume_kind, received
         self.patch_jump(non_return_resume);
-
-        // Stack: resume_kind, received
     }
 }

@@ -294,11 +294,24 @@ impl ByteCompiler<'_> {
         if for_of_loop.r#await() {
             let value = self.register_allocator.alloc();
             self.emit2(Opcode::IteratorResult, &[Operand2::Register(&value)]);
+
+            self.push_from_register(&value);
+            self.emit_opcode(Opcode::Await);
+            let resume_kind = self.register_allocator.alloc();
+            self.pop_into_register(&resume_kind);
+            self.pop_into_register(&value);
+
+            self.emit2(
+                Opcode::IteratorFinishAsyncNext,
+                &[Operand2::Register(&resume_kind), Operand2::Register(&value)],
+            );
+            self.emit2(
+                Opcode::GeneratorNext,
+                &[Operand2::Register(&resume_kind), Operand2::Register(&value)],
+            );
             self.push_from_register(&value);
             self.register_allocator.dealloc(value);
-            self.emit_opcode(Opcode::Await);
-            self.emit_opcode(Opcode::IteratorFinishAsyncNext);
-            self.emit_opcode(Opcode::GeneratorNext);
+            self.register_allocator.dealloc(resume_kind);
         }
 
         let value = self.register_allocator.alloc();

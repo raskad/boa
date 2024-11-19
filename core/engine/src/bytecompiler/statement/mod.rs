@@ -48,9 +48,8 @@ impl ByteCompiler<'_> {
                 if root_statement && (use_expr || self.jump_control_info_has_use_expr()) {
                     let value = self.register_allocator.alloc();
                     self.push_undefined(&value);
-                    self.push_from_register(&value);
+                    self.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
                     self.register_allocator.dealloc(value);
-                    self.emit_opcode(Opcode::SetAccumulatorFromStack);
                 }
                 self.compile_continue(*node, use_expr);
             }
@@ -58,9 +57,8 @@ impl ByteCompiler<'_> {
                 if root_statement && (use_expr || self.jump_control_info_has_use_expr()) {
                     let value = self.register_allocator.alloc();
                     self.push_undefined(&value);
-                    self.push_from_register(&value);
+                    self.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
                     self.register_allocator.dealloc(value);
-                    self.emit_opcode(Opcode::SetAccumulatorFromStack);
                 }
                 self.compile_break(*node, use_expr);
             }
@@ -74,23 +72,28 @@ impl ByteCompiler<'_> {
                 self.compile_switch(switch, use_expr);
             }
             Statement::Return(ret) => {
+                let value = self.register_allocator.alloc();
                 if let Some(expr) = ret.target() {
-                    let value = self.register_allocator.alloc();
                     self.compile_expr(expr, &value);
-                    self.push_from_register(&value);
-                    self.register_allocator.dealloc(value);
 
                     if self.is_async_generator() {
+                        self.push_from_register(&value);
                         self.emit_opcode(Opcode::Await);
-                        self.emit_opcode(Opcode::GeneratorNext);
+                        let resume_kind = self.register_allocator.alloc();
+                        self.pop_into_register(&resume_kind);
+                        self.pop_into_register(&value);
+                        self.emit2(
+                            Opcode::GeneratorNext,
+                            &[Operand2::Register(&resume_kind), Operand2::Register(&value)],
+                        );
+                        self.register_allocator.dealloc(resume_kind);
                     }
                 } else {
-                    let value = self.register_allocator.alloc();
                     self.push_undefined(&value);
-                    self.push_from_register(&value);
-                    self.register_allocator.dealloc(value);
                 }
 
+                self.push_from_register(&value);
+                self.register_allocator.dealloc(value);
                 self.r#return(true);
             }
             Statement::Try(t) => self.compile_try(t, use_expr),
@@ -98,8 +101,7 @@ impl ByteCompiler<'_> {
                 let value = self.register_allocator.alloc();
                 self.compile_expr(expr, &value);
                 if use_expr {
-                    self.push_from_register(&value);
-                    self.emit_opcode(Opcode::SetAccumulatorFromStack);
+                    self.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
                 }
                 self.register_allocator.dealloc(value);
             }

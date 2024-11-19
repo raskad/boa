@@ -631,7 +631,7 @@ impl CodeBlock {
                 }
                 operands
             }
-            Instruction::JumpIfNotResumeKind { exit, resume_kind } => {
+            Instruction::JumpIfNotResumeKind { exit, resume_kind, .. } => {
                 format!("ResumeKind: {resume_kind:?}, exit: {exit}")
             }
             Instruction::CreateIteratorResult { done, .. } => {
@@ -742,7 +742,7 @@ impl CodeBlock {
             | Instruction::GetIterator { .. }
             | Instruction::GetAsyncIterator { .. }
             | Instruction::IteratorNext
-            | Instruction::IteratorFinishAsyncNext
+            | Instruction::IteratorFinishAsyncNext { .. }
             | Instruction::IteratorValue { .. }
             | Instruction::IteratorResult { .. }
             | Instruction::IteratorDone { .. }
@@ -757,7 +757,7 @@ impl CodeBlock {
             | Instruction::PushNewArray { .. }
             | Instruction::GeneratorYield
             | Instruction::AsyncGeneratorYield
-            | Instruction::GeneratorNext
+            | Instruction::GeneratorNext { .. }
             | Instruction::SuperCallDerived
             | Instruction::Await
             | Instruction::NewTarget { .. }
@@ -772,8 +772,6 @@ impl CodeBlock {
             | Instruction::SetNameByLocator { .. }
             | Instruction::PopPrivateEnvironment
             | Instruction::ImportCall { .. }
-            | Instruction::GetAccumulator
-            | Instruction::SetAccumulatorFromStack
             | Instruction::BindThisValue { .. }
             | Instruction::CreateMappedArgumentsObject { .. }
             | Instruction::CreateUnmappedArgumentsObject { .. } => String::new(),
@@ -836,7 +834,9 @@ impl CodeBlock {
             | Instruction::Reserved55
             | Instruction::Reserved56
             | Instruction::Reserved57
-            | Instruction::Reserved58 => unreachable!("Reserved opcodes are unreachable"),
+            | Instruction::Reserved58
+            | Instruction::Reserved59
+            | Instruction::Reserved60 => unreachable!("Reserved opcodes are unreachable"),
         }
     }
 }

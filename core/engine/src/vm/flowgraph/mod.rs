@@ -396,7 +396,7 @@ impl CodeBlock {
                 | Instruction::GetIterator { .. }
                 | Instruction::GetAsyncIterator { .. }
                 | Instruction::IteratorNext
-                | Instruction::IteratorFinishAsyncNext
+                | Instruction::IteratorFinishAsyncNext { .. }
                 | Instruction::IteratorValue { .. }
                 | Instruction::IteratorResult { .. }
                 | Instruction::IteratorDone { .. }
@@ -414,7 +414,7 @@ impl CodeBlock {
                 | Instruction::AsyncGeneratorClose
                 | Instruction::CreatePromiseCapability
                 | Instruction::CompletePromiseCapability
-                | Instruction::GeneratorNext
+                | Instruction::GeneratorNext { .. }
                 | Instruction::PushClassField { .. }
                 | Instruction::SuperCallDerived
                 | Instruction::Await
@@ -431,8 +431,6 @@ impl CodeBlock {
                 | Instruction::PushObjectEnvironment { .. }
                 | Instruction::PopPrivateEnvironment
                 | Instruction::ImportCall { .. }
-                | Instruction::GetAccumulator
-                | Instruction::SetAccumulatorFromStack
                 | Instruction::Exception
                 | Instruction::MaybeException { .. }
                 | Instruction::CheckReturn
@@ -508,7 +506,9 @@ impl CodeBlock {
                 | Instruction::Reserved55
                 | Instruction::Reserved56
                 | Instruction::Reserved57
-                | Instruction::Reserved58 => unreachable!("Reserved opcodes are unreachable"),
+                | Instruction::Reserved58
+                | Instruction::Reserved59
+                | Instruction::Reserved60 => unreachable!("Reserved opcodes are unreachable"),
             }
         }
 

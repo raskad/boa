@@ -1807,20 +1807,6 @@ generate_opcodes! {
     /// Stack: **=>** resume_kind
     Generator { r#async: bool },
 
-    /// Get return value of a function.
-    ///
-    /// Operands:
-    ///
-    /// Stack: **=>** value
-    GetAccumulator,
-
-    /// Set return value of a function.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>**
-    SetAccumulatorFromStack,
-
     /// Set return value of a function.
     ///
     /// Operands:
@@ -1947,8 +1933,8 @@ generate_opcodes! {
     /// Stack: `next_result`, `resume_kind` **=>** `resume_kind`
     ///
     /// Iterator Stack: iterator **=>** iterator
-    IteratorFinishAsyncNext,
-
+    IteratorFinishAsyncNext { resume_kind: VaryingOperand, value: VaryingOperand },
+    
     /// Gets the `value` property of the current iterator record.
     ///
     /// Stack: **=>** `value`
@@ -2034,7 +2020,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: `resume_kind`, value **=>** value
-    GeneratorNext,
+    GeneratorNext { resume_kind: VaryingOperand, value: VaryingOperand },
 
     /// Yields from the current async generator execution.
     ///
@@ -2064,7 +2050,7 @@ generate_opcodes! {
     /// Operands: `exit`: `u32`, `resume_kind`: `u8`.
     ///
     /// Stack: `resume_kind` **=>** `resume_kind`
-    JumpIfNotResumeKind { exit: u32, resume_kind: GeneratorResumeKind },
+    JumpIfNotResumeKind { exit: u32, resume_kind: GeneratorResumeKind, value: VaryingOperand },
 
     /// Delegates the current async generator function to another iterator.
     ///
@@ -2343,6 +2329,10 @@ generate_opcodes! {
     Reserved57 => Reserved,
     /// Reserved [`Opcode`].
     Reserved58 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved59 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved60 => Reserved,
 }
 
 /// Specific opcodes for bindings.

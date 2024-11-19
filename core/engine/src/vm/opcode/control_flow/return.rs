@@ -77,44 +77,6 @@ impl Operation for CheckReturn {
     }
 }
 
-/// `GetAccumulator` implements the Opcode Operation for `Opcode::GetAccumulator`
-///
-/// Operation:
-///  - Gets the accumulator value, which is the implicit return value of a function.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct GetAccumulator;
-
-impl Operation for GetAccumulator {
-    const NAME: &'static str = "GetAccumulator";
-    const INSTRUCTION: &'static str = "INST - GetAccumulator";
-    const COST: u8 = 2;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.get_return_value();
-        context.vm.push(value);
-        Ok(CompletionType::Normal)
-    }
-}
-
-/// `SetAccumulatorFromStack` implements the Opcode Operation for `Opcode::SetAccumulatorFromStack`
-///
-/// Operation:
-///  - Sets the accumulator value, which is the implicit return value of a function.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct SetAccumulatorFromStack;
-
-impl Operation for SetAccumulatorFromStack {
-    const NAME: &'static str = "SetAccumulatorFromStack";
-    const INSTRUCTION: &'static str = "INST - SetAccumulatorFromStack";
-    const COST: u8 = 2;
-
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-        context.vm.set_return_value(value);
-        Ok(CompletionType::Normal)
-    }
-}
-
 /// `SetAccumulator` implements the Opcode Operation for `Opcode::SetAccumulator`
 ///
 /// Operation:
