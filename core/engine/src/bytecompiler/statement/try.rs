@@ -10,18 +10,38 @@ use boa_ast::{
 
 use super::Operand2;
 
+enum TryVariant<'a> {
+    Catch(&'a Catch),
+    Finally((&'a Finally, Register)),
+    CatchFinally((&'a Catch, &'a Finally, Register)),
+}
+
+impl TryVariant<'_> {
+    fn finaly_re_throw_register(&self) -> Option<&Register> {
+        match self {
+            TryVariant::Catch(_) => None,
+            TryVariant::Finally((_, r)) => Some(r),
+            TryVariant::CatchFinally((_, _, r)) => Some(r),
+        }
+    }
+}
+
 impl ByteCompiler<'_> {
     /// Compile try statement.
     pub(crate) fn compile_try(&mut self, t: &Try, use_expr: bool) {
-        let has_catch = t.catch().is_some();
-        let has_finally = t.finally().is_some();
-
-        let finally_re_throw = if t.finally().is_some() {
-            let finally_re_throw = self.register_allocator.alloc();
-            self.push_try_with_finally_control_info(&finally_re_throw, use_expr);
-            Some(finally_re_throw)
-        } else {
-            None
+        let variant = match (t.catch(), t.finally()) {
+            (Some(catch), Some(finally)) => {
+                let finally_re_throw = self.register_allocator.alloc();
+                self.push_try_with_finally_control_info(&finally_re_throw, use_expr);
+                TryVariant::CatchFinally((catch, finally, finally_re_throw))
+            }
+            (Some(catch), None) => TryVariant::Catch(catch),
+            (None, Some(finally)) => {
+                let finally_re_throw = self.register_allocator.alloc();
+                self.push_try_with_finally_control_info(&finally_re_throw, use_expr);
+                TryVariant::Finally((finally, finally_re_throw))
+            }
+            (None, None) => unreachable!("try statement must have either catch or finally"),
         };
 
         let try_handler = self.push_handler();
@@ -29,7 +49,7 @@ impl ByteCompiler<'_> {
         // Compile try block
         self.compile_block(t.block(), use_expr);
 
-        if let Some(finally_re_throw) = &finally_re_throw {
+        if let Some(finally_re_throw) = variant.finaly_re_throw_register() {
             self.push_false(finally_re_throw);
         }
 
@@ -37,89 +57,105 @@ impl ByteCompiler<'_> {
 
         self.patch_handler(try_handler);
 
-        // If it has a finally but no catch and we are in a generator, then we still need it
-        // to handle `return()` call on generators.
-        let catch_handler = if has_finally && (self.is_generator() || has_catch) {
-            Some(self.push_handler())
-        } else {
-            None
-        };
+        match variant {
+            TryVariant::Catch(c) => {
+                let error = self.register_allocator.alloc();
+                self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
+                self.compile_catch_stmt(c, &error, use_expr);
+                self.register_allocator.dealloc(error);
+                self.patch_jump(finally);
+            }
+            TryVariant::CatchFinally((c, f, finally_re_throw)) => {
+                let catch_handler = self.push_handler();
+                let error = self.register_allocator.alloc();
+                self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
+                self.compile_catch_stmt(c, &error, use_expr);
+                self.push_false(&finally_re_throw);
 
-        let error = self.register_allocator.alloc();
-        self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
+                let no_throw = self.jump();
+                self.patch_handler(catch_handler);
+                self.push_true(&finally_re_throw);
 
-        let mut re_throw_generator = None;
+                self.patch_jump(no_throw);
+                self.patch_jump(finally);
 
-        if let Some(catch) = t.catch() {
-            self.compile_catch_stmt(catch, &error, use_expr);
-        } else {
-            // Note: implicit !has_catch
-            if self.is_generator() && has_finally {
+                let finally_start = self.next_opcode_location();
+                self.jump_info
+                    .last_mut()
+                    .expect("there should be a try block")
+                    .flags |= JumpControlInfoFlags::IN_FINALLY;
+                self.compile_finally_stmt(f);
+                self.register_allocator.dealloc(error);
+                let do_not_throw_exit = self.jump_if_false(&finally_re_throw);
+                self.emit_opcode(Opcode::ReThrow);
+                self.patch_jump(do_not_throw_exit);
+                self.pop_try_with_finally_control_info(finally_start);
+                self.register_allocator.dealloc(finally_re_throw);
+            }
+            TryVariant::Finally((f, finally_re_throw)) if self.is_generator() => {
+                let catch_handler = self.push_handler();
+                let error = self.register_allocator.alloc();
+                self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
                 // Is this a generator `return()` empty exception?
                 //
                 // This is false because when the `Exception` opcode is executed,
                 // it rethrows the empty exception, so if we reached this section,
                 // that means it's not an `return()` generator exception.
-                let value = self.register_allocator.alloc();
-                self.push_false(&value);
-                re_throw_generator = Some(value);
-            }
+                let re_throw_generator = self.register_allocator.alloc();
+                self.push_false(&re_throw_generator);
 
-            // Should we rethrow the exception?
-            self.push_true(finally_re_throw.as_ref().expect("must exist"));
-        }
+                // Should we rethrow the exception?
+                self.push_true(&finally_re_throw);
 
-        if let Some(finally_re_throw) = &finally_re_throw {
-            if has_catch {
-                self.push_false(finally_re_throw);
-            }
-
-            let exit = self.jump();
-
-            if let Some(catch_handler) = catch_handler {
+                let no_throw = self.jump();
                 self.patch_handler(catch_handler);
+                self.push_true(&re_throw_generator);
+
+                self.patch_jump(no_throw);
+                self.patch_jump(finally);
+
+                let finally_start = self.next_opcode_location();
+                self.jump_info
+                    .last_mut()
+                    .expect("there should be a try block")
+                    .flags |= JumpControlInfoFlags::IN_FINALLY;
+                self.compile_finally_stmt(f);
+                let do_not_throw_exit = self.jump_if_false(&finally_re_throw);
+                let is_generator_exit = self.jump_if_true(&re_throw_generator);
+                self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
+                self.register_allocator.dealloc(error);
+                self.patch_jump(is_generator_exit);
+                self.emit_opcode(Opcode::ReThrow);
+                self.patch_jump(do_not_throw_exit);
+                self.register_allocator.dealloc(re_throw_generator);
+                self.pop_try_with_finally_control_info(finally_start);
+                self.register_allocator.dealloc(finally_re_throw);
             }
+            TryVariant::Finally((f, finally_re_throw)) => {
+                let catch_handler = self.push_handler();
+                let error = self.register_allocator.alloc();
+                self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
+                self.push_true(&finally_re_throw);
 
-            // Note: implicit has_finally
-            if let Some(re_throw_generator) = &re_throw_generator {
-                // Is this a generator `return()` empty exception?
-                self.push_true(re_throw_generator);
+                let no_throw = self.jump();
+                self.patch_handler(catch_handler);
+
+                self.patch_jump(no_throw);
+                self.patch_jump(finally);
+
+                let finally_start = self.next_opcode_location();
+                self.jump_info
+                    .last_mut()
+                    .expect("there should be a try block")
+                    .flags |= JumpControlInfoFlags::IN_FINALLY;
+                self.compile_finally_stmt(f);
+                let do_not_throw_exit = self.jump_if_false(&finally_re_throw);
+                self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
+                self.register_allocator.dealloc(error);
+                self.patch_jump(do_not_throw_exit);
+                self.pop_try_with_finally_control_info(finally_start);
+                self.register_allocator.dealloc(finally_re_throw);
             }
-
-            // Should we rethrow the exception?
-            self.push_true(&finally_re_throw);
-
-            self.patch_jump(exit);
-        }
-
-        self.patch_jump(finally);
-
-        let finally_start = self.next_opcode_location();
-        if let Some(finally) = t.finally() {
-            self.jump_info
-                .last_mut()
-                .expect("there should be a try block")
-                .flags |= JumpControlInfoFlags::IN_FINALLY;
-
-            // Compile finally statement body
-            self.compile_finally_stmt(
-                finally,
-                has_catch,
-                finally_re_throw.as_ref().expect("must exist"),
-                re_throw_generator.as_ref(),
-                &error,
-            );
-        }
-
-        self.register_allocator.dealloc(error);
-
-        if let Some(re_throw_generator) = re_throw_generator {
-            self.register_allocator.dealloc(re_throw_generator);
-        }
-
-        if let Some(finally_re_throw) = finally_re_throw {
-            self.pop_try_with_finally_control_info(finally_start);
-            self.register_allocator.dealloc(finally_re_throw);
         }
     }
 
@@ -147,14 +183,7 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::PopEnvironment);
     }
 
-    pub(crate) fn compile_finally_stmt(
-        &mut self,
-        finally: &Finally,
-        has_catch: bool,
-        re_throw: &Register,
-        re_throw_generator: Option<&Register>,
-        error: &Register,
-    ) {
+    pub(crate) fn compile_finally_stmt(&mut self, finally: &Finally) {
         // TODO: We could probably remove the Get/SetAccumulatorFromStack if we check that there is no break/continues statements.
         let value = self.register_allocator.alloc();
         self.emit2(
@@ -164,25 +193,6 @@ impl ByteCompiler<'_> {
         self.compile_catch_finally_block(finally.block(), false);
         self.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
         self.register_allocator.dealloc(value);
-
-        // Rethrow error if error happened!
-        let do_not_throw_exit = self.jump_if_false(&re_throw);
-
-        if has_catch {
-            self.emit_opcode(Opcode::ReThrow);
-        } else if self.is_generator() {
-            if let Some(re_throw_generator) = re_throw_generator {
-                let is_generator_exit = self.jump_if_true(re_throw_generator);
-                self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
-                self.patch_jump(is_generator_exit);
-            }
-
-            self.emit_opcode(Opcode::ReThrow);
-        } else {
-            self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
-        }
-
-        self.patch_jump(do_not_throw_exit);
     }
 
     /// Compile a catch or finally block.
