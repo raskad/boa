@@ -16,25 +16,21 @@ impl ByteCompiler<'_> {
         let has_catch = t.catch().is_some();
         let has_finally = t.finally().is_some();
 
-        // stack:
-        if has_finally {
-            self.push_try_with_finally_control_info(use_expr);
-        }
+        let finally_re_throw = if t.finally().is_some() {
+            let finally_re_throw = self.register_allocator.alloc();
+            self.push_try_with_finally_control_info(&finally_re_throw, use_expr);
+            Some(finally_re_throw)
+        } else {
+            None
+        };
 
         let try_handler = self.push_handler();
 
         // Compile try block
         self.compile_block(t.block(), use_expr);
 
-        if has_finally {
-            let value = self.register_allocator.alloc();
-            self.push_zero(&value);
-            self.push_from_register(&value);
-            self.push_false(&value);
-            self.push_from_register(&value);
-            self.register_allocator.dealloc(value);
-
-            // stack: false, 0
+        if let Some(finally_re_throw) = &finally_re_throw {
+            self.push_false(finally_re_throw);
         }
 
         let finally = self.jump();
@@ -44,7 +40,6 @@ impl ByteCompiler<'_> {
         // If it has a finally but no catch and we are in a generator, then we still need it
         // to handle `return()` call on generators.
         let catch_handler = if has_finally && (self.is_generator() || has_catch) {
-            self.current_stack_value_count += 2;
             Some(self.push_handler())
         } else {
             None
@@ -53,11 +48,11 @@ impl ByteCompiler<'_> {
         let error = self.register_allocator.alloc();
         self.emit2(Opcode::Exception, &[Operand2::Register(&error)]);
 
+        let mut re_throw_generator = None;
+
         if let Some(catch) = t.catch() {
             self.compile_catch_stmt(catch, &error, use_expr);
         } else {
-            self.push_from_register(&error);
-
             // Note: implicit !has_catch
             if self.is_generator() && has_finally {
                 // Is this a generator `return()` empty exception?
@@ -67,50 +62,32 @@ impl ByteCompiler<'_> {
                 // that means it's not an `return()` generator exception.
                 let value = self.register_allocator.alloc();
                 self.push_false(&value);
-                self.push_from_register(&value);
-                self.register_allocator.dealloc(value);
+                re_throw_generator = Some(value);
             }
 
             // Should we rethrow the exception?
-            let value = self.register_allocator.alloc();
-            self.push_true(&value);
-            self.push_from_register(&value);
-            self.register_allocator.dealloc(value);
+            self.push_true(finally_re_throw.as_ref().expect("must exist"));
         }
 
-        self.register_allocator.dealloc(error);
-
-        if has_finally {
+        if let Some(finally_re_throw) = &finally_re_throw {
             if has_catch {
-                let value = self.register_allocator.alloc();
-                self.push_zero(&value);
-                self.push_from_register(&value);
-                self.push_false(&value);
-                self.push_from_register(&value);
-                self.register_allocator.dealloc(value);
+                self.push_false(finally_re_throw);
             }
 
             let exit = self.jump();
 
             if let Some(catch_handler) = catch_handler {
-                self.current_stack_value_count -= 2;
                 self.patch_handler(catch_handler);
             }
 
             // Note: implicit has_finally
-            if !has_catch && self.is_generator() {
+            if let Some(re_throw_generator) = &re_throw_generator {
                 // Is this a generator `return()` empty exception?
-                let value = self.register_allocator.alloc();
-                self.push_true(&value);
-                self.push_from_register(&value);
-                self.register_allocator.dealloc(value);
+                self.push_true(re_throw_generator);
             }
 
             // Should we rethrow the exception?
-            let value = self.register_allocator.alloc();
-            self.push_true(&value);
-            self.push_from_register(&value);
-            self.register_allocator.dealloc(value);
+            self.push_true(&finally_re_throw);
 
             self.patch_jump(exit);
         }
@@ -124,20 +101,29 @@ impl ByteCompiler<'_> {
                 .expect("there should be a try block")
                 .flags |= JumpControlInfoFlags::IN_FINALLY;
 
-            self.current_stack_value_count += 2;
             // Compile finally statement body
-            self.compile_finally_stmt(finally, has_catch);
-            self.current_stack_value_count -= 2;
+            self.compile_finally_stmt(
+                finally,
+                has_catch,
+                finally_re_throw.as_ref().expect("must exist"),
+                re_throw_generator.as_ref(),
+                &error,
+            );
         }
 
-        if has_finally {
+        self.register_allocator.dealloc(error);
+
+        if let Some(re_throw_generator) = re_throw_generator {
+            self.register_allocator.dealloc(re_throw_generator);
+        }
+
+        if let Some(finally_re_throw) = finally_re_throw {
             self.pop_try_with_finally_control_info(finally_start);
+            self.register_allocator.dealloc(finally_re_throw);
         }
     }
 
     pub(crate) fn compile_catch_stmt(&mut self, catch: &Catch, error: &Register, use_expr: bool) {
-        // stack: exception
-
         let outer_scope = self.lexical_scope.clone();
         let scope_index = self.push_scope(catch.scope());
         self.emit_with_varying_operand(Opcode::PushScope, scope_index);
@@ -161,44 +147,39 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::PopEnvironment);
     }
 
-    pub(crate) fn compile_finally_stmt(&mut self, finally: &Finally, has_catch: bool) {
+    pub(crate) fn compile_finally_stmt(
+        &mut self,
+        finally: &Finally,
+        has_catch: bool,
+        re_throw: &Register,
+        re_throw_generator: Option<&Register>,
+        error: &Register,
+    ) {
         // TODO: We could probably remove the Get/SetAccumulatorFromStack if we check that there is no break/continues statements.
         let value = self.register_allocator.alloc();
         self.emit2(
             Opcode::SetRegisterFromAccumulator,
             &[Operand2::Register(&value)],
         );
-        self.compile_catch_finally_block(finally.block(), true);
+        self.compile_catch_finally_block(finally.block(), false);
         self.emit2(Opcode::SetAccumulator, &[Operand2::Register(&value)]);
         self.register_allocator.dealloc(value);
 
-        let value = self.register_allocator.alloc();
-        self.pop_into_register(&value);
-
         // Rethrow error if error happened!
-        let do_not_throw_exit = self.jump_if_false(&value);
-        self.register_allocator.dealloc(value);
+        let do_not_throw_exit = self.jump_if_false(&re_throw);
 
         if has_catch {
             self.emit_opcode(Opcode::ReThrow);
         } else if self.is_generator() {
-            let value = self.register_allocator.alloc();
-            self.pop_into_register(&value);
-            let is_generator_exit = self.jump_if_true(&value);
-            self.register_allocator.dealloc(value);
-
-            let error = self.register_allocator.alloc();
-            self.pop_into_register(&error);
-            self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
-            self.register_allocator.dealloc(error);
-            self.patch_jump(is_generator_exit);
+            if let Some(re_throw_generator) = re_throw_generator {
+                let is_generator_exit = self.jump_if_true(re_throw_generator);
+                self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
+                self.patch_jump(is_generator_exit);
+            }
 
             self.emit_opcode(Opcode::ReThrow);
         } else {
-            let error = self.register_allocator.alloc();
-            self.pop_into_register(&error);
             self.emit2(Opcode::Throw, &[Operand2::Register(&error)]);
-            self.register_allocator.dealloc(error);
         }
 
         self.patch_jump(do_not_throw_exit);

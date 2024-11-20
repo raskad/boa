@@ -88,8 +88,6 @@ unsafe impl Trace for CodeBlockFlags {
 pub(crate) struct Handler {
     pub(crate) start: u32,
     pub(crate) end: u32,
-
-    pub(crate) stack_count: u32,
     pub(crate) environment_count: u32,
 }
 
@@ -421,8 +419,12 @@ impl CodeBlock {
             Instruction::PushInt8 { value, .. } => value.to_string(),
             Instruction::PushInt16 { value, .. } => value.to_string(),
             Instruction::PushInt32 { value, .. } => value.to_string(),
-            Instruction::PushFloat { value, .. } => ryu_js::Buffer::new().format(*value).to_string(),
-            Instruction::PushDouble { value, .. } => ryu_js::Buffer::new().format(*value).to_string(),
+            Instruction::PushFloat { value, .. } => {
+                ryu_js::Buffer::new().format(*value).to_string()
+            }
+            Instruction::PushDouble { value, .. } => {
+                ryu_js::Buffer::new().format(*value).to_string()
+            }
             Instruction::PushLiteral { index, .. }
             | Instruction::ThrowNewTypeError { message: index }
             | Instruction::ThrowNewSyntaxError { message: index }
@@ -480,7 +482,9 @@ impl CodeBlock {
             | Instruction::SuperCall {
                 argument_count: value,
             }
-            | Instruction::ConcatToString { value_count: value, .. }
+            | Instruction::ConcatToString {
+                value_count: value, ..
+            }
             | Instruction::GetArgument { index: value, .. } => value.value().to_string(),
             Instruction::PushScope { index } | Instruction::CallEvalSpread { index } => {
                 index.value().to_string()
@@ -501,7 +505,9 @@ impl CodeBlock {
             } => {
                 format!("{value1}, {value2}")
             }
-            Instruction::TemplateLookup { exit: value, site,.. } => format!("{value}, {site}"),
+            Instruction::TemplateLookup {
+                exit: value, site, ..
+            } => format!("{value}, {site}"),
             Instruction::TemplateCreate { count, site, .. } => {
                 format!("{}, {site}", count.value())
             }
@@ -631,7 +637,9 @@ impl CodeBlock {
                 }
                 operands
             }
-            Instruction::JumpIfNotResumeKind { exit, resume_kind, .. } => {
+            Instruction::JumpIfNotResumeKind {
+                exit, resume_kind, ..
+            } => {
                 format!("ResumeKind: {resume_kind:?}, exit: {exit}")
             }
             Instruction::CreateIteratorResult { done, .. } => {
@@ -689,11 +697,8 @@ impl CodeBlock {
                     class.to_string::<1>(*operand_types)
                 )
             }
-            | Instruction::RestParameterInit { dst } => {
-                format!(
-                    "dst:reg{}",
-                    dst.value(),
-                )
+            Instruction::RestParameterInit { dst } => {
+                format!("dst:reg{}", dst.value(),)
             }
             Instruction::Pop
             | Instruction::PushZero { .. }
@@ -750,7 +755,6 @@ impl CodeBlock {
             | Instruction::IteratorReturn { .. }
             | Instruction::IteratorStackEmpty { .. }
             | Instruction::ValueNotNullOrUndefined { .. }
-            
             | Instruction::PushValueToArray { .. }
             | Instruction::PushElisionToArray { .. }
             | Instruction::PushIteratorToArray { .. }
@@ -941,11 +945,10 @@ impl Display for CodeBlock {
         } else {
             for (i, handler) in self.handlers.iter().enumerate() {
                 writeln!(f,
-                    "    {i:04}: Range: [{:04}, {:04}): Handler: {:04}, Stack: {:02}, Environment: {:02}",
+                    "    {i:04}: Range: [{:04}, {:04}): Handler: {:04}, Environment: {:02}",
                     handler.start,
                     handler.end,
                     handler.handler(),
-                    handler.stack_count,
                     handler.environment_count,
                 )?;
             }

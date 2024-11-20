@@ -232,13 +232,11 @@ impl Vm {
 
         let catch_address = handler.handler();
         let environment_sp = frame.env_fp + handler.environment_count;
-        let sp = frame.rp + handler.stack_count;
 
         // Go to handler location.
         frame.pc = catch_address;
 
         self.environments.truncate(environment_sp as usize);
-        self.stack.truncate(sp as usize);
 
         true
     }

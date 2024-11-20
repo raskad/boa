@@ -438,7 +438,6 @@ pub struct ByteCompiler<'ctx> {
     pub(crate) lexical_scope: Scope,
 
     pub(crate) current_open_environments_count: u32,
-    current_stack_value_count: u32,
     code_block_flags: CodeBlockFlags,
     handlers: ThinVec<Handler>,
     pub(crate) ic: Vec<InlineCache>,
@@ -536,7 +535,6 @@ impl<'ctx> ByteCompiler<'ctx> {
             current_open_environments_count: 0,
 
             register_allocator,
-            current_stack_value_count: 0,
             code_block_flags,
             handlers: ThinVec::default(),
             ic: Vec::default(),
@@ -2366,12 +2364,6 @@ impl<'ctx> ByteCompiler<'ctx> {
             vec![false; (max_local_binding_register_index + 1) as usize].into_boxed_slice();
 
         let register_count = self.register_allocator.finish();
-
-        // NOTE: Offset the handlers stack count so we don't pop the registers
-        //       when a exception is thrown.
-        for handler in &mut self.handlers {
-            handler.stack_count += register_count;
-        }
 
         CodeBlock {
             name: self.function_name,
