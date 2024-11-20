@@ -42,7 +42,7 @@ impl ByteCompiler<'_> {
                     }
                     ExportDeclaration::VarStatement(var) => self.compile_var_decl(var),
                     ExportDeclaration::Declaration(decl) => self.compile_decl(decl, false),
-                    ExportDeclaration::DefaultClassDeclaration(cl) => self.class(cl.into(), false),
+                    ExportDeclaration::DefaultClassDeclaration(cl) => self.compile_class(cl.into(), None),
                     ExportDeclaration::DefaultAssignmentExpression(expr) => {
                         let function = self.register_allocator.alloc();
                         self.compile_expr(expr, &function);

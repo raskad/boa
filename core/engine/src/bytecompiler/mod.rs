@@ -46,7 +46,6 @@ use boa_ast::{
 use boa_gc::Gc;
 use boa_interner::{Interner, Sym};
 use boa_macros::js_str;
-use class::ClassSpec;
 use rustc_hash::FxHashMap;
 use thin_vec::ThinVec;
 
@@ -2026,7 +2025,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                     self.register_allocator.dealloc(value);
                 }
             }
-            Declaration::ClassDeclaration(class) => self.class(class.into(), false),
+            Declaration::ClassDeclaration(class) => self.compile_class(class.into(), None),
             Declaration::Lexical(lexical) => self.compile_lexical_decl(lexical),
             _ => {}
         }
@@ -2389,9 +2388,5 @@ impl<'ctx> ByteCompiler<'ctx> {
         object: &Register,
     ) {
         self.compile_declaration_pattern_impl(pattern, def, object);
-    }
-
-    fn class(&mut self, class: ClassSpec<'_>, expression: bool) {
-        self.compile_class(class, expression);
     }
 }

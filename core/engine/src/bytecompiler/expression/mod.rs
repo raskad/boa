@@ -369,8 +369,7 @@ impl ByteCompiler<'_> {
                 self.pop_into_register(&dst);
             }
             Expression::ClassExpression(class) => {
-                self.class(class.deref().into(), true);
-                self.pop_into_register(&dst);
+                self.compile_class(class.deref().into(), Some(&dst));
             }
             Expression::SuperCall(super_call) => {
                 let value = self.register_allocator.alloc();
