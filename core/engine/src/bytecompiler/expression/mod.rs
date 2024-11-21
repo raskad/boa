@@ -285,9 +285,9 @@ impl ByteCompiler<'_> {
                                     Opcode::GetPropertyByValue,
                                     &[
                                         Operand2::Register(&function),
-                                        Operand2::Operand(InstructionOperand::Register(&key)),
-                                        Operand2::Operand(InstructionOperand::Register(&this)),
-                                        Operand2::Operand(InstructionOperand::Register(&this)),
+                                        Operand2::Register(&key),
+                                        Operand2::Register(&this),
+                                        Operand2::Register(&this),
                                     ],
                                 );
                                 self.register_allocator.dealloc(key);

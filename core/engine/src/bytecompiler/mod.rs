@@ -1377,9 +1377,9 @@ impl<'ctx> ByteCompiler<'ctx> {
                                 Opcode::GetPropertyByValue,
                                 &[
                                     Operand2::Register(&dst),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(&object)),
-                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&object),
+                                    Operand2::Register(&object),
                                 ],
                             );
                             self.register_allocator.dealloc(key);
@@ -1418,9 +1418,9 @@ impl<'ctx> ByteCompiler<'ctx> {
                                 Opcode::GetPropertyByValue,
                                 &[
                                     Operand2::Register(&dst),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(&receiver)),
-                                    Operand2::Operand(InstructionOperand::Register(&value)),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&receiver),
+                                    Operand2::Register(&value),
                                 ],
                             );
                             self.register_allocator.dealloc(key);
@@ -1492,10 +1492,10 @@ impl<'ctx> ByteCompiler<'ctx> {
                         self.emit2(
                             Opcode::SetPropertyByValue,
                             &[
-                                Operand2::Operand(InstructionOperand::Register(&value)),
-                                Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&object)),
-                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Register(&value),
+                                Operand2::Register(&key),
+                                Operand2::Register(&object),
+                                Operand2::Register(&object),
                             ],
                         );
 
@@ -1552,10 +1552,10 @@ impl<'ctx> ByteCompiler<'ctx> {
                         self.emit2(
                             Opcode::SetPropertyByValue,
                             &[
-                                Operand2::Operand(InstructionOperand::Register(&value)),
-                                Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&receiver)),
-                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Register(&value),
+                                Operand2::Register(&key),
+                                Operand2::Register(&receiver),
+                                Operand2::Register(&object),
                             ],
                         );
 
@@ -1673,9 +1673,9 @@ impl<'ctx> ByteCompiler<'ctx> {
                             Opcode::GetPropertyByValue,
                             &[
                                 Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&this)),
-                                Operand2::Operand(InstructionOperand::Register(&this)),
+                                Operand2::Register(&key),
+                                Operand2::Register(&this),
+                                Operand2::Register(&this),
                             ],
                         );
                         self.register_allocator.dealloc(key);
@@ -1711,9 +1711,9 @@ impl<'ctx> ByteCompiler<'ctx> {
                             Opcode::GetPropertyByValue,
                             &[
                                 Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&this)),
-                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Register(&key),
+                                Operand2::Register(&this),
+                                Operand2::Register(&object),
                             ],
                         );
                         self.register_allocator.dealloc(key);
@@ -1817,9 +1817,9 @@ impl<'ctx> ByteCompiler<'ctx> {
                             Opcode::GetPropertyByValue,
                             &[
                                 Operand2::Register(value),
-                                Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(value)),
-                                Operand2::Operand(InstructionOperand::Register(value)),
+                                Operand2::Register(&key),
+                                Operand2::Register(value),
+                                Operand2::Register(value),
                             ],
                         );
                         self.register_allocator.dealloc(key);

@@ -127,22 +127,12 @@ impl GetPropertyByValue {
         key: u32,
         receiver: u32,
         object: u32,
-        operand_types: u8,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
-        let key = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, key, &context.vm);
-        let receiver = context
-            .vm
-            .frame()
-            .read_value::<1>(operand_types, receiver, &context.vm);
-        let value = context
-            .vm
-            .frame()
-            .read_value::<2>(operand_types, object, &context.vm);
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let receiver = context.vm.stack[(rp + receiver) as usize].clone();
+        let value = context.vm.stack[(rp + object) as usize].clone();
 
         let object = if let Some(object) = value.as_object() {
             object.clone()
@@ -178,30 +168,27 @@ impl Operation for GetPropertyByValue {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let receiver = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
-        Self::operation(dst, key, receiver, object, operand_types, context)
+        Self::operation(dst, key, receiver, object, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let receiver = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
-        Self::operation(dst, key, receiver, object, operand_types, context)
+        Self::operation(dst, key, receiver, object, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let receiver = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
-        Self::operation(dst, key, receiver, object, operand_types, context)
+        Self::operation(dst, key, receiver, object, context)
     }
 }
 

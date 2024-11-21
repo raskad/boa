@@ -1139,7 +1139,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, receiver, key **=>** value
-    GetPropertyByValue { operand_types: u8, dst: VaryingOperand, key: VaryingOperand, receiver: VaryingOperand, object: VaryingOperand },
+    GetPropertyByValue { dst: VaryingOperand, key: VaryingOperand, receiver: VaryingOperand, object: VaryingOperand },
 
     /// Get a property by value from an object an push the key and value on the stack.
     ///
@@ -1220,12 +1220,10 @@ generate_opcodes! {
     ///
     /// Stack: object, receiver, key, value **=>**
     SetPropertyByValue {
-        operand_types: u8,
         value: VaryingOperand,
         key: VaryingOperand,
         receiver: VaryingOperand,
-        object: VaryingOperand,
-        index: VaryingOperand
+        object: VaryingOperand
     },
 
     /// Defines a own property of an object by value.

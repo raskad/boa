@@ -145,29 +145,17 @@ pub(crate) struct SetPropertyByValue;
 
 impl SetPropertyByValue {
     fn operation(
-        operand_types: u8,
         value: u32,
         key: u32,
         receiver: u32,
         object: u32,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let value = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, value, &context.vm);
-        let key = context
-            .vm
-            .frame()
-            .read_value::<1>(operand_types, key, &context.vm);
-        let receiver = context
-            .vm
-            .frame()
-            .read_value::<2>(operand_types, receiver, &context.vm);
-        let object = context
-            .vm
-            .frame()
-            .read_value::<3>(operand_types, object, &context.vm);
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let receiver = context.vm.stack[(rp + receiver) as usize].clone();
+        let object = context.vm.stack[(rp + object) as usize].clone();
 
         let object = if let Some(object) = object.as_object() {
             object.clone()
@@ -217,30 +205,27 @@ impl Operation for SetPropertyByValue {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let value = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let receiver = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
-        Self::operation(operand_types, value, key, receiver, object, context)
+        Self::operation(value, key, receiver, object, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let value = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let receiver = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
-        Self::operation(operand_types, value, key, receiver, object, context)
+        Self::operation(value, key, receiver, object, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let value = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let receiver = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
-        Self::operation(operand_types, value, key, receiver, object, context)
+        Self::operation(value, key, receiver, object, context)
     }
 }
 
@@ -261,7 +246,12 @@ impl SetPropertyGetterByName {
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + object) as usize].clone();
         let value = context.vm.stack[(rp + value) as usize].clone();
-        let name = context.vm.frame().code_block().constant_string(index).into();
+        let name = context
+            .vm
+            .frame()
+            .code_block()
+            .constant_string(index)
+            .into();
 
         let object = object.to_object(context)?;
         let set = object
@@ -318,7 +308,12 @@ impl Operation for SetPropertyGetterByName {
 pub(crate) struct SetPropertyGetterByValue;
 
 impl SetPropertyGetterByValue {
-    fn operation(value: u32, key: u32, object: u32, context: &mut Context) -> JsResult<CompletionType> {
+    fn operation(
+        value: u32,
+        key: u32,
+        object: u32,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context.vm.stack[(rp + value) as usize].clone();
         let key = context.vm.stack[(rp + key) as usize].clone();
@@ -354,21 +349,21 @@ impl Operation for SetPropertyGetterByValue {
         let value = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 }
 
@@ -389,7 +384,12 @@ impl SetPropertySetterByName {
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + object) as usize].clone();
         let value = context.vm.stack[(rp + value) as usize].clone();
-        let name = context.vm.frame().code_block().constant_string(index).into();
+        let name = context
+            .vm
+            .frame()
+            .code_block()
+            .constant_string(index)
+            .into();
 
         let object = object.to_object(context)?;
 
@@ -447,7 +447,12 @@ impl Operation for SetPropertySetterByName {
 pub(crate) struct SetPropertySetterByValue;
 
 impl SetPropertySetterByValue {
-    fn operation(value: u32, key: u32, object: u32, context: &mut Context) -> JsResult<CompletionType> {
+    fn operation(
+        value: u32,
+        key: u32,
+        object: u32,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context.vm.stack[(rp + value) as usize].clone();
         let key = context.vm.stack[(rp + key) as usize].clone();
@@ -483,21 +488,21 @@ impl Operation for SetPropertySetterByValue {
         let value = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 }
 
@@ -509,7 +514,12 @@ impl Operation for SetPropertySetterByValue {
 pub(crate) struct SetFunctionName;
 
 impl SetFunctionName {
-    fn operation(function: u32, name: u32, prefix: u8, context: &mut Context) -> JsResult<CompletionType> {
+    fn operation(
+        function: u32,
+        name: u32,
+        prefix: u8,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let function = context.vm.stack[(rp + function) as usize].clone();
         let name = context.vm.stack[(rp + name) as usize].clone();
@@ -553,13 +563,13 @@ impl Operation for SetFunctionName {
         let function = context.vm.read::<u16>().into();
         let name = context.vm.read::<u16>().into();
         let prefix = context.vm.read::<u8>();
-        Self::operation(function, name, prefix,context)
+        Self::operation(function, name, prefix, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let function = context.vm.read::<u32>();
         let name = context.vm.read::<u32>();
         let prefix = context.vm.read::<u8>();
-        Self::operation(function, name, prefix,context)
+        Self::operation(function, name, prefix, context)
     }
 }

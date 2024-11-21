@@ -80,15 +80,9 @@ impl ByteCompiler<'_> {
                                             Opcode::GetPropertyByValue,
                                             &[
                                                 Operand2::Register(&dst),
-                                                Operand2::Operand(InstructionOperand::Register(
-                                                    &key,
-                                                )),
-                                                Operand2::Operand(InstructionOperand::Register(
-                                                    &object,
-                                                )),
-                                                Operand2::Operand(InstructionOperand::Register(
-                                                    &object,
-                                                )),
+                                                Operand2::Register(&key),
+                                                Operand2::Register(&object),
+                                                Operand2::Register(&object),
                                             ],
                                         );
                                         self.register_allocator.dealloc(key);
@@ -204,15 +198,9 @@ impl ByteCompiler<'_> {
                                                     Opcode::GetPropertyByValue,
                                                     &[
                                                         Operand2::Register(&dst),
-                                                        Operand2::Operand(
-                                                            InstructionOperand::Register(&key),
-                                                        ),
-                                                        Operand2::Operand(
-                                                            InstructionOperand::Register(&object),
-                                                        ),
-                                                        Operand2::Operand(
-                                                            InstructionOperand::Register(&object),
-                                                        ),
+                                                        Operand2::Register(&key),
+                                                        Operand2::Register(&object),
+                                                        Operand2::Register(&object),
                                                     ],
                                                 );
                                                 compiler.register_allocator.dealloc(key);
@@ -249,13 +237,9 @@ impl ByteCompiler<'_> {
                                         Opcode::GetPropertyByValue,
                                         &[
                                             Operand2::Register(&dst),
-                                            Operand2::Operand(InstructionOperand::Register(&key)),
-                                            Operand2::Operand(InstructionOperand::Register(
-                                                &object,
-                                            )),
-                                            Operand2::Operand(InstructionOperand::Register(
-                                                &object,
-                                            )),
+                                            Operand2::Register(&key),
+                                            Operand2::Register(&object),
+                                            Operand2::Register(&object),
                                         ],
                                     );
                                     self.register_allocator.dealloc(key);

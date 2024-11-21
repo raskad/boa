@@ -139,10 +139,10 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::SetPropertyByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&dst)),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(&object)),
-                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                    Operand2::Register(&dst),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&object),
+                                    Operand2::Register(&object),
                                 ],
                             );
 
@@ -253,9 +253,9 @@ impl ByteCompiler<'_> {
                             Opcode::GetPropertyByValue,
                             &[
                                 Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&receiver)),
-                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Register(&key),
+                                Operand2::Register(&receiver),
+                                Operand2::Register(&object),
                             ],
                         );
 
@@ -277,10 +277,10 @@ impl ByteCompiler<'_> {
                         self.emit2(
                             Opcode::SetPropertyByValue,
                             &[
-                                Operand2::Operand(InstructionOperand::Register(&dst)),
-                                Operand2::Operand(InstructionOperand::Register(&key)),
-                                Operand2::Operand(InstructionOperand::Register(&receiver)),
-                                Operand2::Operand(InstructionOperand::Register(&object)),
+                                Operand2::Register(&dst),
+                                Operand2::Register(&key),
+                                Operand2::Register(&receiver),
+                                Operand2::Register(&object),
                             ],
                         );
 

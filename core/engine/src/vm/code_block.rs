@@ -587,13 +587,20 @@ impl CodeBlock {
                 )
             }
             Instruction::GetPropertyByValue {
-                operand_types,
                 dst,
                 key,
                 receiver,
                 object,
+            } => {
+                format!(
+                    "dst:reg{}, key:reg{}, receiver:reg{}, object:reg{}",
+                    dst.value(),
+                    key.value(),
+                    receiver.value(),
+                    object.value(),
+                )
             }
-            | Instruction::GetPropertyByValuePush {
+            Instruction::GetPropertyByValuePush {
                 operand_types,
                 dst,
                 key,
