@@ -31,6 +31,16 @@ impl Dec {
             _ => unreachable!("there is always a call to ToNumeric before Inc"),
         };
 
+        // let value = match value {
+        //     JsValue::Integer(number) if number > i32::MIN => JsValue::from(number - 1),
+        //     _ => match value.to_numeric(context)? {
+        //         Numeric::Number(number) => JsValue::from(number - 1f64),
+        //         Numeric::BigInt(ref bigint) => {
+        //             JsValue::from(JsBigInt::sub(bigint, &JsBigInt::one()))
+        //         }
+        //     },
+        // };
+
         context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }

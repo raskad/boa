@@ -19,8 +19,14 @@ impl ToNumeric {
         let value = context
             .vm
             .frame()
-            .read_value::<0>(operand_types, src, &context.vm)
-            .to_numeric(context)?;
+            .read_value::<0>(operand_types, src, &context.vm);
+
+        let value = match &value {
+            // Do not convert integers, because operations (like to_string) on numbers are slower!
+            JsValue::Integer(_) => value,
+            _ => JsValue::from(value.to_numeric(context)?),
+        };
+
         context.vm.stack[(rp + dst) as usize] = value.into();
         Ok(CompletionType::Normal)
     }
@@ -78,6 +84,13 @@ impl Inc {
             _ => unreachable!("there is always a call to ToNumeric before Inc"),
         };
 
+        // let value =  match value {
+        //     JsValue::Integer(number) if number < i32::MAX => JsValue::from(number + 1),
+        //     _ => match value.to_numeric(context)? {
+        //         Numeric::Number(number) => JsValue::from(number + 1f64),
+        //         Numeric::BigInt(bigint) => JsValue::from(JsBigInt::add(&bigint, &JsBigInt::one())),
+        //     }
+        // };
         context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
