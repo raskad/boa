@@ -30,6 +30,7 @@ impl Operation for Jump {
 pub(crate) struct JumpIfTrue;
 
 impl JumpIfTrue {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = &context.vm.stack[(rp + value) as usize];
@@ -59,7 +60,7 @@ impl Operation for JumpIfTrue {
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, address, context)
     }
 }
@@ -72,6 +73,7 @@ impl Operation for JumpIfTrue {
 pub(crate) struct JumpIfFalse;
 
 impl JumpIfFalse {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = &context.vm.stack[(rp + value) as usize];
@@ -101,7 +103,7 @@ impl Operation for JumpIfFalse {
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, address, context)
     }
 }
@@ -114,6 +116,7 @@ impl Operation for JumpIfFalse {
 pub(crate) struct JumpIfNotUndefined;
 
 impl JumpIfNotUndefined {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = &context.vm.stack[(rp + value) as usize];
@@ -143,7 +146,7 @@ impl Operation for JumpIfNotUndefined {
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, address, context)
     }
 }
@@ -156,6 +159,7 @@ impl Operation for JumpIfNotUndefined {
 pub(crate) struct JumpIfNullOrUndefined;
 
 impl JumpIfNullOrUndefined {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, address: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = &context.vm.stack[(rp + value) as usize];
@@ -185,7 +189,7 @@ impl Operation for JumpIfNullOrUndefined {
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, address, context)
     }
 }

@@ -13,6 +13,7 @@ use crate::{
 pub(crate) struct PushNewArray;
 
 impl PushNewArray {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(array: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context
@@ -41,7 +42,7 @@ impl Operation for PushNewArray {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let array = context.vm.read::<u32>().into();
+        let array = context.vm.read::<u32>();
         Self::operation(array, context)
     }
 }
@@ -54,6 +55,7 @@ impl Operation for PushNewArray {
 pub(crate) struct PushValueToArray;
 
 impl PushValueToArray {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, array: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context.vm.stack[(rp + value) as usize].clone();
@@ -86,8 +88,8 @@ impl Operation for PushValueToArray {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
-        let array = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
+        let array = context.vm.read::<u32>();
         Self::operation(value, array, context)
     }
 }
@@ -128,7 +130,7 @@ impl Operation for PushElisionToArray {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let array = context.vm.read::<u32>().into();
+        let array = context.vm.read::<u32>();
         Self::operation(array, context)
     }
 }
@@ -173,7 +175,7 @@ impl Operation for PushIteratorToArray {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let array = context.vm.read::<u32>().into();
+        let array = context.vm.read::<u32>();
         Self::operation(array, context)
     }
 }

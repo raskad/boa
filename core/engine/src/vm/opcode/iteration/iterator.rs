@@ -86,8 +86,8 @@ impl Operation for IteratorFinishAsyncNext {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let resume_kind = context.vm.read::<u32>().into();
-        let value = context.vm.read::<u32>().into();
+        let resume_kind = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>();
         Self::operation(resume_kind, value, context)
     }
 }
@@ -100,6 +100,7 @@ impl Operation for IteratorFinishAsyncNext {
 pub(crate) struct IteratorResult;
 
 impl IteratorResult {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let last_result = context
@@ -132,7 +133,7 @@ impl Operation for IteratorResult {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
@@ -155,7 +156,7 @@ impl IteratorValue {
             .expect("iterator on the call frame must exist");
 
         let iter_value = iterator.value(context)?;
-        context.vm.stack[(rp + value) as usize] = iter_value.into();
+        context.vm.stack[(rp + value) as usize] = iter_value;
 
         context.vm.frame_mut().iterators.push(iterator);
 
@@ -179,7 +180,7 @@ impl Operation for IteratorValue {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
@@ -192,6 +193,7 @@ impl Operation for IteratorValue {
 pub(crate) struct IteratorDone;
 
 impl IteratorDone {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(done: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context
@@ -224,7 +226,7 @@ impl Operation for IteratorDone {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let done = context.vm.read::<u32>().into();
+        let done = context.vm.read::<u32>();
         Self::operation(done, context)
     }
 }
@@ -289,8 +291,8 @@ impl Operation for IteratorReturn {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
-        let called = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
+        let called = context.vm.read::<u32>();
         Self::operation(value, called, context)
     }
 }
@@ -360,7 +362,7 @@ impl Operation for IteratorToArray {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let array = context.vm.read::<u32>().into();
+        let array = context.vm.read::<u32>();
         Self::operation(array, context)
     }
 }
@@ -373,6 +375,7 @@ impl Operation for IteratorToArray {
 pub(crate) struct IteratorStackEmpty;
 
 impl IteratorStackEmpty {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(empty: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let is_empty = context.vm.frame().iterators.is_empty();
@@ -397,7 +400,7 @@ impl Operation for IteratorStackEmpty {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let empty = context.vm.read::<u32>().into();
+        let empty = context.vm.read::<u32>();
         Self::operation(empty, context)
     }
 }
@@ -410,6 +413,7 @@ impl Operation for IteratorStackEmpty {
 pub(crate) struct CreateIteratorResult;
 
 impl CreateIteratorResult {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, done: bool, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let val = context.vm.stack[(rp + value) as usize].clone();
@@ -437,7 +441,7 @@ impl Operation for CreateIteratorResult {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         let done = context.vm.read::<u8>() != 0;
         Self::operation(value, done, context)
     }

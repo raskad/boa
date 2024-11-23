@@ -176,16 +176,6 @@ impl VaryingOperand {
     pub(crate) const fn kind(self) -> VaryingOperandKind {
         self.kind
     }
-    #[must_use]
-    pub(crate) fn to_string<const N: u8>(self, operand_types: u8) -> String {
-        let type_ = (operand_types >> (N * 2)) & 0x0000_0011;
-        match type_ {
-            0b0000_0000 => format!("reg{}", self.value),
-            0b0000_0001 => format!("arg{}", self.value),
-            0b0000_0010 => format!("{}", self.value),
-            _ => unreachable!("unknown operand kind"),
-        }
-    }
 }
 
 trait BytecodeConversion: Sized {

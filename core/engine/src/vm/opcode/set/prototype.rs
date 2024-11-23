@@ -12,6 +12,7 @@ use crate::{
 pub(crate) struct SetPrototype;
 
 impl SetPrototype {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(object: u32, value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + object) as usize].clone();
@@ -52,8 +53,8 @@ impl Operation for SetPrototype {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
-        let value = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>();
         Self::operation(object, value, context)
     }
 }

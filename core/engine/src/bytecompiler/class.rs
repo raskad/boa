@@ -1,4 +1,4 @@
-use super::{ByteCompiler, InstructionOperand, Literal, Operand2, Register, ToJsString};
+use super::{ByteCompiler, Literal, Operand2, Register, ToJsString};
 use crate::{
     js_string,
     vm::{BindingOpcode, CodeBlock, CodeBlockFlags, Opcode},

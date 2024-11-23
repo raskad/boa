@@ -56,11 +56,11 @@ impl Operation for ConcatToString {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let string = context.vm.read::<u32>().into();
+        let string = context.vm.read::<u32>();
         let value_count = context.vm.read::<u32>() as usize;
         let mut values = Vec::with_capacity(value_count);
         for _ in 0..value_count {
-            values.push(context.vm.read::<u32>().into());
+            values.push(context.vm.read::<u32>());
         }
         Self::operation(string, &values, context)
     }

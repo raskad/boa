@@ -211,6 +211,7 @@ impl Operation for GeneratorNext {
 pub(crate) struct JumpIfNotResumeKind;
 
 impl JumpIfNotResumeKind {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(
         exit: u32,
         expected: u8,
@@ -376,9 +377,9 @@ impl Operation for GeneratorDelegateNext {
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let throw_method_undefined = context.vm.read::<u32>();
         let return_method_undefined = context.vm.read::<u32>();
-        let value = context.vm.read::<u32>().into();
-        let resume_kind = context.vm.read::<u32>().into();
-        let is_return = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
+        let resume_kind = context.vm.read::<u32>();
+        let is_return = context.vm.read::<u32>();
         Self::operation(
             throw_method_undefined,
             return_method_undefined,
@@ -463,9 +464,9 @@ impl Operation for GeneratorDelegateResume {
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let r#return = context.vm.read::<u32>();
         let exit = context.vm.read::<u32>();
-        let value = context.vm.read::<u32>().into();
-        let resume_kind = context.vm.read::<u32>().into();
-        let is_return = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
+        let resume_kind = context.vm.read::<u32>();
+        let is_return = context.vm.read::<u32>();
         Self::operation(r#return, exit, value, resume_kind, is_return, context)
     }
 }

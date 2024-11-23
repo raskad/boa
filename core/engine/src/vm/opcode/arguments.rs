@@ -14,6 +14,7 @@ use super::Operation;
 pub(crate) struct CreateMappedArgumentsObject;
 
 impl CreateMappedArgumentsObject {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let frame = context.vm.frame();
@@ -56,7 +57,7 @@ impl Operation for CreateMappedArgumentsObject {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
@@ -69,6 +70,7 @@ impl Operation for CreateMappedArgumentsObject {
 pub(crate) struct CreateUnmappedArgumentsObject;
 
 impl CreateUnmappedArgumentsObject {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let args = context.vm.frame().arguments(&context.vm).to_vec();
@@ -94,7 +96,7 @@ impl Operation for CreateUnmappedArgumentsObject {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }

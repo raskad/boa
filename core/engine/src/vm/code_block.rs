@@ -646,7 +646,9 @@ impl CodeBlock {
             } => {
                 format!("is_anonymous_function: {is_anonymous_function}")
             }
-            Instruction::PopIntoRegister { dst } | Instruction::PopIntoLocal { dst, .. } => {
+            Instruction::PopIntoRegister { dst }
+            | Instruction::PopIntoLocal { dst, .. }
+            | Instruction::RestParameterInit { dst } => {
                 format!("dst:reg{}", dst.value())
             }
             Instruction::PushFromRegister { src } | Instruction::PushFromLocal { src, .. } => {
@@ -675,9 +677,6 @@ impl CodeBlock {
                     prototype.value(),
                     class.value()
                 )
-            }
-            Instruction::RestParameterInit { dst } => {
-                format!("dst:reg{}", dst.value(),)
             }
             Instruction::Pop
             | Instruction::PushZero { .. }

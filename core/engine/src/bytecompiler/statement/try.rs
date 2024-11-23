@@ -20,8 +20,7 @@ impl TryVariant<'_> {
     fn finaly_re_throw_register(&self) -> Option<&Register> {
         match self {
             TryVariant::Catch(_) => None,
-            TryVariant::Finally((_, r)) => Some(r),
-            TryVariant::CatchFinally((_, _, r)) => Some(r),
+            TryVariant::Finally((_, r)) | TryVariant::CatchFinally((_, _, r)) => Some(r),
         }
     }
 }
@@ -168,10 +167,10 @@ impl ByteCompiler<'_> {
             match binding {
                 Binding::Identifier(ident) => {
                     let ident = ident.to_js_string(self.interner());
-                    self.emit_binding(BindingOpcode::InitLexical, ident, &error);
+                    self.emit_binding(BindingOpcode::InitLexical, ident, error);
                 }
                 Binding::Pattern(pattern) => {
-                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, &error);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::InitLexical, error);
                 }
             }
         }

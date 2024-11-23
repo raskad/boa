@@ -1,5 +1,5 @@
 use crate::{
-    bytecompiler::{Access, ByteCompiler, InstructionOperand, Operand2, Register, ToJsString},
+    bytecompiler::{Access, ByteCompiler, Operand2, Register, ToJsString},
     vm::{BindingOpcode, Opcode},
 };
 use boa_ast::{
@@ -16,13 +16,13 @@ impl ByteCompiler<'_> {
             match Access::from_assign_target(assign.lhs()) {
                 Ok(access) => {
                     self.access_set(access, |compiler| {
-                        compiler.compile_expr(assign.rhs(), &dst);
-                        return &dst;
+                        compiler.compile_expr(assign.rhs(), dst);
+                        dst
                     });
                 }
                 Err(pattern) => {
-                    self.compile_expr(assign.rhs(), &dst);
-                    self.compile_declaration_pattern(pattern, BindingOpcode::SetName, &dst);
+                    self.compile_expr(assign.rhs(), dst);
+                    self.compile_declaration_pattern(pattern, BindingOpcode::SetName, dst);
                 }
             }
         } else {
@@ -63,24 +63,23 @@ impl ByteCompiler<'_> {
                     let index = self.get_or_insert_binding(binding);
 
                     if is_lexical {
-                        self.emit_binding_access(Opcode::GetName, &index, &dst);
+                        self.emit_binding_access(Opcode::GetName, &index, dst);
                     } else {
-                        self.emit_binding_access(Opcode::GetNameAndLocator, &index, &dst);
+                        self.emit_binding_access(Opcode::GetNameAndLocator, &index, dst);
                     }
 
                     if short_circuit {
-                        early_exit =
-                            Some(self.emit_with_operand2(opcode, Operand2::Register(&dst)));
+                        early_exit = Some(self.emit_with_operand2(opcode, Operand2::Register(dst)));
 
-                        self.compile_expr(assign.rhs(), &dst);
+                        self.compile_expr(assign.rhs(), dst);
                     } else {
                         let rhs = self.register_allocator.alloc();
                         self.compile_expr(assign.rhs(), &rhs);
                         self.emit2(
                             opcode,
                             &[
-                                Operand2::Register(&dst),
-                                Operand2::Register(&dst),
+                                Operand2::Register(dst),
+                                Operand2::Register(dst),
                                 Operand2::Register(&rhs),
                             ],
                         );
@@ -91,7 +90,7 @@ impl ByteCompiler<'_> {
                         match self.lexical_scope.set_mutable_binding(name.clone()) {
                             Ok(binding) => {
                                 let index = self.get_or_insert_binding(binding);
-                                self.emit_binding_access(Opcode::SetName, &index, &dst);
+                                self.emit_binding_access(Opcode::SetName, &index, dst);
                             }
                             Err(BindingLocatorError::MutateImmutable) => {
                                 let index = self.get_or_insert_string(name);
@@ -100,7 +99,7 @@ impl ByteCompiler<'_> {
                             Err(BindingLocatorError::Silent) => {}
                         }
                     } else {
-                        self.emit_binding_access(Opcode::SetNameByLocator, &index, &dst);
+                        self.emit_binding_access(Opcode::SetNameByLocator, &index, dst);
                     }
                 }
                 Access::Property { access } => match access {
@@ -109,27 +108,27 @@ impl ByteCompiler<'_> {
                             let object = self.register_allocator.alloc();
                             self.compile_expr(access.target(), &object);
 
-                            self.emit_get_property_by_name(&dst, &object, &object, *name);
+                            self.emit_get_property_by_name(dst, &object, &object, *name);
 
                             if short_circuit {
                                 early_exit =
-                                    Some(self.emit_with_operand2(opcode, Operand2::Register(&dst)));
-                                self.compile_expr(assign.rhs(), &dst);
+                                    Some(self.emit_with_operand2(opcode, Operand2::Register(dst)));
+                                self.compile_expr(assign.rhs(), dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
                                 self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&dst),
-                                        Operand2::Register(&dst),
+                                        Operand2::Register(dst),
+                                        Operand2::Register(dst),
                                         Operand2::Register(&rhs),
                                     ],
                                 );
                                 self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_set_property_by_name(&dst, &object, &object, *name);
+                            self.emit_set_property_by_name(dst, &object, &object, *name);
 
                             self.register_allocator.dealloc(object);
                         }
@@ -143,7 +142,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::GetPropertyByValuePush,
                                 &[
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&key),
                                     Operand2::Register(&object),
                                     Operand2::Register(&object),
@@ -152,16 +151,16 @@ impl ByteCompiler<'_> {
 
                             if short_circuit {
                                 early_exit =
-                                    Some(self.emit_with_operand2(opcode, Operand2::Register(&dst)));
-                                self.compile_expr(assign.rhs(), &dst);
+                                    Some(self.emit_with_operand2(opcode, Operand2::Register(dst)));
+                                self.compile_expr(assign.rhs(), dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
                                 self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&dst),
-                                        Operand2::Register(&dst),
+                                        Operand2::Register(dst),
+                                        Operand2::Register(dst),
                                         Operand2::Register(&rhs),
                                     ],
                                 );
@@ -171,7 +170,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::SetPropertyByValue,
                                 &[
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&key),
                                     Operand2::Register(&object),
                                     Operand2::Register(&object),
@@ -191,7 +190,7 @@ impl ByteCompiler<'_> {
                         self.emit2(
                             Opcode::GetPrivateField,
                             &[
-                                Operand2::Register(&dst),
+                                Operand2::Register(dst),
                                 Operand2::Register(&object),
                                 Operand2::Varying(index),
                             ],
@@ -199,8 +198,8 @@ impl ByteCompiler<'_> {
 
                         if short_circuit {
                             early_exit =
-                                Some(self.emit_with_operand2(opcode, Operand2::Register(&dst)));
-                            self.compile_expr(assign.rhs(), &dst);
+                                Some(self.emit_with_operand2(opcode, Operand2::Register(dst)));
+                            self.compile_expr(assign.rhs(), dst);
                         } else {
                             let rhs = self.register_allocator.alloc();
                             self.compile_expr(assign.rhs(), &rhs);
@@ -208,8 +207,8 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 opcode,
                                 &[
-                                    Operand2::Register(&dst),
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&rhs),
                                 ],
                             );
@@ -219,7 +218,7 @@ impl ByteCompiler<'_> {
                         self.emit2(
                             Opcode::SetPrivateField,
                             &[
-                                Operand2::Register(&dst),
+                                Operand2::Register(dst),
                                 Operand2::Register(&object),
                                 Operand2::Varying(index),
                             ],
@@ -234,27 +233,27 @@ impl ByteCompiler<'_> {
                             self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
                             self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
 
-                            self.emit_get_property_by_name(&dst, &receiver, &object, *name);
+                            self.emit_get_property_by_name(dst, &receiver, &object, *name);
 
                             if short_circuit {
                                 early_exit =
-                                    Some(self.emit_with_operand2(opcode, Operand2::Register(&dst)));
-                                self.compile_expr(assign.rhs(), &dst);
+                                    Some(self.emit_with_operand2(opcode, Operand2::Register(dst)));
+                                self.compile_expr(assign.rhs(), dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
                                 self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&dst),
-                                        Operand2::Register(&dst),
+                                        Operand2::Register(dst),
+                                        Operand2::Register(dst),
                                         Operand2::Register(&rhs),
                                     ],
                                 );
                                 self.register_allocator.dealloc(rhs);
                             }
 
-                            self.emit_set_property_by_name(&dst, &receiver, &object, *name);
+                            self.emit_set_property_by_name(dst, &receiver, &object, *name);
 
                             self.register_allocator.dealloc(receiver);
                             self.register_allocator.dealloc(object);
@@ -271,7 +270,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::GetPropertyByValuePush,
                                 &[
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&key),
                                     Operand2::Register(&receiver),
                                     Operand2::Register(&object),
@@ -280,16 +279,16 @@ impl ByteCompiler<'_> {
 
                             if short_circuit {
                                 early_exit =
-                                    Some(self.emit_with_operand2(opcode, Operand2::Register(&dst)));
-                                self.compile_expr(assign.rhs(), &dst);
+                                    Some(self.emit_with_operand2(opcode, Operand2::Register(dst)));
+                                self.compile_expr(assign.rhs(), dst);
                             } else {
                                 let rhs = self.register_allocator.alloc();
                                 self.compile_expr(assign.rhs(), &rhs);
                                 self.emit2(
                                     opcode,
                                     &[
-                                        Operand2::Register(&dst),
-                                        Operand2::Register(&dst),
+                                        Operand2::Register(dst),
+                                        Operand2::Register(dst),
                                         Operand2::Register(&rhs),
                                     ],
                                 );
@@ -299,7 +298,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::SetPropertyByValue,
                                 &[
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&key),
                                     Operand2::Register(&receiver),
                                     Operand2::Register(&object),

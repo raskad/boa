@@ -62,12 +62,12 @@ impl Operation for CopyDataProperties {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
-        let source = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
+        let source = context.vm.read::<u32>();
         let key_count = context.vm.read::<u32>() as usize;
         let mut keys = Vec::with_capacity(key_count);
         for _ in 0..key_count {
-            keys.push(context.vm.read::<u32>().into());
+            keys.push(context.vm.read::<u32>());
         }
         Self::operation(object, source, &keys, context)
     }

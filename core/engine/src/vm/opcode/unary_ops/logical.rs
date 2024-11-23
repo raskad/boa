@@ -11,6 +11,7 @@ use crate::{
 pub(crate) struct LogicalNot;
 
 impl LogicalNot {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let addr = (context.vm.frame().rp + value) as usize;
         let value = context.vm.stack[addr].clone();
@@ -35,7 +36,7 @@ impl Operation for LogicalNot {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }

@@ -115,8 +115,8 @@ impl Operation for DefinePrivateField {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
-        let value = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(object, value, index, context)
     }

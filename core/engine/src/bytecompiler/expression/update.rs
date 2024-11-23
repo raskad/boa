@@ -1,5 +1,5 @@
 use crate::{
-    bytecompiler::{Access, ByteCompiler, InstructionOperand, Operand2, Register, ToJsString},
+    bytecompiler::{Access, ByteCompiler, Operand2, Register, ToJsString},
     vm::Opcode,
 };
 use boa_ast::{
@@ -29,16 +29,16 @@ impl ByteCompiler<'_> {
                 let index = self.get_or_insert_binding(binding);
 
                 if is_lexical {
-                    self.emit_binding_access(Opcode::GetName, &index, &dst);
+                    self.emit_binding_access(Opcode::GetName, &index, dst);
                 } else {
-                    self.emit_binding_access(Opcode::GetNameAndLocator, &index, &dst);
+                    self.emit_binding_access(Opcode::GetNameAndLocator, &index, dst);
                 }
 
                 let value = self.register_allocator.alloc();
 
                 self.emit2(
                     opcode,
-                    &[Operand2::Register(&value), Operand2::Register(&dst)],
+                    &[Operand2::Register(&value), Operand2::Register(dst)],
                 );
                 if is_lexical {
                     match self.lexical_scope.set_mutable_binding(name.clone()) {
@@ -68,11 +68,11 @@ impl ByteCompiler<'_> {
 
                     match access.field() {
                         PropertyAccessField::Const(ident) => {
-                            self.emit_get_property_by_name(&dst, &object, &object, *ident);
+                            self.emit_get_property_by_name(dst, &object, &object, *ident);
                             let value = self.register_allocator.alloc();
                             self.emit2(
                                 opcode,
-                                &[Operand2::Register(&value), Operand2::Register(&dst)],
+                                &[Operand2::Register(&value), Operand2::Register(dst)],
                             );
 
                             self.emit_set_property_by_name(&value, &object, &object, *ident);
@@ -91,7 +91,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 Opcode::GetPropertyByValuePush,
                                 &[
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&key),
                                     Operand2::Register(&object),
                                     Operand2::Register(&object),
@@ -102,7 +102,7 @@ impl ByteCompiler<'_> {
 
                             self.emit2(
                                 opcode,
-                                &[Operand2::Register(&value), Operand2::Register(&dst)],
+                                &[Operand2::Register(&value), Operand2::Register(dst)],
                             );
 
                             self.emit2(
@@ -134,7 +134,7 @@ impl ByteCompiler<'_> {
                     self.emit2(
                         Opcode::GetPrivateField,
                         &[
-                            Operand2::Register(&dst),
+                            Operand2::Register(dst),
                             Operand2::Register(&object),
                             Operand2::Varying(index),
                         ],
@@ -143,7 +143,7 @@ impl ByteCompiler<'_> {
                     let value = self.register_allocator.alloc();
                     self.emit2(
                         opcode,
-                        &[Operand2::Register(&value), Operand2::Register(&dst)],
+                        &[Operand2::Register(&value), Operand2::Register(dst)],
                     );
 
                     self.emit2(
@@ -169,12 +169,12 @@ impl ByteCompiler<'_> {
                         self.emit2(Opcode::Super, &[Operand2::Register(&object)]);
                         self.emit2(Opcode::This, &[Operand2::Register(&receiver)]);
 
-                        self.emit_get_property_by_name(&dst, &receiver, &object, *ident);
+                        self.emit_get_property_by_name(dst, &receiver, &object, *ident);
 
                         let value = self.register_allocator.alloc();
                         self.emit2(
                             opcode,
-                            &[Operand2::Register(&value), Operand2::Register(&dst)],
+                            &[Operand2::Register(&value), Operand2::Register(dst)],
                         );
 
                         self.emit_set_property_by_name(&value, &receiver, &object, *ident);
@@ -198,22 +198,19 @@ impl ByteCompiler<'_> {
                         self.emit2(
                             Opcode::GetPropertyByValue,
                             &[
-                                Operand2::Register(&dst),
+                                Operand2::Register(dst),
                                 Operand2::Register(&key),
                                 Operand2::Register(&receiver),
                                 Operand2::Register(&object),
                             ],
                         );
 
-                        self.emit2(
-                            opcode,
-                            &[Operand2::Register(&dst), Operand2::Register(&dst)],
-                        );
+                        self.emit2(opcode, &[Operand2::Register(dst), Operand2::Register(dst)]);
 
                         self.emit2(
                             Opcode::SetPropertyByValue,
                             &[
-                                Operand2::Register(&dst),
+                                Operand2::Register(dst),
                                 Operand2::Register(&key),
                                 Operand2::Register(&receiver),
                                 Operand2::Register(&object),

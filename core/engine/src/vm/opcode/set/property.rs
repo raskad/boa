@@ -281,8 +281,8 @@ impl Operation for SetPropertyGetterByName {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
-        let value = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(object, value, index, context)
     }
@@ -420,8 +420,8 @@ impl Operation for SetPropertySetterByName {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
-        let value = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(object, value, index, context)
     }
@@ -502,6 +502,7 @@ impl Operation for SetPropertySetterByValue {
 pub(crate) struct SetFunctionName;
 
 impl SetFunctionName {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(
         function: u32,
         name: u32,

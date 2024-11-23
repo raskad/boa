@@ -84,7 +84,7 @@ impl ByteCompiler<'_> {
         // 1. Let generatorKind be GetGeneratorKind().
         if self.is_async() {
             // 2. If generatorKind is async, return ? AsyncGeneratorYield(? Await(value)).
-            self.push_from_register(&value);
+            self.push_from_register(value);
             self.emit_opcode(Opcode::Await);
             self.pop_into_register(&resume_kind);
             self.pop_into_register(value);
@@ -117,7 +117,7 @@ impl ByteCompiler<'_> {
     /// This is equivalent to the [`AsyncGeneratorYield ( value )`][async_yield] operation from the spec.
     ///
     /// stack:
-    /// - value **=>** resume_kind, received
+    /// - value **=>** `resume_kind`, received
     ///
     /// [async_yield]: https://tc39.es/ecma262/#sec-asyncgeneratoryield
     pub(super) fn async_generator_yield(&mut self, value: &Register, resume_kind: &Register) {
@@ -137,7 +137,7 @@ impl ByteCompiler<'_> {
         let non_normal_resume =
             self.jump_if_not_resume_kind(GeneratorResumeKind::Normal, resume_kind);
 
-        self.emit_resume_kind(GeneratorResumeKind::Return, &resume_kind);
+        self.emit_resume_kind(GeneratorResumeKind::Return, resume_kind);
 
         self.patch_jump(non_normal_resume);
         self.patch_jump(non_return_resume);

@@ -39,7 +39,7 @@ impl Operation for HasRestrictedGlobalProperty {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(dst, index, context)
     }
@@ -82,7 +82,7 @@ impl Operation for CanDeclareGlobalFunction {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(dst, index, context)
     }
@@ -125,7 +125,7 @@ impl Operation for CanDeclareGlobalVar {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(dst, index, context)
     }
@@ -182,7 +182,7 @@ impl Operation for CreateGlobalFunctionBinding {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let function = context.vm.read::<u32>().into();
+        let function = context.vm.read::<u32>();
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u32>() as usize;
         Self::operation(function, index, configurable, context)

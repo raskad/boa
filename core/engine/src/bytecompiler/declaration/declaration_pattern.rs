@@ -1,7 +1,5 @@
 use crate::{
-    bytecompiler::{
-        Access, ByteCompiler, InstructionOperand, Literal, Operand2, Register, ToJsString,
-    },
+    bytecompiler::{Access, ByteCompiler, Literal, Operand2, Register, ToJsString},
     vm::{BindingOpcode, Opcode},
 };
 use boa_ast::{
@@ -20,7 +18,7 @@ impl ByteCompiler<'_> {
             Pattern::Object(pattern) => {
                 self.emit2(
                     Opcode::ValueNotNullOrUndefined,
-                    &[Operand2::Register(&object)],
+                    &[Operand2::Register(object)],
                 );
 
                 let mut excluded_keys_registers = Vec::new();
@@ -43,7 +41,7 @@ impl ByteCompiler<'_> {
 
                             match name {
                                 PropertyName::Literal(ident) => {
-                                    self.emit_get_property_by_name(&dst, &object, &object, *ident);
+                                    self.emit_get_property_by_name(&dst, object, object, *ident);
                                     let key = self.register_allocator.alloc();
                                     self.emit_push_literal(
                                         Literal::String(
@@ -64,8 +62,8 @@ impl ByteCompiler<'_> {
                                             &[
                                                 Operand2::Register(&dst),
                                                 Operand2::Register(&key),
-                                                Operand2::Register(&object),
-                                                Operand2::Register(&object),
+                                                Operand2::Register(object),
+                                                Operand2::Register(object),
                                             ],
                                         );
                                         excluded_keys_registers.push(key);
@@ -75,8 +73,8 @@ impl ByteCompiler<'_> {
                                             &[
                                                 Operand2::Register(&dst),
                                                 Operand2::Register(&key),
-                                                Operand2::Register(&object),
-                                                Operand2::Register(&object),
+                                                Operand2::Register(object),
+                                                Operand2::Register(object),
                                             ],
                                         );
                                         self.register_allocator.dealloc(key);
@@ -99,11 +97,11 @@ impl ByteCompiler<'_> {
                             self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&value)]);
                             let mut args = Vec::from([
                                 Operand2::Register(&value),
-                                Operand2::Register(&object),
+                                Operand2::Register(object),
                                 Operand2::Varying(excluded_keys_registers.len() as u32),
                             ]);
                             for r in &excluded_keys_registers {
-                                args.push(Operand2::Register(&r));
+                                args.push(Operand2::Register(r));
                             }
                             self.emit2(Opcode::CopyDataProperties, &args);
                             while let Some(r) = excluded_keys_registers.pop() {
@@ -117,17 +115,17 @@ impl ByteCompiler<'_> {
                             self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&value)]);
                             let mut args = Vec::from([
                                 Operand2::Register(&value),
-                                Operand2::Register(&object),
+                                Operand2::Register(object),
                                 Operand2::Varying(excluded_keys_registers.len() as u32),
                             ]);
                             for r in &excluded_keys_registers {
-                                args.push(Operand2::Register(&r));
+                                args.push(Operand2::Register(r));
                             }
                             self.emit2(Opcode::CopyDataProperties, &args);
                             while let Some(r) = excluded_keys_registers.pop() {
                                 self.register_allocator.dealloc(r);
                             }
-                            self.access_set(Access::Property { access }, |_| return &value);
+                            self.access_set(Access::Property { access }, |_| &value);
                             self.register_allocator.dealloc(value);
                         }
                         AssignmentPropertyAccess {
@@ -165,7 +163,7 @@ impl ByteCompiler<'_> {
                                     match name {
                                         PropertyName::Literal(ident) => {
                                             compiler.emit_get_property_by_name(
-                                                &dst, &object, &object, *ident,
+                                                &dst, object, object, *ident,
                                             );
                                             compiler.register_allocator.dealloc(key);
                                         }
@@ -176,8 +174,8 @@ impl ByteCompiler<'_> {
                                                     &[
                                                         Operand2::Register(&dst),
                                                         Operand2::Register(&key),
-                                                        Operand2::Register(&object),
-                                                        Operand2::Register(&object),
+                                                        Operand2::Register(object),
+                                                        Operand2::Register(object),
                                                     ],
                                                 );
                                                 excluded_keys_registers.push(key);
@@ -187,8 +185,8 @@ impl ByteCompiler<'_> {
                                                     &[
                                                         Operand2::Register(&dst),
                                                         Operand2::Register(&key),
-                                                        Operand2::Register(&object),
-                                                        Operand2::Register(&object),
+                                                        Operand2::Register(object),
+                                                        Operand2::Register(object),
                                                     ],
                                                 );
                                                 compiler.register_allocator.dealloc(key);
@@ -202,7 +200,7 @@ impl ByteCompiler<'_> {
                                         compiler.patch_jump(skip);
                                     }
 
-                                    return &dst;
+                                    &dst
                                 },
                             );
                             self.register_allocator.dealloc(dst);
@@ -216,7 +214,7 @@ impl ByteCompiler<'_> {
 
                             match name {
                                 PropertyName::Literal(ident) => {
-                                    self.emit_get_property_by_name(&dst, &object, &object, *ident);
+                                    self.emit_get_property_by_name(&dst, object, object, *ident);
                                 }
                                 PropertyName::Computed(node) => {
                                     let key = self.register_allocator.alloc();
@@ -226,8 +224,8 @@ impl ByteCompiler<'_> {
                                         &[
                                             Operand2::Register(&dst),
                                             Operand2::Register(&key),
-                                            Operand2::Register(&object),
-                                            Operand2::Register(&object),
+                                            Operand2::Register(object),
+                                            Operand2::Register(object),
                                         ],
                                     );
                                     self.register_allocator.dealloc(key);
@@ -252,9 +250,9 @@ impl ByteCompiler<'_> {
             Pattern::Array(pattern) => {
                 self.emit2(
                     Opcode::ValueNotNullOrUndefined,
-                    &[Operand2::Register(&object)],
+                    &[Operand2::Register(object)],
                 );
-                self.emit2(Opcode::GetIterator, &[Operand2::Register(&object)]);
+                self.emit2(Opcode::GetIterator, &[Operand2::Register(object)]);
 
                 let handler_index = self.push_handler();
                 for element in pattern.bindings() {
@@ -350,7 +348,7 @@ impl ByteCompiler<'_> {
                         compiler.patch_jump(skip);
                     }
 
-                    return &value;
+                    &value
                 });
                 self.register_allocator.dealloc(value);
             }
@@ -388,7 +386,7 @@ impl ByteCompiler<'_> {
                 let value = self.register_allocator.alloc();
                 self.access_set(Access::Property { access }, |compiler| {
                     compiler.emit2(Opcode::IteratorToArray, &[Operand2::Register(&value)]);
-                    return &value;
+                    &value
                 });
                 self.register_allocator.dealloc(value);
             }

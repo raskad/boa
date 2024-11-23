@@ -12,6 +12,7 @@ use crate::{
 pub(crate) struct Case;
 
 impl Case {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(
         address: u32,
         value: u32,
@@ -49,8 +50,8 @@ impl Operation for Case {
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let address = context.vm.read::<u32>();
-        let value = context.vm.read::<u32>().into();
-        let condition = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
+        let condition = context.vm.read::<u32>();
         Self::operation(address, value, condition, context)
     }
 }

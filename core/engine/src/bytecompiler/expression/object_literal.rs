@@ -11,7 +11,7 @@ use boa_interner::Sym;
 
 impl ByteCompiler<'_> {
     pub(crate) fn compile_object_literal(&mut self, literal: &ObjectLiteral, dst: &Register) {
-        self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(&dst)]);
+        self.emit2(Opcode::PushEmptyObject, &[Operand2::Register(dst)]);
 
         for property in literal.properties() {
             match property {
@@ -22,7 +22,7 @@ impl ByteCompiler<'_> {
                     self.emit2(
                         Opcode::DefineOwnPropertyByName,
                         &[
-                            Operand2::Register(&dst),
+                            Operand2::Register(dst),
                             Operand2::Register(&value),
                             Operand2::Varying(index),
                         ],
@@ -36,14 +36,14 @@ impl ByteCompiler<'_> {
                         if *name == Sym::__PROTO__ && !self.json_parse {
                             self.emit2(
                                 Opcode::SetPrototype,
-                                &[Operand2::Register(&dst), Operand2::Register(&value)],
+                                &[Operand2::Register(dst), Operand2::Register(&value)],
                             );
                         } else {
                             let index = self.get_or_insert_name((*name).into());
                             self.emit2(
                                 Opcode::DefineOwnPropertyByName,
                                 &[
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&value),
                                     Operand2::Varying(index),
                                 ],
@@ -75,7 +75,7 @@ impl ByteCompiler<'_> {
                             &[
                                 Operand2::Register(&function),
                                 Operand2::Register(&key),
-                                Operand2::Register(&dst),
+                                Operand2::Register(dst),
                             ],
                         );
                         self.register_allocator.dealloc(key);
@@ -93,7 +93,7 @@ impl ByteCompiler<'_> {
                             let method = self.object_method(m.into(), kind);
                             self.emit2(
                                 Opcode::SetHomeObject,
-                                &[Operand2::Register(&method), Operand2::Register(&dst)],
+                                &[Operand2::Register(&method), Operand2::Register(dst)],
                             );
                             let index = self.get_or_insert_name((*name).into());
                             let opcode = match kind {
@@ -104,7 +104,7 @@ impl ByteCompiler<'_> {
                             self.emit2(
                                 opcode,
                                 &[
-                                    Operand2::Register(&dst),
+                                    Operand2::Register(dst),
                                     Operand2::Register(&method),
                                     Operand2::Varying(index),
                                 ],
@@ -117,7 +117,7 @@ impl ByteCompiler<'_> {
                                 name_node,
                                 m.into(),
                                 kind,
-                                &dst,
+                                dst,
                             );
                         }
                     }
@@ -128,7 +128,7 @@ impl ByteCompiler<'_> {
                     self.emit2(
                         Opcode::CopyDataProperties,
                         &[
-                            Operand2::Register(&dst),
+                            Operand2::Register(dst),
                             Operand2::Register(&source),
                             Operand2::Varying(0),
                         ],
@@ -175,13 +175,13 @@ impl ByteCompiler<'_> {
 
         self.emit2(
             Opcode::SetHomeObject,
-            &[Operand2::Register(&method), Operand2::Register(&object)],
+            &[Operand2::Register(&method), Operand2::Register(object)],
         );
 
         let operands = &[
             Operand2::Register(&method),
             Operand2::Register(&key),
-            Operand2::Register(&object),
+            Operand2::Register(object),
         ];
         match kind {
             MethodKind::Get => self.emit2(Opcode::SetPropertyGetterByValue, operands),

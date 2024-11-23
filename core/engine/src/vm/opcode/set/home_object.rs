@@ -12,6 +12,7 @@ use crate::{
 pub(crate) struct SetHomeObject;
 
 impl SetHomeObject {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(function:u32, home: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let function = context.vm.stack[(rp + function) as usize].clone();

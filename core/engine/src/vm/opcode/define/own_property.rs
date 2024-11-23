@@ -63,8 +63,8 @@ impl Operation for DefineOwnPropertyByName {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
-        let value = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
+        let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(object, value, index, context)
     }
@@ -78,7 +78,12 @@ impl Operation for DefineOwnPropertyByName {
 pub(crate) struct DefineOwnPropertyByValue;
 
 impl DefineOwnPropertyByValue {
-    fn operation(value: u32, key: u32, object: u32, context: &mut Context) -> JsResult<CompletionType> {
+    fn operation(
+        value: u32,
+        key: u32,
+        object: u32,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context.vm.stack[(rp + value) as usize].clone();
         let key = context.vm.stack[(rp + key) as usize].clone();
@@ -117,20 +122,20 @@ impl Operation for DefineOwnPropertyByValue {
         let value = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
-        Self::operation(value, key, object,context)
+        Self::operation(value, key, object, context)
     }
 }

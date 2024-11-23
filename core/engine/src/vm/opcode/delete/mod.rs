@@ -54,7 +54,7 @@ impl Operation for DeletePropertyByName {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(object, index, context)
     }
@@ -108,8 +108,8 @@ impl Operation for DeletePropertyByValue {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let object = context.vm.read::<u32>().into();
-        let key = context.vm.read::<u32>().into();
+        let object = context.vm.read::<u32>();
+        let key = context.vm.read::<u32>();
         Self::operation(object, key, context)
     }
 }

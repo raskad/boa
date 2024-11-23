@@ -74,9 +74,9 @@ impl Operation for PushClassField {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let class = context.vm.read::<u32>().into();
-        let name = context.vm.read::<u32>().into();
-        let function = context.vm.read::<u32>().into();
+        let class = context.vm.read::<u32>();
+        let name = context.vm.read::<u32>();
+        let function = context.vm.read::<u32>();
         let is_anonyms_function = context.vm.read::<u8>() != 0;
         Self::operation(class, name, function, is_anonyms_function, context)
     }
@@ -143,8 +143,8 @@ impl Operation for PushClassFieldPrivate {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let class = context.vm.read::<u32>().into();
-        let function = context.vm.read::<u32>().into();
+        let class = context.vm.read::<u32>();
+        let function = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(class, function, index, context)
     }

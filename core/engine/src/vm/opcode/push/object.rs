@@ -12,6 +12,7 @@ use crate::{
 pub(crate) struct PushEmptyObject;
 
 impl PushEmptyObject {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let o = context
         .intrinsics()

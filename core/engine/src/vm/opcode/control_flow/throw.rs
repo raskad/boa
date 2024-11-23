@@ -11,6 +11,7 @@ use crate::{
 pub(crate) struct Throw;
 
 impl Throw {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context.vm.stack[(rp + value) as usize].clone();
@@ -134,6 +135,7 @@ impl Operation for Exception {
 pub(crate) struct MaybeException;
 
 impl MaybeException {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(
         has_exception: u32,
         exception: u32,

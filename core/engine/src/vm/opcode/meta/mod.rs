@@ -14,6 +14,7 @@ use crate::{
 pub(crate) struct NewTarget;
 
 impl NewTarget {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let new_target = if let Some(new_target) = context
@@ -27,7 +28,7 @@ impl NewTarget {
         } else {
             JsValue::undefined()
         };
-        context.vm.stack[(rp + dst) as usize] = new_target.into();
+        context.vm.stack[(rp + dst) as usize] = new_target;
         Ok(CompletionType::Normal)
     }
 }
@@ -48,7 +49,7 @@ impl Operation for NewTarget {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         Self::operation(dst, context)
     }
 }
@@ -61,6 +62,7 @@ impl Operation for NewTarget {
 pub(crate) struct ImportMeta;
 
 impl ImportMeta {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
 
@@ -128,7 +130,7 @@ impl Operation for ImportMeta {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         Self::operation(dst, context)
     }
 }

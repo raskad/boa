@@ -10,7 +10,7 @@ use crate::{
 
 impl ByteCompiler<'_> {
     pub(crate) fn compile_binary(&mut self, binary: &Binary, dst: &Register) {
-        self.compile_expr(binary.lhs(), &dst);
+        self.compile_expr(binary.lhs(), dst);
 
         match binary.op() {
             BinaryOp::Arithmetic(op) => {
@@ -30,7 +30,7 @@ impl ByteCompiler<'_> {
                     opcode,
                     &[
                         Operand2::Register(dst),
-                        Operand2::Register(&dst),
+                        Operand2::Register(dst),
                         Operand2::Register(&rhs),
                     ],
                 );
@@ -54,7 +54,7 @@ impl ByteCompiler<'_> {
                     opcode,
                     &[
                         Operand2::Register(dst),
-                        Operand2::Register(&dst),
+                        Operand2::Register(dst),
                         Operand2::Register(&rhs),
                     ],
                 );
@@ -82,7 +82,7 @@ impl ByteCompiler<'_> {
                     opcode,
                     &[
                         Operand2::Register(dst),
-                        Operand2::Register(&dst),
+                        Operand2::Register(dst),
                         Operand2::Register(&rhs),
                     ],
                 );

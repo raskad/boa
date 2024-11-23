@@ -15,6 +15,7 @@ use crate::{
 pub(crate) struct TemplateLookup;
 
 impl TemplateLookup {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(
         jump: u32,
         site: u64,
@@ -53,7 +54,7 @@ impl Operation for TemplateLookup {
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let jump = context.vm.read::<u32>();
         let site = context.vm.read::<u64>();
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         Self::operation(jump, site, dst, context)
     }
 }
@@ -163,12 +164,12 @@ impl Operation for TemplateCreate {
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
         let site = context.vm.read::<u64>();
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         let count = context.vm.read::<u32>().into();
         let mut values = Vec::with_capacity(count as usize);
         for _ in 0..count {
-            let cooked = context.vm.read::<u32>().into();
-            let raw = context.vm.read::<u32>().into();
+            let cooked = context.vm.read::<u32>();
+            let raw = context.vm.read::<u32>();
             values.push((cooked, raw));
         }
         Self::operation(site, dst, count, &values, context)

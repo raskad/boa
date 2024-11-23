@@ -19,7 +19,7 @@ impl ToNumeric {
             _ => JsValue::from(value.to_numeric(context)?),
         };
 
-        context.vm.stack[(rp + dst) as usize] = value.into();
+        context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
 }

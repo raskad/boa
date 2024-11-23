@@ -22,6 +22,7 @@ pub(crate) use logical::*;
 pub(crate) struct TypeOf;
 
 impl TypeOf {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value_register: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context.vm.stack[(rp + value_register) as usize].clone();
@@ -46,7 +47,7 @@ impl Operation for TypeOf {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
@@ -83,7 +84,7 @@ impl Operation for Pos {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
@@ -123,7 +124,7 @@ impl Operation for Neg {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
@@ -163,7 +164,7 @@ impl Operation for BitNot {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }

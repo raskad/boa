@@ -21,7 +21,7 @@ impl PushLiteral {
             Constant::String(v) => v.clone().into(),
             _ => unreachable!("constant should be a string or bigint"),
         };
-        context.vm.stack[(rp + dst) as usize] = value.into();
+        context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
 }
@@ -44,7 +44,7 @@ impl Operation for PushLiteral {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let dst = context.vm.read::<u32>().into();
+        let dst = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
         Self::operation(dst, index, context)
     }

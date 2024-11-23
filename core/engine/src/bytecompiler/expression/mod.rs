@@ -6,9 +6,7 @@ mod update;
 
 use std::ops::Deref;
 
-use super::{
-    Access, Callable, InstructionOperand, NodeKind, Operand, Operand2, Register, ToJsString,
-};
+use super::{Access, Callable, NodeKind, Operand, Operand2, Register, ToJsString};
 use crate::{
     bytecompiler::{ByteCompiler, Literal},
     vm::{GeneratorResumeKind, Opcode},
@@ -27,29 +25,29 @@ impl ByteCompiler<'_> {
     fn compile_literal(&mut self, lit: &AstLiteral, dst: &Register) {
         match lit {
             AstLiteral::String(v) => {
-                self.emit_push_literal(Literal::String(v.to_js_string(self.interner())), &dst);
+                self.emit_push_literal(Literal::String(v.to_js_string(self.interner())), dst);
             }
-            AstLiteral::Int(v) => self.emit_push_integer(*v, &dst),
-            AstLiteral::Num(v) => self.emit_push_rational(*v, &dst),
+            AstLiteral::Int(v) => self.emit_push_integer(*v, dst),
+            AstLiteral::Num(v) => self.emit_push_rational(*v, dst),
             AstLiteral::BigInt(v) => {
-                self.emit_push_literal(Literal::BigInt(v.clone().into()), &dst);
+                self.emit_push_literal(Literal::BigInt(v.clone().into()), dst);
             }
-            AstLiteral::Bool(true) => self.push_true(&dst),
-            AstLiteral::Bool(false) => self.push_false(&dst),
-            AstLiteral::Null => self.push_null(&dst),
+            AstLiteral::Bool(true) => self.push_true(dst),
+            AstLiteral::Bool(false) => self.push_false(dst),
+            AstLiteral::Null => self.push_null(dst),
             AstLiteral::Undefined => {
-                self.push_undefined(&dst);
+                self.push_undefined(dst);
             }
         }
     }
 
     fn compile_conditional(&mut self, op: &Conditional, dst: &Register) {
-        self.compile_expr(op.condition(), &dst);
-        let jelse = self.jump_if_false(&dst);
-        self.compile_expr(op.if_true(), &dst);
+        self.compile_expr(op.condition(), dst);
+        let jelse = self.jump_if_false(dst);
+        self.compile_expr(op.if_true(), dst);
         let exit = self.jump();
         self.patch_jump(jelse);
-        self.compile_expr(op.if_false(), &dst);
+        self.compile_expr(op.if_false(), dst);
         self.patch_jump(exit);
     }
 
@@ -72,7 +70,7 @@ impl ByteCompiler<'_> {
         }
 
         let mut args = Vec::with_capacity(registers.len() + 2);
-        args.push(Operand2::Register(&dst));
+        args.push(Operand2::Register(dst));
         args.push(Operand2::Varying(registers.len() as u32));
         for reg in &registers {
             args.push(Operand2::Register(reg));
@@ -86,7 +84,7 @@ impl ByteCompiler<'_> {
     pub(crate) fn compile_expr_impl(&mut self, expr: &Expression, dst: &Register) {
         match expr {
             Expression::Literal(lit) => {
-                self.compile_literal(lit, &dst);
+                self.compile_literal(lit, dst);
             }
             Expression::RegExpLiteral(regexp) => {
                 let pattern_index = self.get_or_insert_name(Identifier::new(regexp.pattern()));
@@ -94,113 +92,113 @@ impl ByteCompiler<'_> {
                 self.emit2(
                     Opcode::PushRegExp,
                     &[
-                        Operand2::Register(&dst),
+                        Operand2::Register(dst),
                         Operand2::Varying(pattern_index),
                         Operand2::Varying(flags_index),
                     ],
                 );
             }
             Expression::Unary(unary) => {
-                self.compile_unary(unary, &dst);
+                self.compile_unary(unary, dst);
             }
             Expression::Update(update) => {
-                self.compile_update(update, &dst);
+                self.compile_update(update, dst);
             }
             Expression::Binary(binary) => {
-                self.compile_binary(binary, &dst);
+                self.compile_binary(binary, dst);
             }
             Expression::BinaryInPrivate(binary) => {
-                self.compile_binary_in_private(binary, &dst);
+                self.compile_binary_in_private(binary, dst);
             }
             Expression::Assign(assign) => {
-                self.compile_assign(assign, &dst);
+                self.compile_assign(assign, dst);
             }
             Expression::ObjectLiteral(object) => {
-                self.compile_object_literal(object, &dst);
+                self.compile_object_literal(object, dst);
             }
             Expression::Identifier(name) => {
-                self.access_get(Access::Variable { name: *name }, &dst);
+                self.access_get(Access::Variable { name: *name }, dst);
             }
             Expression::PropertyAccess(access) => {
-                self.access_get(Access::Property { access }, &dst);
+                self.access_get(Access::Property { access }, dst);
             }
             Expression::Conditional(op) => {
-                self.compile_conditional(op, &dst);
+                self.compile_conditional(op, dst);
             }
             Expression::ArrayLiteral(literal) => {
                 let value = self.register_allocator.alloc();
 
-                self.emit2(Opcode::PushNewArray, &[Operand2::Register(&dst)]);
+                self.emit2(Opcode::PushNewArray, &[Operand2::Register(dst)]);
 
                 for element in literal.as_ref() {
                     if let Some(element) = element {
                         self.compile_expr(element, &value);
                         if let Expression::Spread(_) = element {
                             self.emit2(Opcode::GetIterator, &[Operand2::Register(&value)]);
-                            self.emit2(Opcode::PushIteratorToArray, &[Operand2::Register(&dst)]);
+                            self.emit2(Opcode::PushIteratorToArray, &[Operand2::Register(dst)]);
                         } else {
                             self.emit2(
                                 Opcode::PushValueToArray,
-                                &[Operand2::Register(&value), Operand2::Register(&dst)],
+                                &[Operand2::Register(&value), Operand2::Register(dst)],
                             );
                         }
                     } else {
-                        self.emit2(Opcode::PushElisionToArray, &[Operand2::Register(&dst)]);
+                        self.emit2(Opcode::PushElisionToArray, &[Operand2::Register(dst)]);
                     }
                 }
                 self.register_allocator.dealloc(value);
             }
             Expression::This => {
-                self.access_get(Access::This, &dst);
+                self.access_get(Access::This, dst);
             }
             Expression::Spread(spread) => {
-                self.compile_expr(spread.target(), &dst);
+                self.compile_expr(spread.target(), dst);
             }
             Expression::FunctionExpression(function) => {
-                self.function_with_binding(function.into(), NodeKind::Expression, &dst);
+                self.function_with_binding(function.into(), NodeKind::Expression, dst);
             }
             Expression::ArrowFunction(function) => {
-                self.function_with_binding(function.into(), NodeKind::Expression, &dst);
+                self.function_with_binding(function.into(), NodeKind::Expression, dst);
             }
             Expression::AsyncArrowFunction(function) => {
-                self.function_with_binding(function.into(), NodeKind::Expression, &dst);
+                self.function_with_binding(function.into(), NodeKind::Expression, dst);
             }
             Expression::GeneratorExpression(function) => {
-                self.function_with_binding(function.into(), NodeKind::Expression, &dst);
+                self.function_with_binding(function.into(), NodeKind::Expression, dst);
             }
             Expression::AsyncFunctionExpression(function) => {
-                self.function_with_binding(function.into(), NodeKind::Expression, &dst);
+                self.function_with_binding(function.into(), NodeKind::Expression, dst);
             }
             Expression::AsyncGeneratorExpression(function) => {
-                self.function_with_binding(function.into(), NodeKind::Expression, &dst);
+                self.function_with_binding(function.into(), NodeKind::Expression, dst);
             }
             Expression::Call(call) => {
-                self.call(Callable::Call(call), &dst);
+                self.call(Callable::Call(call), dst);
             }
             Expression::New(new) => {
-                self.call(Callable::New(new), &dst);
+                self.call(Callable::New(new), dst);
             }
             Expression::TemplateLiteral(template_literal) => {
-                self.compile_template_literal(template_literal, &dst);
+                self.compile_template_literal(template_literal, dst);
             }
             Expression::Await(expr) => {
-                self.compile_expr(expr.target(), &dst);
-                self.push_from_register(&dst);
+                self.compile_expr(expr.target(), dst);
+                self.push_from_register(dst);
                 self.emit_opcode(Opcode::Await);
                 let resume_kind = self.register_allocator.alloc();
                 self.pop_into_register(&resume_kind);
-                self.pop_into_register(&dst);
+                self.pop_into_register(dst);
                 self.emit2(
                     Opcode::GeneratorNext,
-                    &[Operand2::Register(&resume_kind), Operand2::Register(&dst)],
+                    &[Operand2::Register(&resume_kind), Operand2::Register(dst)],
                 );
                 self.register_allocator.dealloc(resume_kind);
             }
             Expression::Yield(r#yield) => {
                 if let Some(expr) = r#yield.target() {
-                    self.compile_expr(expr, &dst);
+                    self.compile_expr(expr, dst);
                 } else {
-                    self.push_undefined(&dst);
+                    self.push_undefined(dst);
                 }
 
                 if r#yield.delegate() {
@@ -264,7 +262,7 @@ impl ByteCompiler<'_> {
 
                     self.patch_jump(exit);
                 } else {
-                    self.r#yield(&dst);
+                    self.r#yield(dst);
                 }
             }
             Expression::TaggedTemplate(template) => {
@@ -320,7 +318,7 @@ impl ByteCompiler<'_> {
 
                 let site = template.identifier();
                 let count = template.cookeds().len() as u32;
-                let jump_label = self.template_lookup(&dst, site);
+                let jump_label = self.template_lookup(dst, site);
 
                 let mut part_registers = Vec::with_capacity(count as usize * 2);
 
@@ -345,7 +343,7 @@ impl ByteCompiler<'_> {
 
                 let mut args = Vec::with_capacity(count as usize * 2 + 2);
                 args.push(Operand2::U64(site));
-                args.push(Operand2::Register(&dst));
+                args.push(Operand2::Register(dst));
                 args.push(Operand2::Varying(count));
                 for r in &part_registers {
                     args.push(Operand2::Register(r));
@@ -356,7 +354,7 @@ impl ByteCompiler<'_> {
                 }
 
                 self.patch_jump(jump_label);
-                self.push_from_register(&dst);
+                self.push_from_register(dst);
 
                 for expr in template.exprs() {
                     let value = self.register_allocator.alloc();
@@ -366,10 +364,10 @@ impl ByteCompiler<'_> {
                 }
 
                 self.emit_with_varying_operand(Opcode::Call, template.exprs().len() as u32 + 1);
-                self.pop_into_register(&dst);
+                self.pop_into_register(dst);
             }
             Expression::ClassExpression(class) => {
-                self.compile_class(class.deref().into(), Some(&dst));
+                self.compile_class(class.deref().into(), Some(dst));
             }
             Expression::SuperCall(super_call) => {
                 let value = self.register_allocator.alloc();
@@ -422,26 +420,26 @@ impl ByteCompiler<'_> {
                         super_call.arguments().len() as u32,
                     );
                 }
-                self.pop_into_register(&dst);
-                self.emit2(Opcode::BindThisValue, &[Operand2::Register(&dst)]);
+                self.pop_into_register(dst);
+                self.emit2(Opcode::BindThisValue, &[Operand2::Register(dst)]);
             }
             Expression::ImportCall(import) => {
-                self.compile_expr(import.argument(), &dst);
-                self.emit2(Opcode::ImportCall, &[Operand2::Register(&dst)]);
+                self.compile_expr(import.argument(), dst);
+                self.emit2(Opcode::ImportCall, &[Operand2::Register(dst)]);
             }
             Expression::NewTarget => {
-                self.emit2(Opcode::NewTarget, &[Operand2::Register(&dst)]);
+                self.emit2(Opcode::NewTarget, &[Operand2::Register(dst)]);
             }
             Expression::ImportMeta => {
-                self.emit2(Opcode::ImportMeta, &[Operand2::Register(&dst)]);
+                self.emit2(Opcode::ImportMeta, &[Operand2::Register(dst)]);
             }
             Expression::Optional(opt) => {
                 let this = self.register_allocator.alloc();
-                self.compile_optional_preserve_this(opt, &this, &dst);
+                self.compile_optional_preserve_this(opt, &this, dst);
                 self.register_allocator.dealloc(this);
             }
             Expression::Parenthesized(parenthesized) => {
-                self.compile_expr(parenthesized.expression(), &dst);
+                self.compile_expr(parenthesized.expression(), dst);
             }
             // TODO: try to remove this variant somehow
             Expression::FormalParameterList(_) => unreachable!(),

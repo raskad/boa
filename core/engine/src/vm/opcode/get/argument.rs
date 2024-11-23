@@ -20,7 +20,7 @@ impl GetArgument {
             .argument(index, &context.vm)
             .cloned()
             .unwrap_or_default();
-        context.vm.stack[(rp + dst) as usize] = value.into();
+        context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
 }

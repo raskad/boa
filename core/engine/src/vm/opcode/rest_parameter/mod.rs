@@ -12,6 +12,7 @@ use crate::{
 pub(crate) struct RestParameterInit;
 
 impl RestParameterInit {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let frame = context.vm.frame();
         let argument_count = frame.argument_count;

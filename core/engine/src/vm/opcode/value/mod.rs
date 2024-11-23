@@ -45,7 +45,7 @@ impl Operation for ValueNotNullOrUndefined {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
@@ -58,6 +58,7 @@ impl Operation for ValueNotNullOrUndefined {
 pub(crate) struct IsObject;
 
 impl IsObject {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let addr = (context.vm.frame().rp + value) as usize;
         let value = context.vm.stack[addr].clone();
@@ -82,7 +83,7 @@ impl Operation for IsObject {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }

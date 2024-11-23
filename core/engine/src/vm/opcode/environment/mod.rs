@@ -170,6 +170,7 @@ impl Operation for Super {
 pub(crate) struct SuperCallPrepare;
 
 impl SuperCallPrepare {
+    #[allow(clippy::unnecessary_wraps)]
     fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let this_env = context
@@ -441,7 +442,7 @@ impl Operation for BindThisValue {
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>().into();
+        let value = context.vm.read::<u32>();
         Self::operation(value, context)
     }
 }
