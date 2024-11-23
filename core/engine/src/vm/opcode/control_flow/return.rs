@@ -128,18 +128,9 @@ pub(crate) struct Move;
 impl Move {
     #[allow(clippy::unnecessary_wraps)]
     #[allow(clippy::needless_pass_by_value)]
-    fn operation(
-        dst: u32,
-        src: u32,
-        operand_types: u8,
-        context: &mut Context,
-    ) -> JsResult<CompletionType> {
+    fn operation(dst: u32, src: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
-        let value = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, src, &context.vm);
-
+        let value = context.vm.stack[(rp + src) as usize].clone();
         context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
@@ -151,24 +142,21 @@ impl Operation for Move {
     const COST: u8 = 2;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u8>().into();
         let src = context.vm.read::<u8>().into();
-        Self::operation(dst, src, operand_types, context)
+        Self::operation(dst, src, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u16>().into();
         let src = context.vm.read::<u16>().into();
-        Self::operation(dst, src, operand_types, context)
+        Self::operation(dst, src, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u32>();
         let src = context.vm.read::<u32>();
-        Self::operation(dst, src, operand_types, context)
+        Self::operation(dst, src, context)
     }
 }
 

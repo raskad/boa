@@ -15,20 +15,14 @@ pub(crate) struct DefineClassStaticMethodByName;
 
 impl DefineClassStaticMethodByName {
     fn operation(
-        operand_types: u8,
         class: u32,
         function: u32,
         index: usize,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let function = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, function, &context.vm);
-        let class = context
-            .vm
-            .frame()
-            .read_value::<1>(operand_types, class, &context.vm);
+        let rp = context.vm.frame().rp;
+        let function = context.vm.stack[(rp + function) as usize].clone();
+        let class = context.vm.stack[(rp + class) as usize].clone();
         let class = class.as_object().expect("class must be object");
         let key = context
             .vm
@@ -67,27 +61,24 @@ impl Operation for DefineClassStaticMethodByName {
     const COST: u8 = 6;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u8>().into();
         let class = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(operand_types, class, function, index, context)
+        Self::operation(class, function, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u16>().into();
         let class = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(operand_types, class, function, index, context)
+        Self::operation(class, function, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u32>();
         let class = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(operand_types, class, function, index, context)
+        Self::operation(class, function, index, context)
     }
 }
 
@@ -100,21 +91,14 @@ pub(crate) struct DefineClassMethodByName;
 
 impl DefineClassMethodByName {
     fn operation(
-        operand_types: u8,
         class_proto: u32,
         function: u32,
         index: usize,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let function = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, function, &context.vm);
-        let class_proto =
-            context
-                .vm
-                .frame()
-                .read_value::<1>(operand_types, class_proto, &context.vm);
+        let rp = context.vm.frame().rp;
+        let function = context.vm.stack[(rp + function) as usize].clone();
+        let class_proto = context.vm.stack[(rp + class_proto) as usize].clone();
         let class_proto = class_proto.as_object().expect("class must be object");
         let key = context
             .vm
@@ -153,27 +137,24 @@ impl Operation for DefineClassMethodByName {
     const COST: u8 = 6;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u8>().into();
         let class_proto = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(operand_types, class_proto, function, index, context)
+        Self::operation(class_proto, function, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u16>().into();
         let class_proto = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(operand_types, class_proto, function, index, context)
+        Self::operation(class_proto, function, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u32>();
         let class_proto = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(operand_types, class_proto, function, index, context)
+        Self::operation(class_proto, function, index, context)
     }
 }
 
@@ -186,24 +167,15 @@ pub(crate) struct DefineClassStaticMethodByValue;
 
 impl DefineClassStaticMethodByValue {
     fn operation(
-        operand_types: u8,
         function: u32,
         key: u32,
         class: u32,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let function = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, function, &context.vm);
-        let key = context
-            .vm
-            .frame()
-            .read_value::<1>(operand_types, key, &context.vm);
-        let class = context
-            .vm
-            .frame()
-            .read_value::<2>(operand_types, class, &context.vm);
+        let rp = context.vm.frame().rp;
+        let function = context.vm.stack[(rp + function) as usize].clone();
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let class = context.vm.stack[(rp + class) as usize].clone();
         let class = class.as_object().expect("class must be object");
         let key = key
             .to_property_key(context)
@@ -239,27 +211,24 @@ impl Operation for DefineClassStaticMethodByValue {
     const COST: u8 = 6;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let class = context.vm.read::<u8>().into();
-        Self::operation(operand_types, function, key, class, context)
+        Self::operation(function, key, class, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let class = context.vm.read::<u16>().into();
-        Self::operation(operand_types, function, key, class, context)
+        Self::operation(function, key, class, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let class = context.vm.read::<u32>();
-        Self::operation(operand_types, function, key, class, context)
+        Self::operation(function, key, class, context)
     }
 }
 
@@ -272,25 +241,15 @@ pub(crate) struct DefineClassMethodByValue;
 
 impl DefineClassMethodByValue {
     fn operation(
-        operand_types: u8,
         function: u32,
         key: u32,
         class_proto: u32,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let function = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, function, &context.vm);
-        let key = context
-            .vm
-            .frame()
-            .read_value::<1>(operand_types, key, &context.vm);
-        let class_proto =
-            context
-                .vm
-                .frame()
-                .read_value::<2>(operand_types, class_proto, &context.vm);
+        let rp = context.vm.frame().rp;
+        let function = context.vm.stack[(rp + function) as usize].clone();
+        let key = context.vm.stack[(rp + key) as usize].clone();
+        let class_proto = context.vm.stack[(rp + class_proto) as usize].clone();
         let class_proto = class_proto.as_object().expect("class must be object");
         let key = key
             .to_property_key(context)
@@ -326,26 +285,23 @@ impl Operation for DefineClassMethodByValue {
     const COST: u8 = 6;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let class_proto = context.vm.read::<u8>().into();
-        Self::operation(operand_types, function, key, class_proto, context)
+        Self::operation(function, key, class_proto, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let class_proto = context.vm.read::<u16>().into();
-        Self::operation(operand_types, function, key, class_proto, context)
+        Self::operation(function, key, class_proto, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let function = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let class_proto = context.vm.read::<u32>();
-        Self::operation(operand_types, function, key, class_proto, context)
+        Self::operation(function, key, class_proto, context)
     }
 }

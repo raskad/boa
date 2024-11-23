@@ -17,25 +17,16 @@ pub(crate) struct SetPropertyByName;
 
 impl SetPropertyByName {
     fn operation(
-        operand_types: u8,
         value: u32,
         receiver: u32,
         object: u32,
         index: usize,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let value = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, value, &context.vm);
-        let receiver = context
-            .vm
-            .frame()
-            .read_value::<1>(operand_types, receiver, &context.vm);
-        let object = context
-            .vm
-            .frame()
-            .read_value::<2>(operand_types, object, &context.vm);
+        let rp = context.vm.frame().rp;
+        let value = context.vm.stack[(rp + value) as usize].clone();
+        let receiver = context.vm.stack[(rp + receiver) as usize].clone();
+        let object = context.vm.stack[(rp + object) as usize].clone();
         let object = if let Some(object) = object.as_object() {
             object.clone()
         } else {
@@ -109,30 +100,27 @@ impl Operation for SetPropertyByName {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let value = context.vm.read::<u8>().into();
         let receiver = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(operand_types, value, receiver, object, index, context)
+        Self::operation(value, receiver, object, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let value = context.vm.read::<u16>().into();
         let receiver = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(operand_types, value, receiver, object, index, context)
+        Self::operation(value, receiver, object, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let value = context.vm.read::<u32>();
         let receiver = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(operand_types, value, receiver, object, index, context)
+        Self::operation(value, receiver, object, index, context)
     }
 }
 

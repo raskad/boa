@@ -15,20 +15,16 @@ macro_rules! implement_bin_ops {
         impl $name {
             #[allow(clippy::needless_pass_by_value)]
             fn operation(
-                output: u32,
+                dst: u32,
                 lhs: u32,
                 rhs: u32,
-                operand_types: u8,
                 context: &mut Context,
             ) -> JsResult<CompletionType> {
                 let rp = context.vm.frame().rp;
-
-                let lhs = context.vm.frame().read_value::<0>(operand_types, lhs, &context.vm);
-                let rhs = context.vm.frame().read_value::<1>(operand_types, rhs, &context.vm);
-
+                let lhs = context.vm.stack[(rp + lhs) as usize].clone();
+                let rhs = context.vm.stack[(rp + rhs) as usize].clone();
                 let value = lhs.$op(&rhs, context)?;
-
-                context.vm.stack[(rp + output) as usize] = JsValue::from(value);
+                context.vm.stack[(rp + dst) as usize] = JsValue::from(value);
                 Ok(CompletionType::Normal)
             }
         }
@@ -39,27 +35,24 @@ macro_rules! implement_bin_ops {
             const COST: u8 = 2;
 
             fn execute(context: &mut Context) -> JsResult<CompletionType> {
-                let operand_types = context.vm.read::<u8>();
-                let output = context.vm.read::<u8>().into();
+                let dst = context.vm.read::<u8>().into();
                 let lhs = context.vm.read::<u8>().into();
                 let rhs = context.vm.read::<u8>().into();
-                Self::operation(output, lhs, rhs, operand_types, context)
+                Self::operation(dst, lhs, rhs, context)
             }
 
             fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-                let operand_types = context.vm.read::<u8>();
-                let output = context.vm.read::<u16>().into();
+                let dst = context.vm.read::<u16>().into();
                 let lhs = context.vm.read::<u16>().into();
                 let rhs = context.vm.read::<u16>().into();
-                Self::operation(output, lhs, rhs, operand_types, context)
+                Self::operation(dst, lhs, rhs, context)
             }
 
             fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-                let operand_types = context.vm.read::<u8>();
-                let output = context.vm.read::<u32>();
+                let dst = context.vm.read::<u32>();
                 let lhs = context.vm.read::<u32>();
                 let rhs = context.vm.read::<u32>();
-                Self::operation(output, lhs, rhs, operand_types, context)
+                Self::operation(dst, lhs, rhs, context)
             }
         }
     };

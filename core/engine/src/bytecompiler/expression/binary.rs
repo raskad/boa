@@ -4,7 +4,7 @@ use boa_ast::expression::operator::{
 };
 
 use crate::{
-    bytecompiler::{ByteCompiler, InstructionOperand, Operand2, Register},
+    bytecompiler::{ByteCompiler, Operand2, Register},
     vm::Opcode,
 };
 
@@ -30,8 +30,8 @@ impl ByteCompiler<'_> {
                     opcode,
                     &[
                         Operand2::Register(dst),
-                        Operand2::Operand(InstructionOperand::Register(&dst)),
-                        Operand2::Operand(InstructionOperand::Register(&rhs)),
+                        Operand2::Register(&dst),
+                        Operand2::Register(&rhs),
                     ],
                 );
 
@@ -54,8 +54,8 @@ impl ByteCompiler<'_> {
                     opcode,
                     &[
                         Operand2::Register(dst),
-                        Operand2::Operand(InstructionOperand::Register(&dst)),
-                        Operand2::Operand(InstructionOperand::Register(&rhs)),
+                        Operand2::Register(&dst),
+                        Operand2::Register(&rhs),
                     ],
                 );
 
@@ -82,8 +82,8 @@ impl ByteCompiler<'_> {
                     opcode,
                     &[
                         Operand2::Register(dst),
-                        Operand2::Operand(InstructionOperand::Register(&dst)),
-                        Operand2::Operand(InstructionOperand::Register(&rhs)),
+                        Operand2::Register(&dst),
+                        Operand2::Register(&rhs),
                     ],
                 );
 
@@ -96,8 +96,7 @@ impl ByteCompiler<'_> {
                     LogicalOp::Coalesce => Opcode::Coalesce,
                 };
 
-                let exit =
-                    self.emit_opcode_with_operand2(opcode, InstructionOperand::Register(dst));
+                let exit = self.emit_with_operand2(opcode, Operand2::Register(dst));
                 self.compile_expr(binary.rhs(), dst);
                 self.patch_jump(exit);
             }
@@ -115,7 +114,7 @@ impl ByteCompiler<'_> {
             &[
                 Operand2::Register(dst),
                 Operand2::Varying(index),
-                Operand2::Operand(InstructionOperand::Register(dst)),
+                Operand2::Register(dst),
             ],
         );
     }

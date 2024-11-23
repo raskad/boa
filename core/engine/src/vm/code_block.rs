@@ -395,16 +395,8 @@ impl CodeBlock {
             | Instruction::Inc { .. }
             | Instruction::Dec { .. }
             | Instruction::ToNumeric { .. } => "TODO: fix".to_string(),
-            Instruction::Move {
-                operand_types,
-                dst: r1,
-                src: r2,
-            } => {
-                format!(
-                    "dst:reg{}, src:{}",
-                    r1.value(),
-                    r2.to_string::<0>(*operand_types)
-                )
+            Instruction::Move { dst: r1, src: r2 } => {
+                format!("dst:reg{}, src:{}", r1.value(), r2.value())
             }
             Instruction::SetFunctionName { prefix, .. } => match prefix {
                 0 => "prefix: none",
@@ -450,22 +442,10 @@ impl CodeBlock {
             | Instruction::JumpIfNotUndefined { address: value, .. }
             | Instruction::JumpIfNullOrUndefined { address: value, .. }
             | Instruction::Case { address: value, .. } => value.to_string(),
-            Instruction::LogicalAnd {
-                exit,
-                lhs,
-                operand_types,
-            }
-            | Instruction::LogicalOr {
-                exit,
-                lhs,
-                operand_types,
-            }
-            | Instruction::Coalesce {
-                exit,
-                lhs,
-                operand_types,
-            } => {
-                format!("lhs:{} exit:{exit}", lhs.to_string::<0>(*operand_types))
+            Instruction::LogicalAnd { exit, lhs }
+            | Instruction::LogicalOr { exit, lhs }
+            | Instruction::Coalesce { exit, lhs } => {
+                format!("lhs:{} exit:{exit}", lhs.value())
             }
             Instruction::CallEval {
                 argument_count: value,
@@ -566,7 +546,6 @@ impl CodeBlock {
                 )
             }
             Instruction::GetPropertyByName {
-                operand_types,
                 dst,
                 receiver,
                 value,
@@ -577,8 +556,8 @@ impl CodeBlock {
                 format!(
                     "dst:reg{}, receiver:{}, value:{}, {:04}: '{}', Shape: 0x{:x}, Slot: index: {}, attributes {:?}",
                     dst.value(),
-                    receiver.to_string::<0>(*operand_types),
-                    value.to_string::<1>(*operand_types),
+                    receiver.value(),
+                    value.value(),
                     index.value(),
                     ic.name.to_std_string_escaped(),
                     ic.shape.borrow().to_addr_usize(),
@@ -601,7 +580,6 @@ impl CodeBlock {
                 )
             }
             Instruction::GetPropertyByValuePush {
-                operand_types,
                 dst,
                 key,
                 receiver,
@@ -610,9 +588,9 @@ impl CodeBlock {
                 format!(
                     "dst:reg{}, key:{}, receiver:{}, object:{}",
                     dst.value(),
-                    key.to_string::<0>(*operand_types),
-                    receiver.to_string::<1>(*operand_types),
-                    object.to_string::<2>(*operand_types),
+                    key.value(),
+                    receiver.value(),
+                    object.value(),
                 )
             }
             Instruction::SetPropertyByName { index, .. } => {
@@ -630,12 +608,8 @@ impl CodeBlock {
             Instruction::PushPrivateEnvironment {
                 class,
                 name_indices,
-                operand_types,
             } => {
-                format!(
-                    "class:{}, names:{name_indices:?}",
-                    class.to_string::<0>(*operand_types)
-                )
+                format!("class:{}, names:{name_indices:?}", class.value())
             }
             Instruction::JumpTable { default, addresses } => {
                 let mut operands = format!("#{}: Default: {default:4}", addresses.len());
@@ -679,7 +653,6 @@ impl CodeBlock {
                 format!("src:reg{}", src.value())
             }
             Instruction::PushClassPrototype {
-                operand_types,
                 dst,
                 class,
                 superclass,
@@ -687,12 +660,11 @@ impl CodeBlock {
                 format!(
                     "dst:reg{}, class:{}, superclass:{}",
                     dst.value(),
-                    class.to_string::<0>(*operand_types),
-                    superclass.to_string::<1>(*operand_types)
+                    class.value(),
+                    superclass.value(),
                 )
             }
             Instruction::SetClassPrototype {
-                operand_types,
                 dst,
                 prototype,
                 class,
@@ -700,8 +672,8 @@ impl CodeBlock {
                 format!(
                     "dst:reg{}, prototype:{}, class:{}",
                     dst.value(),
-                    prototype.to_string::<0>(*operand_types),
-                    class.to_string::<1>(*operand_types)
+                    prototype.value(),
+                    class.value()
                 )
             }
             Instruction::RestParameterInit { dst } => {
@@ -951,7 +923,8 @@ impl Display for CodeBlock {
             f.write_str("    <empty>\n")?;
         } else {
             for (i, handler) in self.handlers.iter().enumerate() {
-                writeln!(f,
+                writeln!(
+                    f,
                     "    {i:04}: Range: [{:04}, {:04}): Handler: {:04}, Environment: {:02}",
                     handler.start,
                     handler.end,

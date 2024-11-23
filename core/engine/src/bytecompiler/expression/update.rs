@@ -37,17 +37,11 @@ impl ByteCompiler<'_> {
 
                 self.emit2(
                     Opcode::ToNumeric,
-                    &[
-                        Operand2::Register(&dst),
-                        Operand2::Operand(InstructionOperand::Register(&src)),
-                    ],
+                    &[Operand2::Register(&dst), Operand2::Register(&src)],
                 );
                 self.emit2(
                     opcode,
-                    &[
-                        Operand2::Register(&src),
-                        Operand2::Operand(InstructionOperand::Register(&dst)),
-                    ],
+                    &[Operand2::Register(&src), Operand2::Register(&dst)],
                 );
                 if is_lexical {
                     match self.lexical_scope.set_mutable_binding(name.clone()) {
@@ -65,7 +59,7 @@ impl ByteCompiler<'_> {
                     self.emit_binding_access(Opcode::SetNameByLocator, &index, &src);
                 }
                 if !post {
-                    self.emit_move(dst, InstructionOperand::Register(&src));
+                    self.emit_move(dst, &src);
                 }
 
                 self.register_allocator.dealloc(src);
@@ -83,23 +77,17 @@ impl ByteCompiler<'_> {
 
                             self.emit2(
                                 Opcode::ToNumeric,
-                                &[
-                                    Operand2::Register(&dst_numeric),
-                                    Operand2::Operand(InstructionOperand::Register(&dst)),
-                                ],
+                                &[Operand2::Register(&dst_numeric), Operand2::Register(&dst)],
                             );
                             self.emit2(
                                 opcode,
-                                &[
-                                    Operand2::Register(&dst),
-                                    Operand2::Operand(InstructionOperand::Register(&dst_numeric)),
-                                ],
+                                &[Operand2::Register(&dst), Operand2::Register(&dst_numeric)],
                             );
 
                             self.emit_set_property_by_name(&dst, &object, &object, *ident);
 
                             if post {
-                                self.emit_move(dst, InstructionOperand::Register(&dst_numeric));
+                                self.emit_move(dst, &dst_numeric);
                             }
 
                             self.register_allocator.dealloc(object);
@@ -113,9 +101,9 @@ impl ByteCompiler<'_> {
                                 Opcode::GetPropertyByValuePush,
                                 &[
                                     Operand2::Register(&dst),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(&object)),
-                                    Operand2::Operand(InstructionOperand::Register(&object)),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&object),
+                                    Operand2::Register(&object),
                                 ],
                             );
 
@@ -123,17 +111,11 @@ impl ByteCompiler<'_> {
 
                             self.emit2(
                                 Opcode::ToNumeric,
-                                &[
-                                    Operand2::Register(&dst_numeric),
-                                    Operand2::Operand(InstructionOperand::Register(&dst)),
-                                ],
+                                &[Operand2::Register(&dst_numeric), Operand2::Register(&dst)],
                             );
                             self.emit2(
                                 opcode,
-                                &[
-                                    Operand2::Register(&dst),
-                                    Operand2::Operand(InstructionOperand::Register(&dst_numeric)),
-                                ],
+                                &[Operand2::Register(&dst), Operand2::Register(&dst_numeric)],
                             );
 
                             self.emit2(
@@ -150,7 +132,7 @@ impl ByteCompiler<'_> {
                             self.register_allocator.dealloc(object);
 
                             if post {
-                                self.emit_move(dst, InstructionOperand::Register(&dst_numeric));
+                                self.emit_move(dst, &dst_numeric);
                             }
 
                             self.register_allocator.dealloc(dst_numeric);
@@ -167,7 +149,7 @@ impl ByteCompiler<'_> {
                         Opcode::GetPrivateField,
                         &[
                             Operand2::Register(&dst),
-                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Register(&object),
                             Operand2::Varying(index),
                         ],
                     );
@@ -176,24 +158,18 @@ impl ByteCompiler<'_> {
 
                     self.emit2(
                         Opcode::ToNumeric,
-                        &[
-                            Operand2::Register(&dst_numeric),
-                            Operand2::Operand(InstructionOperand::Register(&dst)),
-                        ],
+                        &[Operand2::Register(&dst_numeric), Operand2::Register(&dst)],
                     );
                     self.emit2(
                         opcode,
-                        &[
-                            Operand2::Register(&dst),
-                            Operand2::Operand(InstructionOperand::Register(&dst_numeric)),
-                        ],
+                        &[Operand2::Register(&dst), Operand2::Register(&dst_numeric)],
                     );
 
                     self.emit2(
                         Opcode::SetPrivateField,
                         &[
-                            Operand2::Operand(InstructionOperand::Register(&dst)),
-                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Register(&dst),
+                            Operand2::Register(&object),
                             Operand2::Varying(index),
                         ],
                     );
@@ -201,7 +177,7 @@ impl ByteCompiler<'_> {
                     self.register_allocator.dealloc(object);
 
                     if post {
-                        self.emit_move(dst, InstructionOperand::Register(&dst_numeric));
+                        self.emit_move(dst, &dst_numeric);
                     }
 
                     self.register_allocator.dealloc(dst_numeric);
@@ -218,22 +194,16 @@ impl ByteCompiler<'_> {
                         let dst_numeric = self.register_allocator.alloc();
                         self.emit2(
                             Opcode::ToNumeric,
-                            &[
-                                Operand2::Register(&dst_numeric),
-                                Operand2::Operand(InstructionOperand::Register(&dst)),
-                            ],
+                            &[Operand2::Register(&dst_numeric), Operand2::Register(&dst)],
                         );
                         self.emit2(
                             opcode,
-                            &[
-                                Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&dst_numeric)),
-                            ],
+                            &[Operand2::Register(&dst), Operand2::Register(&dst_numeric)],
                         );
 
                         self.emit_set_property_by_name(&dst, &receiver, &object, *ident);
                         if post {
-                            self.emit_move(dst, InstructionOperand::Register(&dst_numeric));
+                            self.emit_move(dst, &dst_numeric);
                         }
 
                         self.register_allocator.dealloc(receiver);
@@ -261,17 +231,11 @@ impl ByteCompiler<'_> {
 
                         self.emit2(
                             Opcode::ToNumeric,
-                            &[
-                                Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&dst)),
-                            ],
+                            &[Operand2::Register(&dst), Operand2::Register(&dst)],
                         );
                         self.emit2(
                             opcode,
-                            &[
-                                Operand2::Register(&dst),
-                                Operand2::Operand(InstructionOperand::Register(&dst)),
-                            ],
+                            &[Operand2::Register(&dst), Operand2::Register(&dst)],
                         );
 
                         self.emit2(

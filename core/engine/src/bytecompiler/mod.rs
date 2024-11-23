@@ -943,8 +943,8 @@ impl<'ctx> ByteCompiler<'ctx> {
             Opcode::GetPropertyByName,
             &[
                 Operand2::Register(dst),
-                Operand2::Operand(InstructionOperand::Register(receiver)),
-                Operand2::Operand(InstructionOperand::Register(value)),
+                Operand2::Register(receiver),
+                Operand2::Register(value),
                 Operand2::Varying(ic_index),
             ],
         );
@@ -968,9 +968,9 @@ impl<'ctx> ByteCompiler<'ctx> {
         self.emit2(
             Opcode::SetPropertyByName,
             &[
-                Operand2::Operand(InstructionOperand::Register(value)),
-                Operand2::Operand(InstructionOperand::Register(receiver)),
-                Operand2::Operand(InstructionOperand::Register(object)),
+                Operand2::Register(value),
+                Operand2::Register(receiver),
+                Operand2::Register(object),
                 Operand2::Varying(ic_index),
             ],
         );
@@ -1134,10 +1134,10 @@ impl<'ctx> ByteCompiler<'ctx> {
     }
 
     #[allow(dead_code)]
-    fn emit_move(&mut self, dst: &Register, src: InstructionOperand<'_>) {
+    fn emit_move(&mut self, dst: &Register, src: &Register) {
         self.emit2(
             Opcode::Move,
-            &[Operand2::Register(dst), Operand2::Operand(src)],
+            &[Operand2::Register(dst), Operand2::Register(src)],
         );
     }
 
@@ -1309,27 +1309,20 @@ impl<'ctx> ByteCompiler<'ctx> {
         Label { index }
     }
 
-    pub(crate) fn emit_opcode_with_operand2(
-        &mut self,
-        opcode: Opcode,
-        src: InstructionOperand<'_>,
-    ) -> Label {
+    pub(crate) fn emit_with_operand2(&mut self, opcode: Opcode, op: Operand2<'_>) -> Label {
         let index = self.next_opcode_location();
-        self.emit2(
-            opcode,
-            &[Operand2::U32(Self::DUMMY_ADDRESS), Operand2::Operand(src)],
-        );
-        // NOTE: Plus one because the `operand_types` is emited
-        Label { index: index + 1 }
+        self.emit2(opcode, &[Operand2::U32(Self::DUMMY_ADDRESS), op]);
+        Label { index }
     }
 
-    pub(crate) fn emit_push_private_environment(&mut self, class: InstructionOperand<'_>) -> Label {
-        self.emit2(Opcode::PushPrivateEnvironment, &[Operand2::Operand(class)]);
+    pub(crate) fn emit_push_private_environment(&mut self, class: &Register) -> Label {
+        self.emit2(Opcode::PushPrivateEnvironment, &[Operand2::Register(class)]);
         let index = self.next_opcode_location();
         self.emit_u32(Self::DUMMY_ADDRESS);
-        Label { index: index - 1 }
+        Label { index: index -1 }
     }
 
+    #[track_caller]
     pub(crate) fn patch_jump_with_target(&mut self, label: Label, target: u32) {
         const U32_SIZE: usize = size_of::<u32>();
 
@@ -1395,7 +1388,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                         Opcode::GetPrivateField,
                         &[
                             Operand2::Register(&dst),
-                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Register(&object),
                             Operand2::Varying(index),
                         ],
                     );
@@ -1514,8 +1507,8 @@ impl<'ctx> ByteCompiler<'ctx> {
                     self.emit2(
                         Opcode::SetPrivateField,
                         &[
-                            Operand2::Operand(InstructionOperand::Register(&value)),
-                            Operand2::Operand(InstructionOperand::Register(&object)),
+                            Operand2::Register(&value),
+                            Operand2::Register(&object),
                             Operand2::Varying(index),
                         ],
                     );
@@ -1690,7 +1683,7 @@ impl<'ctx> ByteCompiler<'ctx> {
                     Opcode::GetPrivateField,
                     &[
                         Operand2::Register(&dst),
-                        Operand2::Operand(InstructionOperand::Register(&this)),
+                        Operand2::Register(&this),
                         Operand2::Varying(index),
                     ],
                 );
@@ -1805,7 +1798,7 @@ impl<'ctx> ByteCompiler<'ctx> {
     ) {
         match kind {
             OptionalOperationKind::SimplePropertyAccess { field } => {
-                self.emit_move(this, InstructionOperand::Register(value));
+                self.emit_move(this, value);
                 match field {
                     PropertyAccessField::Const(name) => {
                         self.emit_get_property_by_name(value, value, value, *name);
@@ -1827,13 +1820,13 @@ impl<'ctx> ByteCompiler<'ctx> {
                 }
             }
             OptionalOperationKind::PrivatePropertyAccess { field } => {
-                self.emit_move(this, InstructionOperand::Register(value));
+                self.emit_move(this, value);
                 let index = self.get_or_insert_private_name(*field);
                 self.emit2(
                     Opcode::GetPrivateField,
                     &[
                         Operand2::Register(value),
-                        Operand2::Operand(InstructionOperand::Register(value)),
+                        Operand2::Register(value),
                         Operand2::Varying(index),
                     ],
                 );

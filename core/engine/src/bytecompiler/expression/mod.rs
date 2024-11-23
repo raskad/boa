@@ -301,7 +301,7 @@ impl ByteCompiler<'_> {
                             Opcode::GetPrivateField,
                             &[
                                 Operand2::Register(&function),
-                                Operand2::Operand(InstructionOperand::Register(&this)),
+                                Operand2::Register(&this),
                                 Operand2::Varying(index),
                             ],
                         );

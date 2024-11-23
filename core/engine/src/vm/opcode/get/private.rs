@@ -12,7 +12,6 @@ pub(crate) struct GetPrivateField;
 
 impl GetPrivateField {
     fn operation(
-        operand_types: u8,
         dst: u32,
         object: u32,
         index: usize,
@@ -20,12 +19,8 @@ impl GetPrivateField {
     ) -> JsResult<CompletionType> {
         let name = context.vm.frame().code_block().constant_string(index);
         let rp = context.vm.frame().rp;
-        let object = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, object, &context.vm);
+        let object = context.vm.stack[(rp + object) as usize].clone();
         let base_obj = object.to_object(context)?;
-
         let name = context
             .vm
             .environments
@@ -44,26 +39,23 @@ impl Operation for GetPrivateField {
     const COST: u8 = 4;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(operand_types, dst, object, index, context)
+        Self::operation(dst, object, index, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(operand_types, dst, object, index, context)
+        Self::operation(dst, object, index, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let dst = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(operand_types, dst, object, index, context)
+        Self::operation(dst, object, index, context)
     }
 }

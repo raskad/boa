@@ -161,8 +161,8 @@ impl ByteCompiler<'_> {
                 Opcode::PushClassPrototype,
                 &[
                     Operand2::Register(&prototype_register),
-                    Operand2::Operand(InstructionOperand::Register(&class_register)),
-                    Operand2::Operand(InstructionOperand::Register(&prototype_register)),
+                    Operand2::Register(&class_register),
+                    Operand2::Register(&prototype_register),
                 ],
             );
         } else {
@@ -175,14 +175,13 @@ impl ByteCompiler<'_> {
             Opcode::SetClassPrototype,
             &[
                 Operand2::Register(&proto_register),
-                Operand2::Operand(InstructionOperand::Register(&prototype_register)),
-                Operand2::Operand(InstructionOperand::Register(&class_register)),
+                Operand2::Register(&prototype_register),
+                Operand2::Register(&class_register),
             ],
         );
         self.register_allocator.dealloc(prototype_register);
 
-        let count_label =
-            self.emit_push_private_environment(InstructionOperand::Register(&class_register));
+        let count_label = self.emit_push_private_environment(&class_register);
         let mut count = 0;
         for element in class.elements {
             match element {
@@ -229,60 +228,48 @@ impl ByteCompiler<'_> {
                             (true, MethodDefinitionKind::Get) => self.emit2(
                                 Opcode::DefineClassStaticGetterByName,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &class_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&class_register),
                                     Operand2::Varying(index),
                                 ],
                             ),
                             (true, MethodDefinitionKind::Set) => self.emit2(
                                 Opcode::DefineClassStaticSetterByName,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &class_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&class_register),
                                     Operand2::Varying(index),
                                 ],
                             ),
                             (true, _) => self.emit2(
                                 Opcode::DefineClassStaticMethodByName,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &class_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&class_register),
                                     Operand2::Varying(index),
                                 ],
                             ),
                             (false, MethodDefinitionKind::Get) => self.emit2(
                                 Opcode::DefineClassGetterByName,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &proto_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&proto_register),
                                     Operand2::Varying(index),
                                 ],
                             ),
                             (false, MethodDefinitionKind::Set) => self.emit2(
                                 Opcode::DefineClassSetterByName,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &proto_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&proto_register),
                                     Operand2::Varying(index),
                                 ],
                             ),
                             (false, _) => self.emit2(
                                 Opcode::DefineClassMethodByName,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &proto_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&proto_register),
                                     Operand2::Varying(index),
                                 ],
                             ),
@@ -302,61 +289,49 @@ impl ByteCompiler<'_> {
                             (true, MethodDefinitionKind::Get) => self.emit2(
                                 Opcode::DefineClassStaticGetterByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &class_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&class_register),
                                 ],
                             ),
                             (true, MethodDefinitionKind::Set) => self.emit2(
                                 Opcode::DefineClassStaticSetterByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &class_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&class_register),
                                 ],
                             ),
                             (true, _) => self.emit2(
                                 Opcode::DefineClassStaticMethodByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &class_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&class_register),
                                 ],
                             ),
                             (false, MethodDefinitionKind::Get) => self.emit2(
                                 Opcode::DefineClassGetterByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &proto_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&proto_register),
                                 ],
                             ),
                             (false, MethodDefinitionKind::Set) => self.emit2(
                                 Opcode::DefineClassSetterByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &proto_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&proto_register),
                                 ],
                             ),
                             (false, _) => self.emit2(
                                 Opcode::DefineClassMethodByValue,
                                 &[
-                                    Operand2::Operand(InstructionOperand::Register(&method)),
-                                    Operand2::Operand(InstructionOperand::Register(&key)),
-                                    Operand2::Operand(InstructionOperand::Register(
-                                        &proto_register,
-                                    )),
+                                    Operand2::Register(&method),
+                                    Operand2::Register(&key),
+                                    Operand2::Register(&proto_register),
                                 ],
                             ),
                         }
@@ -725,7 +700,7 @@ impl ByteCompiler<'_> {
         self.emit_opcode(Opcode::PopPrivateEnvironment);
 
         if let Some(dst) = dst {
-            self.emit_move(dst, InstructionOperand::Register(&class_register));
+            self.emit_move(dst, &class_register);
         } else {
             self.emit_binding(BindingOpcode::InitVar, class_name, &class_register);
         }

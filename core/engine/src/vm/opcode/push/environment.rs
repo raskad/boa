@@ -93,13 +93,10 @@ impl PushPrivateEnvironment {
     fn operation(
         class: u32,
         names: Vec<JsString>,
-        operand_types: u8,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let class_value = context
-            .vm
-            .frame()
-            .read_value::<0>(operand_types, class, &context.vm);
+        let rp = context.vm.frame().rp;
+        let class_value = context.vm.stack[(rp + class) as usize].clone();
         let class = class_value.as_object().expect("should be a object");
 
         let ptr: *const _ = class.as_ref();
@@ -121,7 +118,6 @@ impl Operation for PushPrivateEnvironment {
     const COST: u8 = 5;
 
     fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let class = u32::from(context.vm.read::<u8>());
         let count = context.vm.read::<u32>();
         let mut names = Vec::with_capacity(count as usize);
@@ -134,11 +130,10 @@ impl Operation for PushPrivateEnvironment {
                 .constant_string(index as usize);
             names.push(name);
         }
-        Self::operation(class, names, operand_types, context)
+        Self::operation(class, names, context)
     }
 
     fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let class = u32::from(context.vm.read::<u16>());
         let count = context.vm.read::<u32>();
         let mut names = Vec::with_capacity(count as usize);
@@ -151,11 +146,10 @@ impl Operation for PushPrivateEnvironment {
                 .constant_string(index as usize);
             names.push(name);
         }
-        Self::operation(class, names, operand_types, context)
+        Self::operation(class, names, context)
     }
 
     fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let operand_types = context.vm.read::<u8>();
         let class = context.vm.read::<u32>();
         let count = context.vm.read::<u32>();
         let mut names = Vec::with_capacity(count as usize);
@@ -168,7 +162,7 @@ impl Operation for PushPrivateEnvironment {
                 .constant_string(index as usize);
             names.push(name);
         }
-        Self::operation(class, names, operand_types, context)
+        Self::operation(class, names, context)
     }
 }
 
