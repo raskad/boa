@@ -1,5 +1,5 @@
 use crate::{
-    value::JsValue,
+    value::{JsValue, Numeric},
     vm::{opcode::Operation, CompletionType},
     Context, JsBigInt, JsResult,
 };
@@ -60,20 +60,26 @@ impl Inc {
     fn operation(src: u32, dst: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let value = context.vm.stack[(rp + src) as usize].clone();
-        let value = match value {
-            JsValue::Integer(number) if number < i32::MAX => JsValue::from(number + 1),
-            JsValue::Rational(value) => JsValue::from(value + 1f64),
-            JsValue::BigInt(bigint) => JsBigInt::add(&bigint, &JsBigInt::one()).into(),
-            _ => unreachable!("there is always a call to ToNumeric before Inc"),
-        };
-
-        // let value =  match value {
+        // let value = match value {
         //     JsValue::Integer(number) if number < i32::MAX => JsValue::from(number + 1),
-        //     _ => match value.to_numeric(context)? {
-        //         Numeric::Number(number) => JsValue::from(number + 1f64),
-        //         Numeric::BigInt(bigint) => JsValue::from(JsBigInt::add(&bigint, &JsBigInt::one())),
-        //     }
+        //     JsValue::Rational(value) => JsValue::from(value + 1f64),
+        //     JsValue::BigInt(bigint) => JsBigInt::add(&bigint, &JsBigInt::one()).into(),
+        //     _ => unreachable!("there is always a call to ToNumeric before Inc"),
         // };
+
+        let (numeric, value) = match value {
+            JsValue::Integer(number) if number < i32::MAX => {
+                (JsValue::from(number), JsValue::from(number + 1))
+            }
+            _ => match value.to_numeric(context)? {
+                Numeric::Number(number) => (JsValue::from(number), JsValue::from(number + 1f64)),
+                Numeric::BigInt(bigint) => (
+                    JsValue::from(bigint.clone()),
+                    JsValue::from(JsBigInt::add(&bigint, &JsBigInt::one())),
+                ),
+            },
+        };
+        context.vm.stack[(rp + src) as usize] = numeric;
         context.vm.stack[(rp + dst) as usize] = value;
         Ok(CompletionType::Normal)
     }
