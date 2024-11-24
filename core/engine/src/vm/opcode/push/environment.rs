@@ -54,7 +54,7 @@ impl PushObjectEnvironment {
     fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + value) as usize].clone();
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
         context.vm.environments.push_object(object);
         Ok(CompletionType::Normal)
     }

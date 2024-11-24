@@ -17,7 +17,7 @@ impl CreateForInIterator {
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + value) as usize].clone();
 
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
         let iterator = ForInIterator::create_for_in_iterator(JsValue::new(object), context);
         let next_method = iterator
             .get(js_string!("next"), context)

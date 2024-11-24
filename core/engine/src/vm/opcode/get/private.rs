@@ -20,7 +20,7 @@ impl GetPrivateField {
         let name = context.vm.frame().code_block().constant_string(index);
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + object) as usize].clone();
-        let base_obj = object.to_object(context)?;
+        let base_obj = object.to_object_owned(context)?;
         let name = context
             .vm
             .environments

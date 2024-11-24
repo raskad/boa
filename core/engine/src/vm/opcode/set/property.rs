@@ -27,11 +27,7 @@ impl SetPropertyByName {
         let value = context.vm.stack[(rp + value) as usize].clone();
         let receiver = context.vm.stack[(rp + receiver) as usize].clone();
         let object = context.vm.stack[(rp + object) as usize].clone();
-        let object = if let Some(object) = object.as_object() {
-            object.clone()
-        } else {
-            object.to_object(context)?
-        };
+        let object = object.to_object_owned(context)?;
 
         let ic = &context.vm.frame().code_block().ic[index];
 
@@ -144,12 +140,7 @@ impl SetPropertyByValue {
         let key = context.vm.stack[(rp + key) as usize].clone();
         let receiver = context.vm.stack[(rp + receiver) as usize].clone();
         let object = context.vm.stack[(rp + object) as usize].clone();
-
-        let object = if let Some(object) = object.as_object() {
-            object.clone()
-        } else {
-            object.to_object(context)?
-        };
+        let object = object.to_object_owned(context)?;
 
         let key = key.to_property_key(context)?;
 
@@ -241,7 +232,7 @@ impl SetPropertyGetterByName {
             .constant_string(index)
             .into();
 
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
         let set = object
             .__get_own_property__(&name, &mut InternalMethodContext::new(context))?
             .as_ref()
@@ -306,7 +297,7 @@ impl SetPropertyGetterByValue {
         let value = context.vm.stack[(rp + value) as usize].clone();
         let key = context.vm.stack[(rp + key) as usize].clone();
         let object = context.vm.stack[(rp + object) as usize].clone();
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
         let name = key.to_property_key(context)?;
 
         let set = object
@@ -379,7 +370,7 @@ impl SetPropertySetterByName {
             .constant_string(index)
             .into();
 
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
 
         let get = object
             .__get_own_property__(&name, &mut InternalMethodContext::new(context))?
@@ -445,7 +436,7 @@ impl SetPropertySetterByValue {
         let value = context.vm.stack[(rp + value) as usize].clone();
         let key = context.vm.stack[(rp + key) as usize].clone();
         let object = context.vm.stack[(rp + object) as usize].clone();
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
         let name = key.to_property_key(context)?;
 
         let get = object

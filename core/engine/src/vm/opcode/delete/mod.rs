@@ -20,7 +20,7 @@ impl DeletePropertyByName {
     ) -> JsResult<CompletionType> {
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + object_register) as usize].clone();
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
         let code_block = context.vm.frame().code_block();
         let key = code_block.constant_string(index).into();
         let strict = code_block.strict();
@@ -76,7 +76,7 @@ impl DeletePropertyByValue {
         let rp = context.vm.frame().rp;
         let object = context.vm.stack[(rp + object_register) as usize].clone();
         let key = context.vm.stack[(rp + key) as usize].clone();
-        let object = object.to_object(context)?;
+        let object = object.to_object_owned(context)?;
         let property_key = key.to_property_key(context)?;
 
         let result = object.__delete__(&property_key, &mut InternalMethodContext::new(context))?;

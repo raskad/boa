@@ -23,12 +23,7 @@ impl DefineOwnPropertyByName {
         let object = context.vm.stack[(rp + object) as usize].clone();
         let value = context.vm.stack[(rp + value) as usize].clone();
         let name = context.vm.frame().code_block().constant_string(index);
-
-        let object = if let Some(object) = object.as_object() {
-            object.clone()
-        } else {
-            object.to_object(context)?
-        };
+        let object = object.to_object_owned(context)?;
         object.__define_own_property__(
             &name.into(),
             PropertyDescriptor::builder()
@@ -88,11 +83,7 @@ impl DefineOwnPropertyByValue {
         let value = context.vm.stack[(rp + value) as usize].clone();
         let key = context.vm.stack[(rp + key) as usize].clone();
         let object = context.vm.stack[(rp + object) as usize].clone();
-        let object = if let Some(object) = object.as_object() {
-            object.clone()
-        } else {
-            object.to_object(context)?
-        };
+        let object = object.to_object_owned(context)?;
         let key = key.to_property_key(context)?;
         let success = object.__define_own_property__(
             &key,

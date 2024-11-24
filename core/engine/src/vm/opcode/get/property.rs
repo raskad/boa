@@ -23,11 +23,7 @@ impl GetPropertyByName {
         let rp = context.vm.frame().rp;
         let receiver = context.vm.stack[(rp + receiver) as usize].clone();
         let value = context.vm.stack[(rp + value) as usize].clone();
-        let object = if let Some(object) = value.as_object() {
-            object.clone()
-        } else {
-            value.clone().to_object(context)?
-        };
+        let object = value.to_object_owned(context)?;
 
         let ic = &context.vm.frame().code_block().ic[index];
         let object_borrowed = object.borrow();
@@ -122,12 +118,7 @@ impl GetPropertyByValue {
         let key = context.vm.stack[(rp + key) as usize].clone();
         let receiver = context.vm.stack[(rp + receiver) as usize].clone();
         let value = context.vm.stack[(rp + object) as usize].clone();
-
-        let object = if let Some(object) = value.as_object() {
-            object.clone()
-        } else {
-            value.to_object(context)?
-        };
+        let object = value.to_object_owned(context)?;
 
         let key = key.to_property_key(context)?;
 
@@ -200,12 +191,7 @@ impl GetPropertyByValuePush {
         let key_value = context.vm.stack[(rp + key) as usize].clone();
         let receiver = context.vm.stack[(rp + receiver) as usize].clone();
         let value = context.vm.stack[(rp + object) as usize].clone();
-        let object = if let Some(object) = value.as_object() {
-            object.clone()
-        } else {
-            value.to_object(context)?
-        };
-
+        let object = value.to_object_owned(context)?;
         let key_value = key_value.to_property_key(context)?;
 
         // Fast Path
