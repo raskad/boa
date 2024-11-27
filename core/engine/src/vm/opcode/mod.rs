@@ -1,7 +1,7 @@
 use std::iter::FusedIterator;
 
 /// The opcodes of the vm.
-use crate::{vm::CompletionType, Context, JsResult, JsValue};
+use crate::{vm::{CompletionType, Registers}, Context, JsResult, JsValue};
 
 // Operation modules
 mod arguments;
@@ -427,17 +427,18 @@ macro_rules! generate_opcodes {
                 Self::INSTRUCTIONS[self as usize]
             }
 
-            const SPEND_FNS: [fn(&mut Context, &mut u32) -> JsResult<CompletionType>; Self::MAX] = [
+            const SPEND_FNS: [fn(&mut Registers, &mut Context, &mut u32) -> JsResult<CompletionType>; Self::MAX] = [
                 $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::spend_budget_and_execute),*,
             ];
 
             /// Spends the cost of this opcode into the provided budget and executes it.
             pub(super) fn spend_budget_and_execute(
                 self,
+                registers: &mut Registers,
                 context: &mut Context,
                 budget: &mut u32
             ) -> JsResult<CompletionType> {
-                Self::SPEND_FNS[self as usize](context, budget)
+                Self::SPEND_FNS[self as usize](registers, context, budget)
             }
 
             const COSTS: [u8; Self::MAX] = [
@@ -449,14 +450,14 @@ macro_rules! generate_opcodes {
                 Self::COSTS[self as usize]
             }
 
-            const EXECUTE_FNS: [fn(&mut Context) -> JsResult<CompletionType>; Self::MAX * 3] = [
+            const EXECUTE_FNS: [fn(&mut Registers, &mut Context) -> JsResult<CompletionType>; Self::MAX * 3] = [
                 $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute),*,
-                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_with_u16_operands),*,
-                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_with_u32_operands),*
+                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_u16),*,
+                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_u32),*
             ];
 
-            pub(super) fn execute(self, context: &mut Context) -> JsResult<CompletionType> {
-                Self::EXECUTE_FNS[self as usize](context)
+            pub(super) fn execute(self, registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+                Self::EXECUTE_FNS[self as usize](registers, context)
             }
         }
 
@@ -556,29 +557,30 @@ pub(crate) trait Operation {
     const COST: u8;
 
     /// Execute opcode with [`VaryingOperandKind::U8`] sized [`VaryingOperand`]s.
-    fn execute(context: &mut Context) -> JsResult<CompletionType>;
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType>;
 
     /// Execute opcode with [`VaryingOperandKind::U16`] sized [`VaryingOperand`]s.
     ///
-    /// By default if not implemented will call [`Reserved::execute_with_u16_operands()`] which panics.
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        Reserved::execute_with_u16_operands(context)
+    /// By default if not implemented will call [`Reserved::execute_u16()`] which panics.
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+        Reserved::execute_u16(registers, context)
     }
 
     /// Execute opcode with [`VaryingOperandKind::U32`] sized [`VaryingOperand`]s.
     ///
-    /// By default if not implemented will call [`Reserved::execute_with_u32_operands()`] which panics.
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        Reserved::execute_with_u32_operands(context)
+    /// By default if not implemented will call [`Reserved::execute_u32()`] which panics.
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+        Reserved::execute_u32(registers, context)
     }
 
     /// Spends the cost of this operation into `budget` and runs `execute`.
     fn spend_budget_and_execute(
+        registers: &mut Registers,
         context: &mut Context,
         budget: &mut u32,
     ) -> JsResult<CompletionType> {
         *budget = budget.saturating_sub(u32::from(Self::COST));
-        Self::execute(context)
+        Self::execute(registers, context)
     }
 }
 
@@ -1002,9 +1004,6 @@ generate_opcodes! {
     ///
     /// Stack: value **=>** (-value)
     Neg,
-
-    /// Convert value at register `src` to numeric and puts it in register `dst`.
-    ToNumeric { dst: VaryingOperand, src: VaryingOperand },
 
     /// Unary `++` operator.
     ///
@@ -2305,6 +2304,8 @@ generate_opcodes! {
     Reserved59 => Reserved,
     /// Reserved [`Opcode`].
     Reserved60 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved61 => Reserved,
 }
 
 /// Specific opcodes for bindings.

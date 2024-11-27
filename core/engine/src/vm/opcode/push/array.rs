@@ -1,7 +1,7 @@
 use crate::{
     builtins::Array,
     string::StaticJsStrings,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult, JsValue,
 };
 
@@ -14,14 +14,17 @@ pub(crate) struct PushNewArray;
 
 impl PushNewArray {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(array: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
+    fn operation(
+        array: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let value = context
             .intrinsics()
             .templates()
             .array()
             .create(Array, Vec::from([JsValue::new(0)]));
-        context.vm.stack[(rp + array) as usize] = value.into();
+        registers.set(array, value.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -31,19 +34,19 @@ impl Operation for PushNewArray {
     const INSTRUCTION: &'static str = "INST - PushNewArray";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u8>().into();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u16>().into();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u32>();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 }
 
@@ -56,15 +59,19 @@ pub(crate) struct PushValueToArray;
 
 impl PushValueToArray {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(value: u32, array: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + value) as usize].clone();
-        let array = context.vm.stack[(rp + array) as usize].clone();
+    fn operation(
+        value: u32,
+        array: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let value = registers.get(value);
+        let array = registers.get(array);
         let o = array.as_object().expect("should be an object");
         let len = o
             .length_of_array_like(context)
             .expect("should have 'length' property");
-        o.create_data_property_or_throw(len, value, context)
+        o.create_data_property_or_throw(len, value.clone(), context)
             .expect("should be able to create new data property");
         Ok(CompletionType::Normal)
     }
@@ -75,22 +82,22 @@ impl Operation for PushValueToArray {
     const INSTRUCTION: &'static str = "INST - PushValueToArray";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u8>().into();
         let array = context.vm.read::<u8>().into();
-        Self::operation(value, array, context)
+        Self::operation(value, array, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
         let array = context.vm.read::<u16>().into();
-        Self::operation(value, array, context)
+        Self::operation(value, array, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
         let array = context.vm.read::<u32>();
-        Self::operation(value, array, context)
+        Self::operation(value, array, registers, context)
     }
 }
 
@@ -102,9 +109,12 @@ impl Operation for PushValueToArray {
 pub(crate) struct PushElisionToArray;
 
 impl PushElisionToArray {
-    fn operation(array: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let array = context.vm.stack[(rp + array) as usize].clone();
+    fn operation(
+        array: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let array = registers.get(array);
         let o = array.as_object().expect("should always be an object");
         let len = o
             .length_of_array_like(context)
@@ -119,19 +129,19 @@ impl Operation for PushElisionToArray {
     const INSTRUCTION: &'static str = "INST - PushElisionToArray";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u8>().into();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u16>().into();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u32>();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 }
 
@@ -143,9 +153,12 @@ impl Operation for PushElisionToArray {
 pub(crate) struct PushIteratorToArray;
 
 impl PushIteratorToArray {
-    fn operation(array: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let array = context.vm.stack[(rp + array) as usize].clone();
+    fn operation(
+        array: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let array = registers.get(array);
         let mut iterator = context
             .vm
             .frame_mut()
@@ -153,7 +166,7 @@ impl PushIteratorToArray {
             .pop()
             .expect("iterator stack should have at least an iterator");
         while let Some(next) = iterator.step_value(context)? {
-            Array::push(&array, &[next], context)?;
+            Array::push(array, &[next], context)?;
         }
         Ok(CompletionType::Normal)
     }
@@ -164,18 +177,18 @@ impl Operation for PushIteratorToArray {
     const INSTRUCTION: &'static str = "INST - PushIteratorToArray";
     const COST: u8 = 8;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u8>().into();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u16>().into();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let array = context.vm.read::<u32>();
-        Self::operation(array, context)
+        Self::operation(array, registers, context)
     }
 }

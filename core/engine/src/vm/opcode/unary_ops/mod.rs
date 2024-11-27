@@ -1,7 +1,7 @@
 use crate::{
     builtins::Number,
     value::Numeric,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsBigInt, JsResult,
 };
 use std::ops::Neg as StdNeg;
@@ -23,10 +23,12 @@ pub(crate) struct TypeOf;
 
 impl TypeOf {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(value_register: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + value_register) as usize].clone();
-        context.vm.stack[(rp + value_register) as usize] = value.js_type_of().into();
+    fn operation(
+        value: u32,
+        registers: &mut Registers,
+        _: &mut Context,
+    ) -> JsResult<CompletionType> {
+        registers.set(value, registers.get(value).js_type_of().into());
         Ok(CompletionType::Normal)
     }
 }
@@ -36,19 +38,19 @@ impl Operation for TypeOf {
     const INSTRUCTION: &'static str = "INST - TypeOf";
     const COST: u8 = 1;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u8>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 }
 
@@ -60,10 +62,12 @@ impl Operation for TypeOf {
 pub(crate) struct Pos;
 
 impl Pos {
-    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let addr = (context.vm.frame().rp + value) as usize;
-        let value = context.vm.stack[addr].clone();
-        context.vm.stack[addr] = value.to_number(context)?.into();
+    fn operation(
+        value: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        registers.set(value, registers.get(value).to_number(context)?.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -73,19 +77,19 @@ impl Operation for Pos {
     const INSTRUCTION: &'static str = "INST - Pos";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u8>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 }
 
@@ -97,12 +101,14 @@ impl Operation for Pos {
 pub(crate) struct Neg;
 
 impl Neg {
-    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let addr = (context.vm.frame().rp + value) as usize;
-        let value = context.vm.stack[addr].clone();
-        match value.to_numeric(context)? {
-            Numeric::Number(number) => context.vm.stack[addr] = number.neg().into(),
-            Numeric::BigInt(bigint) => context.vm.stack[addr] = JsBigInt::neg(&bigint).into(),
+    fn operation(
+        value: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        match registers.get(value).to_numeric(context)? {
+            Numeric::Number(number) => registers.set(value, number.neg().into()),
+            Numeric::BigInt(bigint) => registers.set(value, JsBigInt::neg(&bigint).into()),
         }
         Ok(CompletionType::Normal)
     }
@@ -113,19 +119,19 @@ impl Operation for Neg {
     const INSTRUCTION: &'static str = "INST - Neg";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u8>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 }
 
@@ -137,12 +143,14 @@ impl Operation for Neg {
 pub(crate) struct BitNot;
 
 impl BitNot {
-    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let addr = (context.vm.frame().rp + value) as usize;
-        let value = context.vm.stack[addr].clone();
-        match value.to_numeric(context)? {
-            Numeric::Number(number) => context.vm.stack[addr] = Number::not(number).into(),
-            Numeric::BigInt(bigint) => context.vm.stack[addr] = JsBigInt::not(&bigint).into(),
+    fn operation(
+        value: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        match registers.get(value).to_numeric(context)? {
+            Numeric::Number(number) => registers.set(value, Number::not(number).into()),
+            Numeric::BigInt(bigint) => registers.set(value, JsBigInt::not(&bigint).into()),
         }
         Ok(CompletionType::Normal)
     }
@@ -153,18 +161,18 @@ impl Operation for BitNot {
     const INSTRUCTION: &'static str = "INST - BitNot";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u8>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 }

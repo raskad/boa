@@ -393,8 +393,7 @@ impl CodeBlock {
             | Instruction::StrictEq { .. }
             | Instruction::InPrivate { .. }
             | Instruction::Inc { .. }
-            | Instruction::Dec { .. }
-            | Instruction::ToNumeric { .. } => "TODO: fix".to_string(),
+            | Instruction::Dec { .. }  => "TODO: fix".to_string(),
             Instruction::Move { dst: r1, src: r2 } => {
                 format!("dst:reg{}, src:{}", r1.value(), r2.value())
             }
@@ -818,7 +817,8 @@ impl CodeBlock {
             | Instruction::Reserved57
             | Instruction::Reserved58
             | Instruction::Reserved59
-            | Instruction::Reserved60 => unreachable!("Reserved opcodes are unreachable"),
+            | Instruction::Reserved60
+            | Instruction::Reserved61 => unreachable!("Reserved opcodes are unreachable"),
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult, JsValue,
 };
 
@@ -27,9 +27,8 @@ macro_rules! implement_push_generics {
         pub(crate) struct $name;
 
         impl $name {
-            fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
-                let rp = context.vm.frame().rp;
-                context.vm.stack[(rp + dst) as usize] = $push_value.into();
+            fn operation(dst: u32, registers: &mut Registers, _: &mut Context) -> JsResult<CompletionType> {
+                registers.set(dst, $push_value.into());
                 Ok(CompletionType::Normal)
             }
         }
@@ -39,19 +38,19 @@ macro_rules! implement_push_generics {
             const INSTRUCTION: &'static str = stringify!("INST - " + $name);
             const COST: u8 = 1;
 
-            fn execute(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u8>().into();
-                Self::operation(dst, context)
+                Self::operation(dst, registers, context)
             }
 
-            fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u16>().into();
-                Self::operation(dst, context)
+                Self::operation(dst, registers, context)
             }
 
-            fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u32>().into();
-                Self::operation(dst, context)
+                Self::operation(dst, registers, context)
             }
         }
     };

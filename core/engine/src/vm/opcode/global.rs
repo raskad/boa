@@ -1,6 +1,6 @@
 use crate::{vm::CompletionType, Context, JsResult};
 
-use super::Operation;
+use super::{Operation, Registers};
 
 /// `HasRestrictedGlobalProperty` implements the Opcode Operation for `Opcode::HasRestrictedGlobalProperty`
 ///
@@ -12,11 +12,15 @@ use super::Operation;
 pub(crate) struct HasRestrictedGlobalProperty;
 
 impl HasRestrictedGlobalProperty {
-    fn operation(dst: u32, index: usize, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
+    fn operation(
+        dst: u32,
+        index: usize,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let name = &context.vm.frame().code_block().constant_string(index);
         let value = context.has_restricted_global_property(name)?;
-        context.vm.stack[(rp + dst) as usize] = value.into();
+        registers.set(dst, value.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -26,22 +30,22 @@ impl Operation for HasRestrictedGlobalProperty {
     const INSTRUCTION: &'static str = "INST - HasRestrictedGlobalProperty";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 }
 
@@ -55,11 +59,15 @@ impl Operation for HasRestrictedGlobalProperty {
 pub(crate) struct CanDeclareGlobalFunction;
 
 impl CanDeclareGlobalFunction {
-    fn operation(dst: u32, index: usize, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
+    fn operation(
+        dst: u32,
+        index: usize,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let name = &context.vm.frame().code_block().constant_string(index);
         let value = context.can_declare_global_function(name)?;
-        context.vm.stack[(rp + dst) as usize] = value.into();
+        registers.set(dst, value.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -69,22 +77,22 @@ impl Operation for CanDeclareGlobalFunction {
     const INSTRUCTION: &'static str = "INST - CanDeclareGlobalFunction";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 }
 
@@ -98,11 +106,15 @@ impl Operation for CanDeclareGlobalFunction {
 pub(crate) struct CanDeclareGlobalVar;
 
 impl CanDeclareGlobalVar {
-    fn operation(dst: u32, index: usize, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
+    fn operation(
+        dst: u32,
+        index: usize,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let name = &context.vm.frame().code_block().constant_string(index);
         let value = context.can_declare_global_var(name)?;
-        context.vm.stack[(rp + dst) as usize] = value.into();
+        registers.set(dst, value.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -112,22 +124,22 @@ impl Operation for CanDeclareGlobalVar {
     const INSTRUCTION: &'static str = "INST - CanDeclareGlobalVar";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(dst, index, context)
+        Self::operation(dst, index, registers, context)
     }
 }
 
@@ -146,10 +158,10 @@ impl CreateGlobalFunctionBinding {
         function: u32,
         index: usize,
         configurable: bool,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + function) as usize].clone();
+        let value = registers.get(function);
         let name = context.vm.frame().code_block().constant_string(index);
 
         let function = value
@@ -167,25 +179,25 @@ impl Operation for CreateGlobalFunctionBinding {
     const INSTRUCTION: &'static str = "INST - CreateGlobalFunctionBinding";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let function = context.vm.read::<u8>().into();
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(function, index, configurable, context)
+        Self::operation(function, index, configurable, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let function = context.vm.read::<u16>().into();
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(function, index, configurable, context)
+        Self::operation(function, index, configurable, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let function = context.vm.read::<u32>();
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(function, index, configurable, context)
+        Self::operation(function, index, configurable, registers, context)
     }
 }
 
@@ -217,19 +229,19 @@ impl Operation for CreateGlobalVarBinding {
     const INSTRUCTION: &'static str = "INST - CreateGlobalVarBinding";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(_: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u8>() as usize;
         Self::operation(context, index, configurable)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(_: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u16>() as usize;
         Self::operation(context, index, configurable)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(_: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let configurable = context.vm.read::<u8>() != 0;
         let index = context.vm.read::<u32>() as usize;
         Self::operation(context, index, configurable)

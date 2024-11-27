@@ -1,6 +1,6 @@
 use crate::{
     builtins::function::OrdinaryFunction,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -13,10 +13,14 @@ pub(crate) struct SetHomeObject;
 
 impl SetHomeObject {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(function:u32, home: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let function = context.vm.stack[(rp + function) as usize].clone();
-        let home = context.vm.stack[(rp + home) as usize].clone();
+    fn operation(
+        function: u32,
+        home: u32,
+        registers: &mut Registers,
+        _: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let function = registers.get(function);
+        let home = registers.get(home);
 
         function
             .as_object()
@@ -34,21 +38,21 @@ impl Operation for SetHomeObject {
     const INSTRUCTION: &'static str = "INST - SetHomeObject";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let function = context.vm.read::<u8>().into();
         let home = context.vm.read::<u8>().into();
-        Self::operation(function, home, context)
+        Self::operation(function, home, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let function = context.vm.read::<u16>().into();
         let home = context.vm.read::<u16>().into();
-        Self::operation(function, home,context)
+        Self::operation(function, home, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let function = context.vm.read::<u32>();
         let home = context.vm.read::<u32>();
-        Self::operation(function, home,context)
+        Self::operation(function, home, registers, context)
     }
 }

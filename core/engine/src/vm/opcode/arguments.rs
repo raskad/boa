@@ -4,7 +4,7 @@ use crate::{
     Context, JsResult,
 };
 
-use super::Operation;
+use super::{Operation, Registers};
 
 /// `CreateMappedArgumentsObject` implements the Opcode Operation for `Opcode::CreateMappedArgumentsObject`
 ///
@@ -15,8 +15,11 @@ pub(crate) struct CreateMappedArgumentsObject;
 
 impl CreateMappedArgumentsObject {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
+    fn operation(
+        value: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let frame = context.vm.frame();
         let function_object = frame
             .function(&context.vm)
@@ -36,7 +39,7 @@ impl CreateMappedArgumentsObject {
             env,
             context,
         );
-        context.vm.stack[(rp + value) as usize] = arguments.into();
+        registers.set(value, arguments.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -46,19 +49,19 @@ impl Operation for CreateMappedArgumentsObject {
     const INSTRUCTION: &'static str = "INST - CreateMappedArgumentsObject";
     const COST: u8 = 8;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u8>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
-        Self::operation(value, context)
+        Self::operation(value, registers, context)
     }
 }
 
@@ -71,11 +74,14 @@ pub(crate) struct CreateUnmappedArgumentsObject;
 
 impl CreateUnmappedArgumentsObject {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(value: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
+    fn operation(
+        dst: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let args = context.vm.frame().arguments(&context.vm).to_vec();
         let arguments = UnmappedArguments::new(&args, context);
-        context.vm.stack[(rp + value) as usize] = arguments.into();
+        registers.set(dst, arguments.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -85,18 +91,18 @@ impl Operation for CreateUnmappedArgumentsObject {
     const INSTRUCTION: &'static str = "INST - CreateUnmappedArgumentsObject";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u8>().into();
-        Self::operation(value, context)
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u8>().into();
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u16>().into();
-        Self::operation(value, context)
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u16>().into();
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.read::<u32>();
-        Self::operation(value, context)
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+        let dst = context.vm.read::<u32>();
+        Self::operation(dst, registers, context)
     }
 }

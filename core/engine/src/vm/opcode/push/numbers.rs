@@ -1,5 +1,5 @@
 use crate::{
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -13,9 +13,8 @@ macro_rules! implement_push_numbers_with_conversion {
         pub(crate) struct $name;
 
         impl $name {
-            fn operation(dst: u32, value: $num_type, context: &mut Context) -> JsResult<CompletionType> {
-                let rp = context.vm.frame().rp;
-                context.vm.stack[(rp + dst) as usize] = i32::from(value).into();
+            fn operation(dst: u32, value: $num_type, registers: &mut Registers) -> JsResult<CompletionType> {
+                registers.set(dst, i32::from(value).into());
                 Ok(CompletionType::Normal)
             }
         }
@@ -25,22 +24,22 @@ macro_rules! implement_push_numbers_with_conversion {
             const INSTRUCTION: &'static str = stringify!("INST - " + $name);
             const COST: u8 = 1;
 
-            fn execute(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u8>().into();
                 let value = context.vm.read::<$num_type>();
-                Self::operation(dst, value, context)
+                Self::operation(dst, value, registers)
             }
 
-            fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u16>().into();
                 let value = context.vm.read::<$num_type>();
-                Self::operation(dst, value, context)
+                Self::operation(dst, value, registers)
             }
 
-            fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u32>().into();
                 let value = context.vm.read::<$num_type>();
-                Self::operation(dst, value, context)
+                Self::operation(dst, value, registers)
             }
         }
     };
@@ -56,9 +55,8 @@ macro_rules! implement_push_numbers_no_conversion {
         pub(crate) struct $name;
 
         impl $name {
-            fn operation(dst: u32, value: $num_type, context: &mut Context) -> JsResult<CompletionType> {
-                let rp = context.vm.frame().rp;
-                context.vm.stack[(rp + dst) as usize] = value.into();
+            fn operation(dst: u32, value: $num_type, registers: &mut Registers) -> JsResult<CompletionType> {
+                registers.set(dst, value.into());
                 Ok(CompletionType::Normal)
             }
         }
@@ -68,22 +66,22 @@ macro_rules! implement_push_numbers_no_conversion {
             const INSTRUCTION: &'static str = stringify!("INST - " + $name);
             const COST: u8 = 1;
 
-            fn execute(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u8>().into();
                 let value = context.vm.read::<$num_type>();
-                Self::operation(dst, value, context)
+                Self::operation(dst, value, registers)
             }
 
-            fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u16>().into();
                 let value = context.vm.read::<$num_type>();
-                Self::operation(dst, value, context)
+                Self::operation(dst, value, registers)
             }
 
-            fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+            fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
                 let dst = context.vm.read::<u32>().into();
                 let value = context.vm.read::<$num_type>();
-                Self::operation(dst, value, context)
+                Self::operation(dst, value, registers)
             }
         }
     };

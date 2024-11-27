@@ -1,5 +1,5 @@
 use crate::{
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -15,15 +15,15 @@ impl Operation for Reserved {
     const INSTRUCTION: &'static str = "INST - Reserved";
     const COST: u8 = 0;
 
-    fn execute(_: &mut Context) -> JsResult<CompletionType> {
+    fn execute(_: &mut Registers, _: &mut Context) -> JsResult<CompletionType> {
         unreachable!("Reserved opcodes are unreachable!")
     }
 
-    fn execute_with_u16_operands(_: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(_: &mut Registers, _: &mut Context) -> JsResult<CompletionType> {
         unreachable!("Reserved.U16 opcodes are unreachable!")
     }
 
-    fn execute_with_u32_operands(_: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(_: &mut Registers, _: &mut Context) -> JsResult<CompletionType> {
         unreachable!("Reserved.U32 opcodes are unreachable!")
     }
 }

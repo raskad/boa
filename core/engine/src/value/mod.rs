@@ -598,49 +598,6 @@ impl JsValue {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
-    pub(crate) fn to_object_owned(self, context: &mut Context) -> JsResult<JsObject> {
-        match self {
-            Self::Undefined | Self::Null => Err(JsNativeError::typ()
-                .with_message("cannot convert 'null' or 'undefined' to object")
-                .into()),
-            Self::Boolean(boolean) => Ok(context
-                .intrinsics()
-                .templates()
-                .boolean()
-                .create(boolean, Vec::default())),
-            Self::Integer(integer) => Ok(context
-                .intrinsics()
-                .templates()
-                .number()
-                .create(f64::from(integer), Vec::default())),
-            Self::Rational(rational) => Ok(context
-                .intrinsics()
-                .templates()
-                .number()
-                .create(rational, Vec::default())),
-            Self::String(string) => {
-                let len = string.len();
-                Ok(context
-                    .intrinsics()
-                    .templates()
-                    .string()
-                    .create(string, Vec::from([len.into()])))
-            }
-            Self::Symbol(symbol) => Ok(context
-                .intrinsics()
-                .templates()
-                .symbol()
-                .create(symbol, Vec::default())),
-            Self::BigInt(bigint) => Ok(context
-                .intrinsics()
-                .templates()
-                .bigint()
-                .create(bigint, Vec::default())),
-            Self::Object(jsobject) => Ok(jsobject),
-        }
-    }
-
     /// Converts the value to a `PropertyKey`, that can be used as a key for properties.
     ///
     /// See <https://tc39.es/ecma262/#sec-topropertykey>

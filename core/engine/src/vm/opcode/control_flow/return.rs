@@ -1,5 +1,5 @@
 use crate::{
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsNativeError, JsResult,
 };
 
@@ -15,7 +15,7 @@ impl Operation for Return {
     const INSTRUCTION: &'static str = "INST - Return";
     const COST: u8 = 4;
 
-    fn execute(_context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(_: &mut Registers, _: &mut Context) -> JsResult<CompletionType> {
         Ok(CompletionType::Return)
     }
 }
@@ -32,7 +32,7 @@ impl Operation for CheckReturn {
     const INSTRUCTION: &'static str = "INST - CheckReturn";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(_: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let frame = context.vm.frame();
         if !frame.construct() {
             return Ok(CompletionType::Normal);
@@ -86,13 +86,13 @@ pub(crate) struct SetAccumulator;
 
 impl SetAccumulator {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(register: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let value = context
-            .vm
-            .frame()
-            .register(register, &context.vm.stack)
-            .clone();
-        context.vm.set_return_value(value);
+    fn operation(
+        register: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let value = registers.get(register);
+        context.vm.set_return_value(value.clone());
         Ok(CompletionType::Normal)
     }
 }
@@ -102,19 +102,19 @@ impl Operation for SetAccumulator {
     const INSTRUCTION: &'static str = "INST - SetAccumulator";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let register = u32::from(context.vm.read::<u8>());
-        Self::operation(register, context)
+        Self::operation(register, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let register = u32::from(context.vm.read::<u16>());
-        Self::operation(register, context)
+        Self::operation(register, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let register = context.vm.read::<u32>();
-        Self::operation(register, context)
+        Self::operation(register, registers, context)
     }
 }
 
@@ -128,10 +128,9 @@ pub(crate) struct Move;
 impl Move {
     #[allow(clippy::unnecessary_wraps)]
     #[allow(clippy::needless_pass_by_value)]
-    fn operation(dst: u32, src: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + src) as usize].clone();
-        context.vm.stack[(rp + dst) as usize] = value;
+    fn operation(dst: u32, src: u32, registers: &mut Registers) -> JsResult<CompletionType> {
+        let value = registers.get(src);
+        registers.set(dst, value.clone());
         Ok(CompletionType::Normal)
     }
 }
@@ -141,22 +140,22 @@ impl Operation for Move {
     const INSTRUCTION: &'static str = "INST - Move";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let src = context.vm.read::<u8>().into();
-        Self::operation(dst, src, context)
+        Self::operation(dst, src, registers)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let src = context.vm.read::<u16>().into();
-        Self::operation(dst, src, context)
+        Self::operation(dst, src, registers)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let src = context.vm.read::<u32>();
-        Self::operation(dst, src, context)
+        Self::operation(dst, src, registers)
     }
 }
 
@@ -167,11 +166,12 @@ pub(crate) struct PopIntoRegister;
 impl PopIntoRegister {
     #[allow(clippy::unnecessary_wraps)]
     #[allow(clippy::needless_pass_by_value)]
-    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let value = context.vm.pop();
-
-        let rp = context.vm.frame().rp;
-        context.vm.stack[(rp + dst) as usize] = value;
+    fn operation(
+        dst: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        registers.set(dst, context.vm.pop());
         Ok(CompletionType::Normal)
     }
 }
@@ -181,19 +181,19 @@ impl Operation for PopIntoRegister {
     const INSTRUCTION: &'static str = "INST - PopIntoRegister";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = u32::from(context.vm.read::<u8>());
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = u32::from(context.vm.read::<u16>());
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 }
 
@@ -204,10 +204,13 @@ pub(crate) struct PushFromRegister;
 impl PushFromRegister {
     #[allow(clippy::unnecessary_wraps)]
     #[allow(clippy::needless_pass_by_value)]
-    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + dst) as usize].clone();
-        context.vm.push(value);
+    fn operation(
+        dst: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let value = registers.get(dst);
+        context.vm.push(value.clone());
         Ok(CompletionType::Normal)
     }
 }
@@ -217,19 +220,19 @@ impl Operation for PushFromRegister {
     const INSTRUCTION: &'static str = "INST - PushFromRegister";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = u32::from(context.vm.read::<u8>());
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = u32::from(context.vm.read::<u16>());
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 }
 
@@ -242,9 +245,12 @@ pub(crate) struct SetRegisterFromAccumulator;
 
 impl SetRegisterFromAccumulator {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(register: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        context.vm.stack[(rp + register) as usize] = context.vm.get_return_value();
+    fn operation(
+        register: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        registers.set(register, context.vm.get_return_value());
         Ok(CompletionType::Normal)
     }
 }
@@ -254,18 +260,18 @@ impl Operation for SetRegisterFromAccumulator {
     const INSTRUCTION: &'static str = "INST - SetRegisterFromAccumulator";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let register = u32::from(context.vm.read::<u8>());
-        Self::operation(register, context)
+        Self::operation(register, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let register = u32::from(context.vm.read::<u16>());
-        Self::operation(register, context)
+        Self::operation(register, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let register = context.vm.read::<u32>();
-        Self::operation(register, context)
+        Self::operation(register, registers, context)
     }
 }

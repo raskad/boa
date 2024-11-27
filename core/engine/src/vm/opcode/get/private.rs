@@ -1,5 +1,5 @@
 use crate::{
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -15,20 +15,20 @@ impl GetPrivateField {
         dst: u32,
         object: u32,
         index: usize,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
         let name = context.vm.frame().code_block().constant_string(index);
-        let rp = context.vm.frame().rp;
-        let object = context.vm.stack[(rp + object) as usize].clone();
-        let base_obj = object.to_object_owned(context)?;
+        let object = registers.get(object);
+        let object = object.to_object(context)?;
         let name = context
             .vm
             .environments
             .resolve_private_identifier(name)
             .expect("private name must be in environment");
 
-        let result = base_obj.private_get(&name, context)?;
-        context.vm.stack[(rp + dst) as usize] = result;
+        let result = object.private_get(&name, context)?;
+        registers.set(dst, result);
         Ok(CompletionType::Normal)
     }
 }
@@ -38,24 +38,24 @@ impl Operation for GetPrivateField {
     const INSTRUCTION: &'static str = "INST - GetPrivateField";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(dst, object, index, context)
+        Self::operation(dst, object, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(dst, object, index, context)
+        Self::operation(dst, object, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(dst, object, index, context)
+        Self::operation(dst, object, index, registers, context)
     }
 }

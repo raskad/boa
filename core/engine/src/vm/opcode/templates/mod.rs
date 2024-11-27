@@ -3,7 +3,7 @@ use crate::{
     js_string,
     object::IntegrityLevel,
     property::PropertyDescriptor,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -20,11 +20,11 @@ impl TemplateLookup {
         jump: u32,
         site: u64,
         dst: u32,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
         if let Some(template) = context.realm().lookup_template(site) {
-            let rp = context.vm.frame().rp;
-            context.vm.stack[(rp + dst) as usize] = template.into();
+            registers.set(dst, template.into());
             context.vm.frame_mut().pc = jump;
         }
 
@@ -37,25 +37,25 @@ impl Operation for TemplateLookup {
     const INSTRUCTION: &'static str = "INST - TemplateLookup";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let jump = context.vm.read::<u32>();
         let site = context.vm.read::<u64>();
         let dst = context.vm.read::<u8>().into();
-        Self::operation(jump, site, dst, context)
+        Self::operation(jump, site, dst, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let jump = context.vm.read::<u32>();
         let site = context.vm.read::<u64>();
         let dst = context.vm.read::<u16>().into();
-        Self::operation(jump, site, dst, context)
+        Self::operation(jump, site, dst, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let jump = context.vm.read::<u32>();
         let site = context.vm.read::<u64>();
         let dst = context.vm.read::<u32>();
-        Self::operation(jump, site, dst, context)
+        Self::operation(jump, site, dst, registers, context)
     }
 }
 
@@ -73,20 +73,20 @@ impl TemplateCreate {
         dst: u32,
         count: u64,
         values: &[(u32, u32)],
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
         let template = Array::array_create(count, None, context).expect("cannot fail per spec");
         let raw_obj = Array::array_create(count, None, context).expect("cannot fail per spec");
 
         for (index, (cooked, raw)) in values.iter().enumerate() {
-            let raw_value = context.vm.stack[(rp + raw) as usize].clone();
-            let cooked_value = context.vm.stack[(rp + cooked) as usize].clone();
+            let raw_value = registers.get(*raw);
+            let cooked_value = registers.get(*cooked);
             template
                 .define_property_or_throw(
                     index,
                     PropertyDescriptor::builder()
-                        .value(cooked_value)
+                        .value(cooked_value.clone())
                         .writable(false)
                         .enumerable(true)
                         .configurable(false),
@@ -97,7 +97,7 @@ impl TemplateCreate {
                 .define_property_or_throw(
                     index,
                     PropertyDescriptor::builder()
-                        .value(raw_value)
+                        .value(raw_value.clone())
                         .writable(false)
                         .enumerable(true)
                         .configurable(false),
@@ -126,7 +126,7 @@ impl TemplateCreate {
 
         context.realm().push_template(site, template.clone());
 
-        context.vm.stack[(rp + dst) as usize] = template.into();
+        registers.set(dst, template.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -136,7 +136,7 @@ impl Operation for TemplateCreate {
     const INSTRUCTION: &'static str = "INST - TemplateCreate";
     const COST: u8 = 6;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let site = context.vm.read::<u64>();
         let dst = context.vm.read::<u8>().into();
         let count = context.vm.read::<u8>().into();
@@ -146,10 +146,10 @@ impl Operation for TemplateCreate {
             let raw = context.vm.read::<u8>().into();
             values.push((cooked, raw));
         }
-        Self::operation(site, dst, count, &values, context)
+        Self::operation(site, dst, count, &values, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let site = context.vm.read::<u64>();
         let dst = context.vm.read::<u16>().into();
         let count = context.vm.read::<u16>().into();
@@ -159,10 +159,10 @@ impl Operation for TemplateCreate {
             let raw = context.vm.read::<u16>().into();
             values.push((cooked, raw));
         }
-        Self::operation(site, dst, count, &values, context)
+        Self::operation(site, dst, count, &values, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let site = context.vm.read::<u64>();
         let dst = context.vm.read::<u32>();
         let count = context.vm.read::<u32>().into();
@@ -172,6 +172,6 @@ impl Operation for TemplateCreate {
             let raw = context.vm.read::<u32>();
             values.push((cooked, raw));
         }
-        Self::operation(site, dst, count, &values, context)
+        Self::operation(site, dst, count, &values, registers, context)
     }
 }

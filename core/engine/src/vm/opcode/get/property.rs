@@ -1,7 +1,7 @@
 use crate::{
     object::{internal_methods::InternalMethodContext, shape::slot::SlotAttributes},
     property::PropertyKey,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -18,12 +18,12 @@ impl GetPropertyByName {
         receiver: u32,
         value: u32,
         index: usize,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let receiver = context.vm.stack[(rp + receiver) as usize].clone();
-        let value = context.vm.stack[(rp + value) as usize].clone();
-        let object = value.to_object_owned(context)?;
+        let receiver = registers.get(receiver);
+        let object = registers.get(value);
+        let object = object.to_object(context)?;
 
         let ic = &context.vm.frame().code_block().ic[index];
         let object_borrowed = object.borrow();
@@ -39,12 +39,12 @@ impl GetPropertyByName {
             drop(object_borrowed);
             if slot.attributes.has_get() && result.is_object() {
                 result = result.as_object().expect("should contain getter").call(
-                    &receiver,
+                    receiver,
                     &[],
                     context,
                 )?;
             }
-            context.vm.stack[(rp + dst) as usize] = result;
+            registers.set(dst, result);
             return Ok(CompletionType::Normal);
         }
 
@@ -53,7 +53,7 @@ impl GetPropertyByName {
         let key: PropertyKey = ic.name.clone().into();
 
         let context = &mut InternalMethodContext::new(context);
-        let result = object.__get__(&key, receiver, context)?;
+        let result = object.__get__(&key, receiver.clone(), context)?;
 
         // Cache the property.
         let slot = *context.slot();
@@ -64,7 +64,7 @@ impl GetPropertyByName {
             ic.set(shape, slot);
         }
 
-        context.vm.stack[(rp + dst) as usize] = result;
+        registers.set(dst, result);
         Ok(CompletionType::Normal)
     }
 }
@@ -74,28 +74,28 @@ impl Operation for GetPropertyByName {
     const INSTRUCTION: &'static str = "INST - GetPropertyByName";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let receiver = context.vm.read::<u8>().into();
         let value = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(dst, receiver, value, index, context)
+        Self::operation(dst, receiver, value, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let receiver = context.vm.read::<u16>().into();
         let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(dst, receiver, value, index, context)
+        Self::operation(dst, receiver, value, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let receiver = context.vm.read::<u32>();
         let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(dst, receiver, value, index, context)
+        Self::operation(dst, receiver, value, index, registers, context)
     }
 }
 
@@ -112,14 +112,12 @@ impl GetPropertyByValue {
         key: u32,
         receiver: u32,
         object: u32,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let key = context.vm.stack[(rp + key) as usize].clone();
-        let receiver = context.vm.stack[(rp + receiver) as usize].clone();
-        let value = context.vm.stack[(rp + object) as usize].clone();
-        let object = value.to_object_owned(context)?;
-
+        let key = registers.get(key);
+        let object = registers.get(object);
+        let object = object.to_object(context)?;
         let key = key.to_property_key(context)?;
 
         // Fast Path
@@ -128,16 +126,22 @@ impl GetPropertyByValue {
                 let object_borrowed = object.borrow();
                 if let Some(element) = object_borrowed.properties().get_dense_property(index.get())
                 {
-                    context.vm.stack[(rp + dst) as usize] = element;
+                    registers.set(dst, element);
                     return Ok(CompletionType::Normal);
                 }
             }
         }
 
-        // Slow path:
-        let result = object.__get__(&key, receiver, &mut InternalMethodContext::new(context))?;
+        let receiver = registers.get(receiver);
 
-        context.vm.stack[(rp + dst) as usize] = result;
+        // Slow path:
+        let result = object.__get__(
+            &key,
+            receiver.clone(),
+            &mut InternalMethodContext::new(context),
+        )?;
+
+        registers.set(dst, result);
         Ok(CompletionType::Normal)
     }
 }
@@ -147,28 +151,28 @@ impl Operation for GetPropertyByValue {
     const INSTRUCTION: &'static str = "INST - GetPropertyByValue";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let receiver = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
-        Self::operation(dst, key, receiver, object, context)
+        Self::operation(dst, key, receiver, object, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let receiver = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
-        Self::operation(dst, key, receiver, object, context)
+        Self::operation(dst, key, receiver, object, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let receiver = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
-        Self::operation(dst, key, receiver, object, context)
+        Self::operation(dst, key, receiver, object, registers, context)
     }
 }
 
@@ -185,13 +189,12 @@ impl GetPropertyByValuePush {
         key: u32,
         receiver: u32,
         object: u32,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let key_value = context.vm.stack[(rp + key) as usize].clone();
-        let receiver = context.vm.stack[(rp + receiver) as usize].clone();
-        let value = context.vm.stack[(rp + object) as usize].clone();
-        let object = value.to_object_owned(context)?;
+        let key_value = registers.get(key);
+        let object = registers.get(object);
+        let object = object.to_object(context)?;
         let key_value = key_value.to_property_key(context)?;
 
         // Fast Path
@@ -200,22 +203,24 @@ impl GetPropertyByValuePush {
                 let object_borrowed = object.borrow();
                 if let Some(element) = object_borrowed.properties().get_dense_property(index.get())
                 {
-                    context.vm.stack[(rp + key) as usize] = key_value.into();
-                    context.vm.stack[(rp + dst) as usize] = element;
+                    registers.set(key, key_value.into());
+                    registers.set(dst, element);
                     return Ok(CompletionType::Normal);
                 }
             }
         }
 
+        let receiver = registers.get(receiver);
+
         // Slow path:
         let result = object.__get__(
             &key_value,
-            receiver,
+            receiver.clone(),
             &mut InternalMethodContext::new(context),
         )?;
 
-        context.vm.stack[(rp + key) as usize] = key_value.into();
-        context.vm.stack[(rp + dst) as usize] = result;
+        registers.set(key, key_value.into());
+        registers.set(dst, result);
         Ok(CompletionType::Normal)
     }
 }
@@ -225,27 +230,27 @@ impl Operation for GetPropertyByValuePush {
     const INSTRUCTION: &'static str = "INST - GetPropertyByValuePush";
     const COST: u8 = 4;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
         let key = context.vm.read::<u8>().into();
         let receiver = context.vm.read::<u8>().into();
         let object = context.vm.read::<u8>().into();
-        Self::operation(dst, key, receiver, object, context)
+        Self::operation(dst, key, receiver, object, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
         let key = context.vm.read::<u16>().into();
         let receiver = context.vm.read::<u16>().into();
         let object = context.vm.read::<u16>().into();
-        Self::operation(dst, key, receiver, object, context)
+        Self::operation(dst, key, receiver, object, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
         let key = context.vm.read::<u32>();
         let receiver = context.vm.read::<u32>();
         let object = context.vm.read::<u32>();
-        Self::operation(dst, key, receiver, object, context)
+        Self::operation(dst, key, receiver, object, registers, context)
     }
 }

@@ -67,7 +67,6 @@ impl CodeBlock {
                 | Instruction::InstanceOf { .. }
                 | Instruction::SetAccumulator { .. }
                 | Instruction::SetFunctionName { .. }
-                | Instruction::ToNumeric { .. }
                 | Instruction::Inc { .. }
                 | Instruction::Dec { .. } => {
                     graph.add_node(previous_pc, NodeShape::None, label.into(), Color::None);
@@ -508,7 +507,8 @@ impl CodeBlock {
                 | Instruction::Reserved57
                 | Instruction::Reserved58
                 | Instruction::Reserved59
-                | Instruction::Reserved60 => unreachable!("Reserved opcodes are unreachable"),
+                | Instruction::Reserved60
+                | Instruction::Reserved61 => unreachable!("Reserved opcodes are unreachable"),
             }
         }
 

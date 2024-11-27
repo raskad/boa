@@ -1,7 +1,7 @@
 use crate::{
     builtins::function::OrdinaryFunction,
     object::JsFunction,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -18,12 +18,12 @@ impl PushClassField {
         name: u32,
         function: u32,
         is_anonyms_function: bool,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let class = context.vm.stack[(rp + class) as usize].clone();
-        let name = context.vm.stack[(rp + name) as usize].clone();
-        let function = context.vm.stack[(rp + function) as usize].clone();
+        let class = registers.get(class);
+        let name = registers.get(name);
+        let function = registers.get(function);
 
         let name = name.to_property_key(context)?;
         let function = function
@@ -57,28 +57,49 @@ impl Operation for PushClassField {
     const INSTRUCTION: &'static str = "INST - PushClassField";
     const COST: u8 = 6;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let class = context.vm.read::<u8>().into();
         let name = context.vm.read::<u8>().into();
         let function = context.vm.read::<u8>().into();
         let is_anonyms_function = context.vm.read::<u8>() != 0;
-        Self::operation(class, name, function, is_anonyms_function, context)
+        Self::operation(
+            class,
+            name,
+            function,
+            is_anonyms_function,
+            registers,
+            context,
+        )
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let class = context.vm.read::<u16>().into();
         let name = context.vm.read::<u16>().into();
         let function = context.vm.read::<u16>().into();
         let is_anonyms_function = context.vm.read::<u8>() != 0;
-        Self::operation(class, name, function, is_anonyms_function, context)
+        Self::operation(
+            class,
+            name,
+            function,
+            is_anonyms_function,
+            registers,
+            context,
+        )
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let class = context.vm.read::<u32>();
         let name = context.vm.read::<u32>();
         let function = context.vm.read::<u32>();
         let is_anonyms_function = context.vm.read::<u8>() != 0;
-        Self::operation(class, name, function, is_anonyms_function, context)
+        Self::operation(
+            class,
+            name,
+            function,
+            is_anonyms_function,
+            registers,
+            context,
+        )
     }
 }
 
@@ -95,11 +116,11 @@ impl PushClassFieldPrivate {
         class: u32,
         function: u32,
         index: usize,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let class = context.vm.stack[(rp + class) as usize].clone();
-        let function = context.vm.stack[(rp + function) as usize].clone();
+        let class = registers.get(class);
+        let function = registers.get(function);
         let name = context.vm.frame().code_block().constant_string(index);
 
         let function = function
@@ -128,24 +149,24 @@ impl Operation for PushClassFieldPrivate {
     const INSTRUCTION: &'static str = "INST - PushClassFieldPrivate";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let class = context.vm.read::<u8>().into();
         let function = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(class, function, index, context)
+        Self::operation(class, function, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let class = context.vm.read::<u16>().into();
         let function = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(class, function, index, context)
+        Self::operation(class, function, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let class = context.vm.read::<u32>();
         let function = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(class, function, index, context)
+        Self::operation(class, function, index, registers, context)
     }
 }

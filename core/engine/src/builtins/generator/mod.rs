@@ -20,7 +20,7 @@ use crate::{
     string::StaticJsStrings,
     symbol::JsSymbol,
     value::JsValue,
-    vm::{CallFrame, CallFrameFlags, CompletionRecord, GeneratorResumeKind},
+    vm::{CallFrame, CallFrameFlags, CompletionRecord, GeneratorResumeKind, Registers},
     Context, JsArgs, JsData, JsError, JsResult, JsString,
 };
 use boa_gc::{custom_trace, Finalize, Trace};
@@ -29,7 +29,7 @@ use boa_profiler::Profiler;
 use super::{BuiltInBuilder, IntrinsicObject};
 
 /// Indicates the state of a generator.
-#[derive(Debug, Clone, Finalize)]
+#[derive(Debug, Finalize)]
 pub(crate) enum GeneratorState {
     SuspendedStart {
         /// The `[[GeneratorContext]]` internal slot.
@@ -57,15 +57,16 @@ unsafe impl Trace for GeneratorState {
 ///
 /// All of the fields must be changed with those that are currently present in the
 /// context/vm before the generator execution starts/resumes and after it has ended/yielded.
-#[derive(Debug, Clone, Trace, Finalize)]
+#[derive(Debug, Trace, Finalize)]
 pub(crate) struct GeneratorContext {
     pub(crate) stack: Vec<JsValue>,
     pub(crate) call_frame: Option<CallFrame>,
+    registers: Registers,
 }
 
 impl GeneratorContext {
     /// Creates a new `GeneratorContext` from the current `Context` state.
-    pub(crate) fn from_current(context: &mut Context) -> Self {
+    pub(crate) fn from_current(context: &mut Context, registers: Registers) -> Self {
         let mut frame = context.vm.frame().clone();
         frame.environments = context.vm.environments.clone();
         frame.realm = context.realm().clone();
@@ -81,6 +82,7 @@ impl GeneratorContext {
         Self {
             call_frame: Some(frame),
             stack,
+            registers,
         }
     }
 
@@ -105,7 +107,7 @@ impl GeneratorContext {
         }
         context.vm.push(resume_kind);
 
-        let result = context.run();
+        let result = context.run(&mut self.registers);
 
         std::mem::swap(&mut context.vm.stack, &mut self.stack);
         self.call_frame = context.vm.pop_frame();

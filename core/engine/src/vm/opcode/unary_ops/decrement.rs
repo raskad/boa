@@ -1,6 +1,6 @@
 use crate::{
     value::{JsValue, Numeric},
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsBigInt, JsResult,
 };
 
@@ -13,20 +13,17 @@ pub(crate) struct Dec;
 
 impl Dec {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(src: u32, dst: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + src) as usize].clone();
-
-        // let value = match value {
-        //     JsValue::Integer(number) if number > i32::MIN => JsValue::from(number - 1),
-        //     JsValue::Rational(value) => JsValue::from(value - 1f64),
-        //     JsValue::BigInt(bigint) => JsBigInt::sub(&bigint, &JsBigInt::one()).into(),
-        //     _ => unreachable!("there is always a call to ToNumeric before Inc"),
-        // };
+    fn operation(
+        src: u32,
+        dst: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let value = registers.get(src);
 
         let (numeric, value) = match value {
-            JsValue::Integer(number) if number > i32::MIN => {
-                (JsValue::from(number), JsValue::from(number - 1))
+            JsValue::Integer(number) if *number > i32::MIN => {
+                (JsValue::from(*number), JsValue::from(number - 1))
             }
             _ => match value.to_numeric(context)? {
                 Numeric::Number(number) => (JsValue::from(number), JsValue::from(number - 1f64)),
@@ -36,8 +33,8 @@ impl Dec {
                 ),
             },
         };
-        context.vm.stack[(rp + src) as usize] = numeric;
-        context.vm.stack[(rp + dst) as usize] = value;
+        registers.set(src, numeric);
+        registers.set(dst, value);
         Ok(CompletionType::Normal)
     }
 }
@@ -47,19 +44,19 @@ impl Operation for Dec {
     const INSTRUCTION: &'static str = "INST - Dec";
     const COST: u8 = 3;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst: u32 = context.vm.read::<u8>().into();
         let src: u32 = context.vm.read::<u8>().into();
-        Self::operation(src, dst, context)
+        Self::operation(src, dst, registers, context)
     }
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst: u32 = context.vm.read::<u16>().into();
         let src: u32 = context.vm.read::<u16>().into();
-        Self::operation(src, dst, context)
+        Self::operation(src, dst, registers, context)
     }
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst: u32 = context.vm.read::<u32>();
         let src: u32 = context.vm.read::<u32>();
-        Self::operation(src, dst, context)
+        Self::operation(src, dst, registers, context)
     }
 }

@@ -27,7 +27,7 @@ use crate::{
     realm::Realm,
     vm::{
         create_function_object_fast, ActiveRunnable, CallFrame, CallFrameFlags, CodeBlock,
-        CompletionRecord, Opcode,
+        CompletionRecord, Opcode, Registers,
     },
     Context, JsArgs, JsError, JsNativeError, JsObject, JsResult, JsString, JsValue, NativeFunction,
 };
@@ -1756,7 +1756,8 @@ impl SourceTextModule {
         // 10. Else,
         //    a. Assert: capability is a PromiseCapability Record.
         //    b. Perform AsyncBlockStart(capability, module.[[ECMAScriptCode]], moduleContext).
-        let result = context.run();
+        let register_count = context.vm.frame().code_block().register_count;
+        let result = context.run(&mut Registers::new(register_count as usize));
 
         context.vm.pop_frame();
 

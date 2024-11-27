@@ -1,5 +1,5 @@
 use crate::{
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -11,11 +11,15 @@ use crate::{
 pub(crate) struct ToPropertyKey;
 
 impl ToPropertyKey {
-    fn operation(value: u32, dst: u32, context: &mut Context) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let value = context.vm.stack[(rp + value) as usize].clone();
+    fn operation(
+        value: u32,
+        dst: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
+        let value = registers.get(value);
         let key = value.to_property_key(context)?;
-        context.vm.stack[(rp + dst) as usize] = key.into();
+        registers.set(dst, key.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -25,21 +29,21 @@ impl Operation for ToPropertyKey {
     const INSTRUCTION: &'static str = "INST - ToPropertyKey";
     const COST: u8 = 2;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u8>().into();
         let dst = context.vm.read::<u8>().into();
-        Self::operation(value, dst, context)
+        Self::operation(value, dst, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u16>().into();
         let dst = context.vm.read::<u16>().into();
-        Self::operation(value, dst, context)
+        Self::operation(value, dst, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let value = context.vm.read::<u32>();
         let dst = context.vm.read::<u32>();
-        Self::operation(value, dst, context)
+        Self::operation(value, dst, registers, context)
     }
 }

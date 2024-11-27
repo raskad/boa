@@ -3,7 +3,7 @@ use crate::{
     js_str, js_string,
     object::{internal_methods::InternalMethodContext, PrivateElement},
     property::PropertyDescriptor,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -21,12 +21,12 @@ impl PushClassPrivateMethod {
         prototype: u32,
         value: u32,
         index: usize,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let object = context.vm.stack[(rp + object) as usize].clone();
-        let prototype = context.vm.stack[(rp + prototype) as usize].clone();
-        let value = context.vm.stack[(rp + value) as usize].clone();
+        let object = registers.get(object);
+        let prototype = registers.get(prototype);
+        let value = registers.get(value);
         let name = context.vm.frame().code_block().constant_string(index);
 
         let value = value.as_callable().expect("method must be callable");
@@ -71,28 +71,28 @@ impl Operation for PushClassPrivateMethod {
     const INSTRUCTION: &'static str = "INST - PushClassPrivateMethod";
     const COST: u8 = 6;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u8>().into();
         let prototype = context.vm.read::<u8>().into();
         let value = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(object, prototype, value, index, context)
+        Self::operation(object, prototype, value, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u16>().into();
         let prototype = context.vm.read::<u16>().into();
         let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(object, prototype, value, index, context)
+        Self::operation(object, prototype, value, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u32>();
         let prototype = context.vm.read::<u32>();
         let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(object, prototype, value, index, context)
+        Self::operation(object, prototype, value, index, registers, context)
     }
 }
 
@@ -109,11 +109,11 @@ impl PushClassPrivateGetter {
         object: u32,
         value: u32,
         index: usize,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let object = context.vm.stack[(rp + object) as usize].clone();
-        let value = context.vm.stack[(rp + value) as usize].clone();
+        let object = registers.get(object);
+        let value = registers.get(value);
         let name = context.vm.frame().code_block().constant_string(index);
 
         let value = value.as_callable().expect("getter must be callable");
@@ -139,25 +139,25 @@ impl Operation for PushClassPrivateGetter {
     const INSTRUCTION: &'static str = "INST - PushClassPrivateGetter";
     const COST: u8 = 6;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u8>().into();
         let value = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(object, value, index, context)
+        Self::operation(object, value, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u16>().into();
         let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(object, value, index, context)
+        Self::operation(object, value, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u32>();
         let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(object, value, index, context)
+        Self::operation(object, value, index, registers, context)
     }
 }
 
@@ -174,11 +174,11 @@ impl PushClassPrivateSetter {
         object: u32,
         value: u32,
         index: usize,
+        registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let rp = context.vm.frame().rp;
-        let object = context.vm.stack[(rp + object) as usize].clone();
-        let value = context.vm.stack[(rp + value) as usize].clone();
+        let object = registers.get(object);
+        let value = registers.get(value);
         let name = context.vm.frame().code_block().constant_string(index);
 
         let value = value.as_callable().expect("getter must be callable");
@@ -204,24 +204,24 @@ impl Operation for PushClassPrivateSetter {
     const INSTRUCTION: &'static str = "INST - PushClassPrivateSetter";
     const COST: u8 = 6;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u8>().into();
         let value = context.vm.read::<u8>().into();
         let index = context.vm.read::<u8>() as usize;
-        Self::operation(object, value, index, context)
+        Self::operation(object, value, index, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u16>().into();
         let value = context.vm.read::<u16>().into();
         let index = context.vm.read::<u16>() as usize;
-        Self::operation(object, value, index, context)
+        Self::operation(object, value, index, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let object = context.vm.read::<u32>();
         let value = context.vm.read::<u32>();
         let index = context.vm.read::<u32>() as usize;
-        Self::operation(object, value, index, context)
+        Self::operation(object, value, index, registers, context)
     }
 }

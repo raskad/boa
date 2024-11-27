@@ -1,6 +1,6 @@
 use crate::{
     builtins::Array,
-    vm::{opcode::Operation, CompletionType},
+    vm::{opcode::Operation, CompletionType, Registers},
     Context, JsResult,
 };
 
@@ -13,7 +13,11 @@ pub(crate) struct RestParameterInit;
 
 impl RestParameterInit {
     #[allow(clippy::unnecessary_wraps)]
-    fn operation(dst: u32, context: &mut Context) -> JsResult<CompletionType> {
+    fn operation(
+        dst: u32,
+        registers: &mut Registers,
+        context: &mut Context,
+    ) -> JsResult<CompletionType> {
         let frame = context.vm.frame();
         let argument_count = frame.argument_count;
         let param_count = frame.code_block().parameter_length;
@@ -38,8 +42,7 @@ impl RestParameterInit {
             Array::array_create(0, None, context).expect("could not create an empty array")
         };
 
-        let rp = context.vm.frame().rp;
-        context.vm.stack[(rp + dst) as usize] = array.into();
+        registers.set(dst, array.into());
         Ok(CompletionType::Normal)
     }
 }
@@ -49,18 +52,18 @@ impl Operation for RestParameterInit {
     const INSTRUCTION: &'static str = "INST - RestParameterInit";
     const COST: u8 = 6;
 
-    fn execute(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u8>().into();
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u16>().into();
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         let dst = context.vm.read::<u32>();
-        Self::operation(dst, context)
+        Self::operation(dst, registers, context)
     }
 }
