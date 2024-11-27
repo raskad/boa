@@ -30,8 +30,7 @@ impl ByteCompiler<'_> {
         self.register_allocator.dealloc(called);
 
         if async_ {
-            self.push_from_register(&value);
-            self.emit_opcode(Opcode::Await);
+            self.emit2(Opcode::Await, &[Operand2::Register(&value)]);
             let resume_kind = self.register_allocator.alloc();
             self.pop_into_register(&resume_kind);
             self.pop_into_register(&value);
@@ -84,8 +83,7 @@ impl ByteCompiler<'_> {
         // 1. Let generatorKind be GetGeneratorKind().
         if self.is_async() {
             // 2. If generatorKind is async, return ? AsyncGeneratorYield(? Await(value)).
-            self.push_from_register(value);
-            self.emit_opcode(Opcode::Await);
+            self.emit2(Opcode::Await, &[Operand2::Register(value)]);
             self.pop_into_register(&resume_kind);
             self.pop_into_register(value);
             self.emit2(
@@ -99,8 +97,7 @@ impl ByteCompiler<'_> {
                 Opcode::CreateIteratorResult,
                 &[Operand2::Register(value), Operand2::Bool(false)],
             );
-            self.push_from_register(value);
-            self.emit_opcode(Opcode::GeneratorYield);
+            self.emit2(Opcode::GeneratorYield, &[Operand2::Register(value)]);
             self.pop_into_register(&resume_kind);
             self.pop_into_register(value);
         }
@@ -121,16 +118,14 @@ impl ByteCompiler<'_> {
     ///
     /// [async_yield]: https://tc39.es/ecma262/#sec-asyncgeneratoryield
     pub(super) fn async_generator_yield(&mut self, value: &Register, resume_kind: &Register) {
-        self.push_from_register(value);
-        self.emit_opcode(Opcode::AsyncGeneratorYield);
+        self.emit2(Opcode::AsyncGeneratorYield, &[Operand2::Register(value)]);
         self.pop_into_register(resume_kind);
         self.pop_into_register(value);
 
         let non_return_resume =
             self.jump_if_not_resume_kind(GeneratorResumeKind::Return, resume_kind);
 
-        self.push_from_register(value);
-        self.emit_opcode(Opcode::Await);
+        self.emit2(Opcode::Await, &[Operand2::Register(value)]);
         self.pop_into_register(resume_kind);
         self.pop_into_register(value);
 

@@ -21,13 +21,12 @@ impl RestParameterInit {
         let frame = context.vm.frame();
         let argument_count = frame.argument_count;
         let param_count = frame.code_block().parameter_length;
-        let register_count = frame.code_block().register_count;
         let array = if argument_count >= param_count {
             let rest_count = argument_count - param_count + 1;
 
             let len = context.vm.stack.len() as u32;
-            let start = (len - rest_count - register_count) as usize;
-            let end = (len - register_count) as usize;
+            let start = (len - rest_count) as usize;
+            let end = (len) as usize;
 
             let args = &context.vm.stack[start..end];
 

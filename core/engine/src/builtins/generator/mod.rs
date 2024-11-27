@@ -66,7 +66,11 @@ pub(crate) struct GeneratorContext {
 
 impl GeneratorContext {
     /// Creates a new `GeneratorContext` from the current `Context` state.
-    pub(crate) fn from_current(context: &mut Context, registers: Registers) -> Self {
+    pub(crate) fn from_current(
+        context: &mut Context,
+        mut registers: Registers,
+        async_generator: Option<JsObject>,
+    ) -> Self {
         let mut frame = context.vm.frame().clone();
         frame.environments = context.vm.environments.clone();
         frame.realm = context.realm().clone();
@@ -78,6 +82,13 @@ impl GeneratorContext {
         // NOTE: Since we get a pre-built call frame with stack, and we reuse them.
         //       So we don't need to push the registers in subsequent calls.
         frame.flags |= CallFrameFlags::REGISTERS_ALREADY_PUSHED;
+
+        if let Some(async_generator) = async_generator {
+            registers.set(
+                CallFrame::ASYNC_GENERATOR_OBJECT_REGISTER_INDEX,
+                async_generator.into(),
+            );
+        }
 
         Self {
             call_frame: Some(frame),
@@ -119,7 +130,7 @@ impl GeneratorContext {
     pub(crate) fn async_generator_object(&self) -> Option<JsObject> {
         self.call_frame
             .as_ref()
-            .and_then(|frame| frame.async_generator_object(&self.stack))
+            .and_then(|frame| frame.async_generator_object(&self.registers))
     }
 }
 

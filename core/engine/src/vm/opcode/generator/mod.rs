@@ -12,7 +12,7 @@ use crate::{
     vm::{
         call_frame::GeneratorResumeKind,
         opcode::{Operation, ReThrow},
-        CallFrame, CompletionType, Registers,
+        CompletionType, Registers,
     },
     Context, JsError, JsObject, JsResult,
 };
@@ -37,8 +37,6 @@ impl Operation for Generator {
         let active_function = context.vm.frame().function(&context.vm);
         let this_function_object =
             active_function.expect("active function should be set to the generator");
-
-        let mut frame = GeneratorContext::from_current(context, registers.clone_current_frame());
 
         let proto = this_function_object
             .get(PROTOTYPE, context)
@@ -76,24 +74,28 @@ impl Operation for Generator {
         };
 
         if r#async {
-            let rp = frame
-                .call_frame
-                .as_ref()
-                .map_or(0, |frame| frame.rp as usize);
-            frame.stack[rp + CallFrame::ASYNC_GENERATOR_OBJECT_REGISTER_INDEX as usize] =
-                generator.clone().into();
+            let generator_context = GeneratorContext::from_current(
+                context,
+                registers.clone_current_frame(),
+                Some(generator.clone()),
+            );
 
             let mut gen = generator
                 .downcast_mut::<AsyncGenerator>()
                 .expect("must be object here");
 
-            gen.context = Some(frame);
+            gen.context = Some(generator_context);
         } else {
+            let generator_context =
+                GeneratorContext::from_current(context, registers.clone_current_frame(), None);
+
             let mut gen = generator
                 .downcast_mut::<crate::builtins::generator::Generator>()
                 .expect("must be object here");
 
-            gen.state = GeneratorState::SuspendedStart { context: frame };
+            gen.state = GeneratorState::SuspendedStart {
+                context: generator_context,
+            };
         }
 
         context.vm.set_return_value(generator.into());
@@ -113,12 +115,12 @@ impl Operation for AsyncGeneratorClose {
     const INSTRUCTION: &'static str = "INST - AsyncGeneratorClose";
     const COST: u8 = 8;
 
-    fn execute(_: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
         // Step 3.e-g in [AsyncGeneratorStart](https://tc39.es/ecma262/#sec-asyncgeneratorstart)
         let generator = context
             .vm
             .frame()
-            .async_generator_object(&context.vm.stack)
+            .async_generator_object(registers)
             .expect("There should be a object")
             .downcast::<AsyncGenerator>()
             .expect("must be async generator");

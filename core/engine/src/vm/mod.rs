@@ -178,9 +178,8 @@ impl Vm {
         //       since generator-like functions push the same call
         //       frame with pre-built stack.
         if !frame.registers_already_pushed() {
-            let register_count = frame.code_block().register_count;
             self.stack.resize_with(
-                current_stack_length + register_count as usize,
+                current_stack_length,
                 JsValue::undefined,
             );
         }

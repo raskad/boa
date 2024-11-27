@@ -183,8 +183,7 @@ impl ByteCompiler<'_> {
             }
             Expression::Await(expr) => {
                 self.compile_expr(expr.target(), dst);
-                self.push_from_register(dst);
-                self.emit_opcode(Opcode::Await);
+                self.emit2(Opcode::Await, &[Operand2::Register(dst)]);
                 let resume_kind = self.register_allocator.alloc();
                 self.pop_into_register(&resume_kind);
                 self.pop_into_register(dst);
@@ -219,8 +218,7 @@ impl ByteCompiler<'_> {
                         self.generator_delegate_next(dst, &resume_kind, &is_return);
 
                     if self.is_async() {
-                        self.push_from_register(dst);
-                        self.emit_opcode(Opcode::Await);
+                        self.emit2(Opcode::Await, &[Operand2::Register(dst)]);
                         self.pop_into_register(&resume_kind);
                         self.pop_into_register(dst);
                     } else {
@@ -235,8 +233,7 @@ impl ByteCompiler<'_> {
                         self.async_generator_yield(dst, &resume_kind);
                     } else {
                         self.emit2(Opcode::IteratorResult, &[Operand2::Register(dst)]);
-                        self.push_from_register(dst);
-                        self.emit_opcode(Opcode::GeneratorYield);
+                        self.emit2(Opcode::GeneratorYield, &[Operand2::Register(dst)]);
                         self.pop_into_register(&resume_kind);
                         self.pop_into_register(dst);
                     }
@@ -247,10 +244,11 @@ impl ByteCompiler<'_> {
 
                     self.patch_jump(return_gen);
                     self.patch_jump(return_method_undefined);
-                    self.push_from_register(dst);
                     if self.is_async() {
-                        self.emit_opcode(Opcode::Await);
+                        self.emit2(Opcode::Await, &[Operand2::Register(dst)]);
                         self.emit_opcode(Opcode::Pop);
+                    } else {
+                        self.push_from_register(dst);
                     }
                     self.close_active_iterators();
 

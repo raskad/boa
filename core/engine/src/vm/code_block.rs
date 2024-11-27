@@ -736,11 +736,11 @@ impl CodeBlock {
             | Instruction::PushElisionToArray { .. }
             | Instruction::PushIteratorToArray { .. }
             | Instruction::PushNewArray { .. }
-            | Instruction::GeneratorYield
-            | Instruction::AsyncGeneratorYield
+            | Instruction::GeneratorYield { .. }
+            | Instruction::AsyncGeneratorYield { .. }
             | Instruction::GeneratorNext { .. }
             | Instruction::SuperCallDerived
-            | Instruction::Await
+            | Instruction::Await { .. }
             | Instruction::NewTarget { .. }
             | Instruction::ImportMeta { .. }
             | Instruction::SuperCallPrepare { .. }

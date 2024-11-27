@@ -1981,7 +1981,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: value **=>** resume_kind, received
-    GeneratorYield,
+    GeneratorYield { value: VaryingOperand },
 
     /// Resumes the current generator function.
     ///
@@ -1998,7 +1998,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: value **=>** received
-    AsyncGeneratorYield,
+    AsyncGeneratorYield { value: VaryingOperand },
 
     /// Create a promise capacity for an async function, if not already set.
     ///
@@ -2054,7 +2054,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: promise **=>** received
-    Await,
+    Await { value: VaryingOperand },
 
     /// Push the current new target to the stack.
     ///

@@ -77,8 +77,7 @@ impl ByteCompiler<'_> {
                     self.compile_expr(expr, &value);
 
                     if self.is_async_generator() {
-                        self.push_from_register(&value);
-                        self.emit_opcode(Opcode::Await);
+                        self.emit2(Opcode::Await, &[Operand2::Register(&value)]);
                         let resume_kind = self.register_allocator.alloc();
                         self.pop_into_register(&resume_kind);
                         self.pop_into_register(&value);

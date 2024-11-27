@@ -408,15 +408,15 @@ impl CodeBlock {
                 | Instruction::PushElisionToArray { .. }
                 | Instruction::PushIteratorToArray { .. }
                 | Instruction::PushNewArray { .. }
-                | Instruction::GeneratorYield
-                | Instruction::AsyncGeneratorYield
+                | Instruction::GeneratorYield { .. }
+                | Instruction::AsyncGeneratorYield { .. }
                 | Instruction::AsyncGeneratorClose
                 | Instruction::CreatePromiseCapability
                 | Instruction::CompletePromiseCapability
                 | Instruction::GeneratorNext { .. }
                 | Instruction::PushClassField { .. }
                 | Instruction::SuperCallDerived
-                | Instruction::Await
+                | Instruction::Await { .. }
                 | Instruction::NewTarget { .. }
                 | Instruction::ImportMeta { .. }
                 | Instruction::CallEvalSpread { .. }
