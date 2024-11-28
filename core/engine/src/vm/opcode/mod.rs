@@ -1,7 +1,10 @@
 use std::iter::FusedIterator;
 
 /// The opcodes of the vm.
-use crate::{vm::CompletionType, Context, JsResult, JsValue};
+use crate::{
+    vm::{CompletionType, Registers},
+    Context, JsResult, JsValue,
+};
 
 // Operation modules
 mod arguments;
@@ -13,7 +16,6 @@ mod control_flow;
 mod copy;
 mod define;
 mod delete;
-mod dup;
 mod environment;
 mod generator;
 mod get;
@@ -26,10 +28,8 @@ mod new;
 mod nop;
 mod pop;
 mod push;
-mod require;
 mod rest_parameter;
 mod set;
-mod swap;
 mod switch;
 mod templates;
 mod to;
@@ -53,8 +53,6 @@ pub(crate) use copy::*;
 pub(crate) use define::*;
 #[doc(inline)]
 pub(crate) use delete::*;
-#[doc(inline)]
-pub(crate) use dup::*;
 #[doc(inline)]
 pub(crate) use environment::*;
 #[doc(inline)]
@@ -82,13 +80,9 @@ pub(crate) use push::*;
 #[doc(inline)]
 pub(crate) use r#await::*;
 #[doc(inline)]
-pub(crate) use require::*;
-#[doc(inline)]
 pub(crate) use rest_parameter::*;
 #[doc(inline)]
 pub(crate) use set::*;
-#[doc(inline)]
-pub(crate) use swap::*;
 #[doc(inline)]
 pub(crate) use switch::*;
 #[doc(inline)]
@@ -184,16 +178,6 @@ impl VaryingOperand {
     #[must_use]
     pub(crate) const fn kind(self) -> VaryingOperandKind {
         self.kind
-    }
-    #[must_use]
-    pub(crate) fn to_string<const N: u8>(self, operand_types: u8) -> String {
-        let type_ = (operand_types >> (N * 2)) & 0x0000_0011;
-        match type_ {
-            0b0000_0000 => format!("reg{}", self.value),
-            0b0000_0001 => format!("arg{}", self.value),
-            0b0000_0010 => format!("{}", self.value),
-            _ => unreachable!("unknown operand kind"),
-        }
     }
 }
 
@@ -446,17 +430,18 @@ macro_rules! generate_opcodes {
                 Self::INSTRUCTIONS[self as usize]
             }
 
-            const SPEND_FNS: [fn(&mut Context, &mut u32) -> JsResult<CompletionType>; Self::MAX] = [
+            const SPEND_FNS: [fn(&mut Registers, &mut Context, &mut u32) -> JsResult<CompletionType>; Self::MAX] = [
                 $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::spend_budget_and_execute),*,
             ];
 
             /// Spends the cost of this opcode into the provided budget and executes it.
             pub(super) fn spend_budget_and_execute(
                 self,
+                registers: &mut Registers,
                 context: &mut Context,
                 budget: &mut u32
             ) -> JsResult<CompletionType> {
-                Self::SPEND_FNS[self as usize](context, budget)
+                Self::SPEND_FNS[self as usize](registers, context, budget)
             }
 
             const COSTS: [u8; Self::MAX] = [
@@ -468,14 +453,14 @@ macro_rules! generate_opcodes {
                 Self::COSTS[self as usize]
             }
 
-            const EXECUTE_FNS: [fn(&mut Context) -> JsResult<CompletionType>; Self::MAX * 3] = [
+            const EXECUTE_FNS: [fn(&mut Registers, &mut Context) -> JsResult<CompletionType>; Self::MAX * 3] = [
                 $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute),*,
-                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_with_u16_operands),*,
-                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_with_u32_operands),*
+                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_u16),*,
+                $(<generate_opcodes!(name $Variant $(=> $mapping)?)>::execute_u32),*
             ];
 
-            pub(super) fn execute(self, context: &mut Context) -> JsResult<CompletionType> {
-                Self::EXECUTE_FNS[self as usize](context)
+            pub(super) fn execute(self, registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+                Self::EXECUTE_FNS[self as usize](registers, context)
             }
         }
 
@@ -575,29 +560,30 @@ pub(crate) trait Operation {
     const COST: u8;
 
     /// Execute opcode with [`VaryingOperandKind::U8`] sized [`VaryingOperand`]s.
-    fn execute(context: &mut Context) -> JsResult<CompletionType>;
+    fn execute(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType>;
 
     /// Execute opcode with [`VaryingOperandKind::U16`] sized [`VaryingOperand`]s.
     ///
-    /// By default if not implemented will call [`Reserved::execute_with_u16_operands()`] which panics.
-    fn execute_with_u16_operands(context: &mut Context) -> JsResult<CompletionType> {
-        Reserved::execute_with_u16_operands(context)
+    /// By default if not implemented will call [`Reserved::execute_u16()`] which panics.
+    fn execute_u16(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+        Reserved::execute_u16(registers, context)
     }
 
     /// Execute opcode with [`VaryingOperandKind::U32`] sized [`VaryingOperand`]s.
     ///
-    /// By default if not implemented will call [`Reserved::execute_with_u32_operands()`] which panics.
-    fn execute_with_u32_operands(context: &mut Context) -> JsResult<CompletionType> {
-        Reserved::execute_with_u32_operands(context)
+    /// By default if not implemented will call [`Reserved::execute_u32()`] which panics.
+    fn execute_u32(registers: &mut Registers, context: &mut Context) -> JsResult<CompletionType> {
+        Reserved::execute_u32(registers, context)
     }
 
     /// Spends the cost of this operation into `budget` and runs `execute`.
     fn spend_budget_and_execute(
+        registers: &mut Registers,
         context: &mut Context,
         budget: &mut u32,
     ) -> JsResult<CompletionType> {
         *budget = budget.saturating_sub(u32::from(Self::COST));
-        Self::execute(context)
+        Self::execute(registers, context)
     }
 }
 
@@ -609,137 +595,103 @@ generate_opcodes! {
     /// Stack: value **=>**
     Pop,
 
-    /// Push a copy of the top value on the stack.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** value, value
-    Dup,
-
-    /// Swap the top two values on the stack.
-    ///
-    /// Operands:
-    ///
-    /// Stack: second, first **=>** first, second
-    Swap,
-
-    /// Rotates the top `n` values of the stack to the left by `1`.
-    ///
-    /// Equivalent to calling [`slice::rotate_left`] with argument `1` on the top `n` values of the
-    /// stack.
-    ///
-    /// Operands: n: `u8`
-    ///
-    /// Stack: v\[n\], v\[n-1\], ... , v\[1\], v\[0\] **=>** v\[n-1\], ... , v\[1\], v\[0\], v\[n\]
-    RotateLeft { n: u8 },
-
-    /// Rotates the top `n` values of the stack to the right by `1`.
-    ///
-    /// Equivalent to calling [`slice::rotate_right`] with argument `1` on the top `n` values of the
-    /// stack.
-    ///
-    /// Operands: n: `u8`
-    ///
-    /// Stack: v\[n\], v\[n-1\], ... , v\[1\], v\[0\] **=>** v\[0\], v\[n\], v\[n-1\], ... , v\[1\]
-    RotateRight { n: u8 },
-
     /// Push integer `0` on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `0`
-    PushZero,
+    PushZero { dst: VaryingOperand },
 
     /// Push integer `1` on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `1`
-    PushOne,
+    PushOne { dst: VaryingOperand },
 
     /// Push `i8` value on the stack.
     ///
     /// Operands: value: `i8`
     ///
     /// Stack: **=>** value
-    PushInt8 { value: i8 },
+    PushInt8 { dst: VaryingOperand, value: i8 },
 
     /// Push i16 value on the stack.
     ///
     /// Operands: value: `i16`
     ///
     /// Stack: **=>** value
-    PushInt16 { value: i16 },
+    PushInt16 { dst: VaryingOperand, value: i16 },
 
     /// Push i32 value on the stack.
     ///
     /// Operands: value: `i32`
     ///
     /// Stack: **=>** value
-    PushInt32 { value: i32 },
+    PushInt32 { dst: VaryingOperand, value: i32 },
 
     /// Push `f32` value on the stack.
     ///
     /// Operands: value: `f32`
     ///
     /// Stack: **=>** value
-    PushFloat { value: f32 },
+    PushFloat { dst: VaryingOperand, value: f32 },
 
     /// Push `f64` value on the stack.
     ///
     /// Operands: value: `f64`
     ///
     /// Stack: **=>** value
-    PushDouble { value: f64 },
+    PushDouble { dst: VaryingOperand, value: f64 },
 
     /// Push `NaN` integer on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `NaN`
-    PushNaN,
+    PushNaN { dst: VaryingOperand },
 
     /// Push `Infinity` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `Infinity`
-    PushPositiveInfinity,
+    PushPositiveInfinity { dst: VaryingOperand },
 
     /// Push `-Infinity` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `-Infinity`
-    PushNegativeInfinity,
+    PushNegativeInfinity { dst: VaryingOperand },
 
     /// Push `null` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `null`
-    PushNull,
+    PushNull { dst: VaryingOperand },
 
     /// Push `true` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `true`
-    PushTrue,
+    PushTrue { dst: VaryingOperand },
 
     /// Push `false` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `false`
-    PushFalse,
+    PushFalse { dst: VaryingOperand },
 
     /// Push `undefined` value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `undefined`
-    PushUndefined,
+    PushUndefined { dst: VaryingOperand },
 
     /// Push literal value on the stack.
     ///
@@ -749,21 +701,21 @@ generate_opcodes! {
     /// Operands: index: `VaryingOperand`
     ///
     /// Stack: **=>** (`literals[index]`)
-    PushLiteral { index: VaryingOperand },
+    PushLiteral { dst: VaryingOperand, index: VaryingOperand },
 
     /// Push regexp value on the stack.
     ///
     /// Operands: pattern_index: `VaryingOperand`, flags: `VaryingOperand`
     ///
     /// Stack: **=>** regexp
-    PushRegExp { pattern_index: VaryingOperand, flags_index: VaryingOperand },
+    PushRegExp { dst: VaryingOperand, pattern_index: VaryingOperand, flags_index: VaryingOperand },
 
     /// Push empty object `{}` value on the stack.
     ///
     /// Operands:
     ///
-    /// Stack: **=>** `{}`
-    PushEmptyObject,
+    /// Stack: **=>**
+    PushEmptyObject { dst: VaryingOperand },
 
     /// Get the prototype of a superclass and push it on the stack.
     ///
@@ -773,7 +725,6 @@ generate_opcodes! {
     ///
     /// Stack: class, superclass **=>** class, superclass.prototype
     PushClassPrototype {
-        operand_types: u8,
         dst: VaryingOperand,
         class: VaryingOperand,
         superclass: VaryingOperand
@@ -785,7 +736,6 @@ generate_opcodes! {
     ///
     /// Stack: class, prototype **=>** class.prototype
     SetClassPrototype {
-        operand_types: u8,
         dst: VaryingOperand,
         prototype: VaryingOperand,
         class: VaryingOperand
@@ -795,203 +745,212 @@ generate_opcodes! {
     ///
     /// Operands:
     ///
-    /// Stack: home, function **=>** home, function
-    SetHomeObject,
+    /// Stack: home, function **=>**
+    SetHomeObject {
+        function: VaryingOperand,
+        home: VaryingOperand
+    },
 
     /// Set the prototype of an object if the value is an object or null.
     ///
     /// Operands:
     ///
     /// Stack: object, value **=>**
-    SetPrototype,
+    SetPrototype {
+        object: VaryingOperand,
+        value: VaryingOperand
+    },
 
     /// Push an empty array value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `[]`
-    PushNewArray,
+    PushNewArray { array: VaryingOperand },
 
     /// Push a value to an array.
     ///
     /// Operands:
     ///
     /// Stack: array, value **=>** array
-    PushValueToArray,
+    PushValueToArray {
+        value: VaryingOperand,
+        array: VaryingOperand
+    },
 
     /// Push an empty element/hole to an array.
     ///
     /// Operands:
     ///
     /// Stack: array **=>** array
-    PushElisionToArray,
+    PushElisionToArray { array: VaryingOperand },
 
     /// Push all iterator values to an array.
     ///
     /// Operands:
     ///
     /// Stack: array, iterator, next_method **=>** array
-    PushIteratorToArray,
+    PushIteratorToArray { array: VaryingOperand },
 
     /// Binary `+` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs + rhs)
-    Add { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    Add { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `-` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs - rhs)
-    Sub { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    Sub { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `/` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs / rhs)
-    Div { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    Div { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `*` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs * rhs)
-    Mul { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    Mul { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `%` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs % rhs)
-    Mod { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    Mod { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `**` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs ** rhs)
-    Pow { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    Pow { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `>>` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs >> rhs)
-    ShiftRight { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    ShiftRight { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `<<` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** `(lhs << rhs)`
-    ShiftLeft { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    ShiftLeft { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `>>>` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs >>> rhs)
-    UnsignedShiftRight { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    UnsignedShiftRight { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary bitwise `|` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs | rhs)
-    BitOr { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    BitOr { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary bitwise `&` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs & rhs)
-    BitAnd { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    BitAnd { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary bitwise `^` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs ^ rhs)
-    BitXor { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    BitXor { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Unary bitwise `~` operator.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** ~value
-    BitNot { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    BitNot { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `in` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs `in` rhs)
-    In { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    In { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `in` operator for private names.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: rhs **=>** (private_name `in` rhs)
-    InPrivate { operand_types: u8, dst: VaryingOperand, index: VaryingOperand, rhs: VaryingOperand },
+    InPrivate { dst: VaryingOperand, index: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `==` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs `==` rhs)
-    Eq { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    Eq { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `===` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs `===` rhs)
-    StrictEq { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    StrictEq { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `!=` operator.
-    NotEq { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    NotEq { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `!==` operator.
-    StrictNotEq { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    StrictNotEq { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `>` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs > rhs)
-    GreaterThan { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    GreaterThan { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `>=` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs >= rhs)
-    GreaterThanOrEq { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    GreaterThanOrEq { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `<` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** `(lhs < rhs)`
-    LessThan { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    LessThan { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `<=` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** `(lhs <= rhs)`
-    LessThanOrEq { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    LessThanOrEq { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary `instanceof` operator.
     ///
     /// Operands:
     ///
     /// Stack: lhs, rhs **=>** (lhs instanceof rhs)
-    InstanceOf { operand_types: u8, dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
+    InstanceOf { dst: VaryingOperand, lhs: VaryingOperand, rhs: VaryingOperand },
 
     /// Binary logical `&&` operator.
     ///
@@ -1000,7 +959,7 @@ generate_opcodes! {
     /// Operands: exit: `u32`
     ///
     /// Stack: lhs, rhs **=>** (lhs && rhs)
-    LogicalAnd { operand_types: u8, exit: u32, lhs: VaryingOperand },
+    LogicalAnd { exit: u32, lhs: VaryingOperand },
 
     /// Binary logical `||` operator.
     ///
@@ -1009,7 +968,7 @@ generate_opcodes! {
     /// Operands: exit: `u32`
     ///
     /// Stack: lhs, rhs **=>** (lhs || rhs)
-    LogicalOr { operand_types: u8, exit: u32, lhs: VaryingOperand },
+    LogicalOr { exit: u32, lhs: VaryingOperand },
 
     /// Binary `??` operator.
     ///
@@ -1019,21 +978,14 @@ generate_opcodes! {
     /// Operands: exit: `u32`
     ///
     /// Stack: lhs, rhs **=>** (lhs ?? rhs)
-    Coalesce { operand_types: u8, exit: u32, lhs: VaryingOperand },
+    Coalesce { exit: u32, lhs: VaryingOperand },
 
     /// Unary `typeof` operator.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** (`typeof` value)
-    TypeOf,
-
-    /// Unary `void` operator.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** `undefined`
-    Void,
+    TypeOf { value: VaryingOperand },
 
     /// Unary logical `!` operator.
     ///
@@ -1056,22 +1008,19 @@ generate_opcodes! {
     /// Stack: value **=>** (-value)
     Neg,
 
-    /// Convert value at register `src` to numeric and puts it in register `dst`.
-    ToNumeric { operand_types: u8, dst: VaryingOperand, src: VaryingOperand },
-
     /// Unary `++` operator.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** (value + 1)
-    Inc { operand_types: u8, dst: VaryingOperand, src: VaryingOperand },
+    Inc { dst: VaryingOperand, src: VaryingOperand },
 
     /// Unary `--` operator.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** (value - 1)
-    Dec { operand_types: u8, dst: VaryingOperand, src: VaryingOperand },
+    Dec { dst: VaryingOperand, src: VaryingOperand },
 
     /// Declare `var` type variable.
     ///
@@ -1085,14 +1034,14 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: value **=>**
-    DefInitVar { index: VaryingOperand },
+    DefInitVar { value: VaryingOperand, index: VaryingOperand },
 
     /// Initialize a lexical binding.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: value **=>**
-    PutLexicalValue { index: VaryingOperand },
+    PutLexicalValue { value: VaryingOperand, index: VaryingOperand },
 
     /// Throws an error because the binding access is illegal.
     ///
@@ -1108,14 +1057,14 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetArgument { index: VaryingOperand },
+    GetArgument { index: VaryingOperand, dst: VaryingOperand },
 
     /// Find a binding on the environment chain and push its value.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetName { index: VaryingOperand },
+    GetName { value: VaryingOperand, index: VaryingOperand },
 
     /// Find a binding on the environment and set the `current_binding` of the current frame.
     ///
@@ -1130,33 +1079,33 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetNameAndLocator { index: VaryingOperand },
+    GetNameAndLocator { value: VaryingOperand, index: VaryingOperand },
 
     /// Find a binding on the environment chain and push its value. If the binding does not exist push undefined.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** value
-    GetNameOrUndefined { index: VaryingOperand },
+    GetNameOrUndefined { value: VaryingOperand, index: VaryingOperand },
 
     /// Find a binding on the environment chain and assign its value.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: value **=>**
-    SetName { index: VaryingOperand },
+    SetName { value: VaryingOperand, index: VaryingOperand },
 
     /// Assigns a value to the binding pointed by the top of the `bindings_stack`.
     ///
     /// Stack: value **=>**
-    SetNameByLocator,
+    SetNameByLocator { value: VaryingOperand },
 
     /// Deletes a property of the global object.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: **=>** deleted
-    DeleteName { index: VaryingOperand },
+    DeleteName { value: VaryingOperand, index: VaryingOperand },
 
     /// Get a property by name from an object an push it on the stack.
     ///
@@ -1166,7 +1115,6 @@ generate_opcodes! {
     ///
     /// Stack: object, receiver **=>** value
     GetPropertyByName {
-        operand_types: u8,
         dst: VaryingOperand,
         receiver: VaryingOperand,
         value: VaryingOperand,
@@ -1180,7 +1128,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, receiver, key **=>** value
-    GetPropertyByValue,
+    GetPropertyByValue { dst: VaryingOperand, key: VaryingOperand, receiver: VaryingOperand, object: VaryingOperand },
 
     /// Get a property by value from an object an push the key and value on the stack.
     ///
@@ -1189,7 +1137,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, receiver, key **=>** key, value
-    GetPropertyByValuePush,
+    GetPropertyByValuePush { dst: VaryingOperand, key: VaryingOperand, receiver: VaryingOperand, object: VaryingOperand },
 
     /// Sets a property by name of an object.
     ///
@@ -1197,8 +1145,13 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: object, receiver, value **=>** value
-    SetPropertyByName { index: VaryingOperand },
+    /// Stack: object, receiver, value **=>**
+    SetPropertyByName {
+        value: VaryingOperand,
+        receiver: VaryingOperand,
+        object: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets the name of a function object.
     ///
@@ -1211,31 +1164,39 @@ generate_opcodes! {
     ///
     /// Operands: prefix: `u8`
     ///
-    /// Stack: name, function **=>** function
+    /// Stack: name, function **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-setfunctionname
-    SetFunctionName { prefix: u8 },
+    SetFunctionName { function: VaryingOperand, name: VaryingOperand, prefix: u8 },
 
     /// Defines a own property of an object by name.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: object, value **=>**
-    DefineOwnPropertyByName { index: VaryingOperand },
+    DefineOwnPropertyByName { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Defines a static class method by name.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: class, function **=>**
-    DefineClassStaticMethodByName { index: VaryingOperand },
+    DefineClassStaticMethodByName {
+        function: VaryingOperand,
+        class: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Defines a class method by name.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: class_proto, function **=>**
-    DefineClassMethodByName { index: VaryingOperand },
+    DefineClassMethodByName {
+        function: VaryingOperand,
+        class_proto: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets a property by value of an object.
     ///
@@ -1243,29 +1204,46 @@ generate_opcodes! {
     ///
     /// Operands:
     ///
-    /// Stack: object, receiver, key, value **=>** value
-    SetPropertyByValue,
+    /// Stack: object, receiver, key, value **=>**
+    SetPropertyByValue {
+        value: VaryingOperand,
+        key: VaryingOperand,
+        receiver: VaryingOperand,
+        object: VaryingOperand
+    },
 
     /// Defines a own property of an object by value.
     ///
     /// Operands:
     ///
     /// Stack: object, key, value **=>**
-    DefineOwnPropertyByValue,
+    DefineOwnPropertyByValue {
+        value: VaryingOperand,
+        key: VaryingOperand,
+        object: VaryingOperand
+    },
 
     /// Defines a static class method by value.
     ///
     /// Operands:
     ///
     /// Stack: class, key, function **=>**
-    DefineClassStaticMethodByValue,
+    DefineClassStaticMethodByValue {
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class: VaryingOperand
+    },
 
     /// Defines a class method by value.
     ///
     /// Operands:
     ///
     /// Stack: class_proto, key, function **=>**
-    DefineClassMethodByValue,
+    DefineClassMethodByValue {
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class_proto: VaryingOperand
+    },
 
     /// Sets a getter property by name of an object.
     ///
@@ -1274,7 +1252,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object, value **=>**
-    SetPropertyGetterByName { index: VaryingOperand },
+    SetPropertyGetterByName { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Defines a static getter class method by name.
     ///
@@ -1282,8 +1260,12 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: class, binding_function **=>**
-    DefineClassStaticGetterByName { index: VaryingOperand },
+    /// Stack: class, function **=>**
+    DefineClassStaticGetterByName {
+        function: VaryingOperand,
+        class: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Defines a getter class method by name.
     ///
@@ -1291,8 +1273,12 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: class_proto, function **=>** class
-    DefineClassGetterByName { index: VaryingOperand },
+    /// Stack: class_proto, function **=>**
+    DefineClassGetterByName {
+        function: VaryingOperand,
+        class_proto: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets a getter property by value of an object.
     ///
@@ -1301,7 +1287,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, key, value **=>**
-    SetPropertyGetterByValue,
+    SetPropertyGetterByValue {
+        value: VaryingOperand,
+        key: VaryingOperand,
+        object: VaryingOperand
+    },
 
     /// Defines a static getter class method by value.
     ///
@@ -1310,7 +1300,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class, key, function **=>**
-    DefineClassStaticGetterByValue,
+    DefineClassStaticGetterByValue {
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class: VaryingOperand
+    },
 
     /// Defines a getter class method by value.
     ///
@@ -1319,7 +1313,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class_proto, key, function **=>**
-    DefineClassGetterByValue,
+    DefineClassGetterByValue {
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class_proto: VaryingOperand
+    },
 
     /// Sets a setter property by name of an object.
     ///
@@ -1328,7 +1326,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object, value **=>**
-    SetPropertySetterByName { index: VaryingOperand },
+    SetPropertySetterByName { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Defines a static setter class method by name.
     ///
@@ -1337,7 +1335,11 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: class, function **=>**
-    DefineClassStaticSetterByName { index: VaryingOperand },
+    DefineClassStaticSetterByName {
+        function: VaryingOperand,
+        class: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Defines a setter class method by name.
     ///
@@ -1346,7 +1348,11 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: class_proto, function **=>**
-    DefineClassSetterByName { index: VaryingOperand },
+    DefineClassSetterByName {
+        function: VaryingOperand,
+        class_proto: VaryingOperand,
+        index: VaryingOperand
+    },
 
     /// Sets a setter property by value of an object.
     ///
@@ -1355,7 +1361,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object, key, value **=>**
-    SetPropertySetterByValue,
+    SetPropertySetterByValue {
+        value: VaryingOperand,
+        key: VaryingOperand,
+        object: VaryingOperand
+    },
 
     /// Defines a static setter class method by value.
     ///
@@ -1364,7 +1374,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class, key, function **=>**
-    DefineClassStaticSetterByValue,
+    DefineClassStaticSetterByValue {
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class: VaryingOperand
+    },
 
     /// Defines a setter class method by value.
     ///
@@ -1373,7 +1387,11 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: class_proto, key, function **=>**
-    DefineClassSetterByValue,
+    DefineClassSetterByValue {
+        function: VaryingOperand,
+        key: VaryingOperand,
+        class_proto: VaryingOperand
+    },
 
     /// Set the value of a private property of an object by it's name.
     ///
@@ -1381,8 +1399,8 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: object, value **=>** value
-    SetPrivateField { index: VaryingOperand },
+    /// Stack: object, value **=>**
+    SetPrivateField { value: VaryingOperand, object: VaryingOperand, index: VaryingOperand },
 
     /// Define a private property of a class constructor by it's name.
     ///
@@ -1391,7 +1409,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object, value **=>**
-    DefinePrivateField { index: VaryingOperand },
+    DefinePrivateField { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Set a private method of a class constructor by it's name.
     ///
@@ -1400,7 +1418,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object, value **=>**
-    SetPrivateMethod { index: VaryingOperand },
+    SetPrivateMethod { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Set a private setter property of a class constructor by it's name.
     ///
@@ -1409,7 +1427,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object, value **=>**
-    SetPrivateSetter { index: VaryingOperand },
+    SetPrivateSetter { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Set a private getter property of a class constructor by it's name.
     ///
@@ -1418,7 +1436,7 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object, value **=>**
-    SetPrivateGetter { index: VaryingOperand },
+    SetPrivateGetter { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Get a private property by name from an object an push it on the stack.
     ///
@@ -1427,42 +1445,42 @@ generate_opcodes! {
     /// Operands: index: `u32`
     ///
     /// Stack: object **=>** value
-    GetPrivateField { index: VaryingOperand },
+    GetPrivateField { dst: VaryingOperand, object: VaryingOperand, index: VaryingOperand },
 
     /// Push a field to a class.
     ///
     /// Operands: is_anonymous_function: `bool`
     ///
-    /// Stack: class, field_name, field_function **=>**
-    PushClassField  { is_anonymous_function: bool },
+    /// Stack: class, name, function **=>**
+    PushClassField { class: VaryingOperand, name: VaryingOperand, function: VaryingOperand, is_anonymous_function: bool },
 
     /// Push a private field to the class.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: class, field_function **=>**
-    PushClassFieldPrivate { index: VaryingOperand },
+    PushClassFieldPrivate { class: VaryingOperand, function: VaryingOperand, index: VaryingOperand },
 
     /// Push a private getter to the class.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: class, getter **=>**
-    PushClassPrivateGetter { index: VaryingOperand },
+    PushClassPrivateGetter { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Push a private setter to the class.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: class, setter **=>**
-    PushClassPrivateSetter { index: VaryingOperand },
+    PushClassPrivateSetter { object: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Push a private method to the class.
     ///
     /// Operands: index: `u32`
     ///
     /// Stack: class, class_proto, method **=>**
-    PushClassPrivateMethod { index: VaryingOperand },
+    PushClassPrivateMethod { object: VaryingOperand, proto: VaryingOperand, value: VaryingOperand, index: VaryingOperand },
 
     /// Deletes a property by name of an object.
     ///
@@ -1470,8 +1488,8 @@ generate_opcodes! {
     ///
     /// Operands: index: `u32`
     ///
-    /// Stack: object **=>**
-    DeletePropertyByName { index: VaryingOperand },
+    /// Stack: object **=>** deleted
+    DeletePropertyByName { object: VaryingOperand, index: VaryingOperand },
 
     /// Deletes a property by value of an object.
     ///
@@ -1479,8 +1497,8 @@ generate_opcodes! {
     ///
     /// Operands:
     ///
-    /// Stack: object, key **=>**
-    DeletePropertyByValue,
+    /// Stack: object, key **=>** deleted
+    DeletePropertyByValue { object: VaryingOperand, key: VaryingOperand },
 
     /// Throws an error when trying to delete a property of `super`
     ///
@@ -1494,14 +1512,14 @@ generate_opcodes! {
     /// Operands: excluded_key_count: `VaryingOperand`, excluded_key_count_computed: `VaryingOperand`
     ///
     /// Stack: excluded_key_computed_0 ... excluded_key_computed_n, source, value, excluded_key_0 ... excluded_key_n **=>** value
-    CopyDataProperties { excluded_key_count: VaryingOperand, excluded_key_count_computed: VaryingOperand },
+    CopyDataProperties { object: VaryingOperand, source: VaryingOperand, excluded_key_count: VaryingOperand },
 
     /// Call ToPropertyKey on the value on the stack.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** key
-    ToPropertyKey,
+    ToPropertyKey { value: VaryingOperand, dst: VaryingOperand },
 
     /// Unconditional jump to address.
     ///
@@ -1519,7 +1537,7 @@ generate_opcodes! {
     /// Stack: cond **=>**
     ///
     /// [truthy]: https://developer.mozilla.org/en-US/docs/Glossary/Truthy
-    JumpIfTrue { address: u32 },
+    JumpIfTrue { address: u32, value: VaryingOperand },
 
     /// Conditional jump to address.
     ///
@@ -1530,7 +1548,7 @@ generate_opcodes! {
     /// Stack: cond **=>**
     ///
     /// [falsy]: https://developer.mozilla.org/en-US/docs/Glossary/Falsy
-    JumpIfFalse { address: u32 },
+    JumpIfFalse { address: u32, value: VaryingOperand },
 
     /// Conditional jump to address.
     ///
@@ -1539,7 +1557,7 @@ generate_opcodes! {
     /// Operands: address: `u32`
     ///
     /// Stack: value **=>** value
-    JumpIfNotUndefined { address: u32 },
+    JumpIfNotUndefined { address: u32, value: VaryingOperand },
 
     /// Conditional jump to address.
     ///
@@ -1548,7 +1566,7 @@ generate_opcodes! {
     /// Operands: address: `u32`
     ///
     /// Stack: value **=>** value
-    JumpIfNullOrUndefined { address: u32 },
+    JumpIfNullOrUndefined { address: u32, value: VaryingOperand },
 
     /// Jump table that jumps depending on top value of the stack.
     ///
@@ -1567,7 +1585,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: value **=>**
-    Throw,
+    Throw { value: VaryingOperand },
 
     /// Rethrow thrown exception.
     ///
@@ -1588,14 +1606,14 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** exception
-    Exception,
+    Exception { dst: VaryingOperand },
 
     /// Get the thrown pending exception if it's set and push `true`, otherwise push only `false`.
     ///
     /// Operands:
     ///
     /// Stack: **=>** (`true`, exception) or `false`
-    MaybeException,
+    MaybeException { has_exception: VaryingOperand, exception: VaryingOperand },
 
     /// Throw a new `TypeError` exception
     ///
@@ -1611,40 +1629,33 @@ generate_opcodes! {
     /// Stack: **=>**
     ThrowNewSyntaxError { message: VaryingOperand },
 
-    /// Pops value converts it to boolean and pushes it back.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** (`ToBoolean(value)`)
-    ToBoolean,
-
     /// Pushes `this` value
     ///
     /// Operands:
     ///
     /// Stack: **=>** this
-    This,
+    This { dst: VaryingOperand },
 
     /// Pushes `this` value that is related to the object environment of the given binding
     ///
     /// Operands: index: `VaryingOperand`
     ///
     /// Stack: **=>** value
-    ThisForObjectEnvironmentName { index: VaryingOperand },
+    ThisForObjectEnvironmentName { dst: VaryingOperand, index: VaryingOperand },
 
     /// Pushes the current `super` value to the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** super
-    Super,
+    Super { dst: VaryingOperand },
 
     /// Get the super constructor and the new target of the current environment.
     ///
     /// Operands:
     ///
     /// Stack: **=>** super_constructor
-    SuperCallPrepare,
+    SuperCallPrepare { dst: VaryingOperand },
 
     /// Execute the `super()` method.
     ///
@@ -1676,14 +1687,14 @@ generate_opcodes! {
     /// Stack: result **=>** result
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
-    BindThisValue,
+    BindThisValue { value: VaryingOperand },
 
     /// Dynamically import a module.
     ///
     /// Operands:
     ///
     /// Stack: specifier **=>** promise
-    ImportCall,
+    ImportCall { value: VaryingOperand },
 
     /// Pop the two values of the stack, strict equal compares the two values,
     /// if true jumps to address, otherwise push the second pop'ed value.
@@ -1691,14 +1702,7 @@ generate_opcodes! {
     /// Operands: address: `u32`
     ///
     /// Stack: value, cond **=>** cond (if `cond !== value`).
-    Case { address: u32 },
-
-    /// Pops the top of stack and jump to address.
-    ///
-    /// Operands: address: `u32`
-    ///
-    /// Stack: `value` **=>**
-    Default { address: u32 },
+    Case { address: u32, value: VaryingOperand, condition: VaryingOperand },
 
     /// Get function from the pre-compiled inner functions.
     ///
@@ -1777,20 +1781,6 @@ generate_opcodes! {
     /// Stack: **=>** resume_kind
     Generator { r#async: bool },
 
-    /// Get return value of a function.
-    ///
-    /// Operands:
-    ///
-    /// Stack: **=>** value
-    GetAccumulator,
-
-    /// Set return value of a function.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>**
-    SetAccumulatorFromStack,
-
     /// Set return value of a function.
     ///
     /// Operands:
@@ -1810,7 +1800,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>**
-    Move { operand_types: u8, dst: VaryingOperand, src: VaryingOperand },
+    Move { dst: VaryingOperand, src: VaryingOperand },
 
     /// Pop value from the stack and push to register `dst`
     ///
@@ -1831,14 +1821,14 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: value **=>**
-    PopIntoLocal { dst: VaryingOperand },
+    PopIntoLocal { src: VaryingOperand, dst: VaryingOperand },
 
     /// Copy value at local binding register `src` and push it into the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** value
-    PushFromLocal { src: VaryingOperand },
+    PushFromLocal { src: VaryingOperand, dst: VaryingOperand },
 
     /// Push a declarative environment.
     ///
@@ -1852,7 +1842,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: object **=>**
-    PushObjectEnvironment,
+    PushObjectEnvironment { object: VaryingOperand },
 
     /// Pop the current environment.
     ///
@@ -1861,7 +1851,7 @@ generate_opcodes! {
     /// Stack: **=>**
     PopEnvironment,
 
-    /// Increment loop itearation count.
+    /// Increment loop iteration count.
     ///
     /// Used for limiting the loop iteration.
     ///
@@ -1875,7 +1865,7 @@ generate_opcodes! {
     /// Stack: object **=>**
     ///
     /// Iterator Stack: `iterator`
-    CreateForInIterator,
+    CreateForInIterator { value: VaryingOperand },
 
     /// Gets the iterator of an object.
     ///
@@ -1884,7 +1874,7 @@ generate_opcodes! {
     /// Stack: object **=>**
     ///
     /// Iterator Stack: `iterator`
-    GetIterator,
+    GetIterator { value: VaryingOperand },
 
     /// Gets the async iterator of an object.
     ///
@@ -1893,7 +1883,7 @@ generate_opcodes! {
     /// Stack: object **=>**
     ///
     /// Iterator Stack: `iterator`
-    GetAsyncIterator,
+    GetAsyncIterator { value: VaryingOperand },
 
     /// Calls the `next` method of `iterator`, updating its record with the next value.
     ///
@@ -1902,19 +1892,12 @@ generate_opcodes! {
     /// Iterator Stack: `iterator` **=>** `iterator`
     IteratorNext,
 
-    /// Calls the `next` method of `iterator`, updating its record with the next value.
-    ///
-    /// Operands:
-    ///
-    /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorNextWithoutPop,
-
     /// Returns `true` if the current iterator is done, or `false` otherwise
     ///
     /// Stack: **=>** done
     ///
     /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorDone,
+    IteratorDone { done: VaryingOperand },
 
     /// Finishes the call to `Opcode::IteratorNext` within a `for await` loop by setting the current
     /// result of the current iterator.
@@ -1924,28 +1907,21 @@ generate_opcodes! {
     /// Stack: `next_result`, `resume_kind` **=>** `resume_kind`
     ///
     /// Iterator Stack: iterator **=>** iterator
-    IteratorFinishAsyncNext,
+    IteratorFinishAsyncNext { resume_kind: VaryingOperand, value: VaryingOperand },
 
     /// Gets the `value` property of the current iterator record.
     ///
     /// Stack: **=>** `value`
     ///
     /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorValue,
-
-    /// Gets the `value` property of the current iterator record.
-    ///
-    /// Stack: **=>** `value`
-    ///
-    /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorValueWithoutPop,
+    IteratorValue { value: VaryingOperand },
 
     /// Gets the last iteration result of the current iterator record.
     ///
     /// Stack: **=>** `result`
     ///
     /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorResult,
+    IteratorResult { value: VaryingOperand },
 
     /// Consume the iterator and construct and array with all the values.
     ///
@@ -1954,7 +1930,7 @@ generate_opcodes! {
     /// Stack: **=>** array
     ///
     /// Iterator Stack: `iterator` **=>** `iterator`
-    IteratorToArray,
+    IteratorToArray { array: VaryingOperand },
 
     /// Pushes `true` to the stack if the iterator stack is empty.
     ///
@@ -1963,7 +1939,7 @@ generate_opcodes! {
     ///
     /// Iterator Stack:
     /// - **=>**
-    IteratorStackEmpty,
+    IteratorStackEmpty { empty: VaryingOperand },
 
     /// Creates a new iterator result object.
     ///
@@ -1973,49 +1949,42 @@ generate_opcodes! {
     /// Stack:
     /// - value **=>**
     ///
-    CreateIteratorResult { done: bool },
+    CreateIteratorResult { value: VaryingOperand, done: bool },
 
     /// Calls `return` on the current iterator and returns the result.
     ///
     /// Stack: **=>** return_val (if return is a method), is_return_method
     ///
     /// Iterator Stack: `iterator` **=>**
-    IteratorReturn,
+    IteratorReturn { value: VaryingOperand, called: VaryingOperand },
 
     /// Concat multiple stack objects into a string.
     ///
     /// Operands: value_count: `u32`
     ///
     /// Stack: `value_1`,...`value_n` **=>** `string`
-    ConcatToString { value_count: VaryingOperand },
-
-    /// Call RequireObjectCoercible on the stack value.
-    ///
-    /// Operands:
-    ///
-    /// Stack: value **=>** value
-    RequireObjectCoercible,
+    ConcatToString { string: VaryingOperand, value_count: VaryingOperand },
 
     /// Require the stack value to be neither null nor undefined.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** value
-    ValueNotNullOrUndefined,
+    ValueNotNullOrUndefined { value: VaryingOperand },
 
     /// Initialize the rest parameter value of a function from the remaining arguments.
     ///
     /// Operands:
     ///
     /// Stack: `argument_1` .. `argument_n` **=>** `array`
-    RestParameterInit,
+    RestParameterInit { dst: VaryingOperand },
 
     /// Yields from the current generator execution.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** resume_kind, received
-    GeneratorYield,
+    GeneratorYield { value: VaryingOperand },
 
     /// Resumes the current generator function.
     ///
@@ -2025,14 +1994,14 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: `resume_kind`, value **=>** value
-    GeneratorNext,
+    GeneratorNext { resume_kind: VaryingOperand, value: VaryingOperand },
 
     /// Yields from the current async generator execution.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** received
-    AsyncGeneratorYield,
+    AsyncGeneratorYield { value: VaryingOperand },
 
     /// Create a promise capacity for an async function, if not already set.
     ///
@@ -2055,70 +2024,82 @@ generate_opcodes! {
     /// Operands: `exit`: `u32`, `resume_kind`: `u8`.
     ///
     /// Stack: `resume_kind` **=>** `resume_kind`
-    JumpIfNotResumeKind { exit: u32, resume_kind: GeneratorResumeKind },
+    JumpIfNotResumeKind { exit: u32, resume_kind: GeneratorResumeKind, value: VaryingOperand },
 
     /// Delegates the current async generator function to another iterator.
     ///
     /// Operands: throw_method_undefined: `u32`, return_method_undefined: `u32`
     ///
     /// Stack: received **=>** result
-    GeneratorDelegateNext { throw_method_undefined: u32, return_method_undefined: u32 },
+    GeneratorDelegateNext {
+        throw_method_undefined: u32,
+        return_method_undefined: u32,
+        value: VaryingOperand,
+        resume_kind: VaryingOperand,
+        is_return: VaryingOperand
+    },
 
     /// Resume the async generator with yield delegate logic after it awaits a value.
     ///
     /// Operands: return: `u32`, exit: `u32`
     ///
     /// Stack: is_return, received **=>** value
-    GeneratorDelegateResume { r#return: u32, exit: u32 },
+    GeneratorDelegateResume {
+        r#return: u32,
+        exit: u32,
+        value: VaryingOperand,
+        resume_kind: VaryingOperand,
+        is_return: VaryingOperand
+    },
 
     /// Stops the current async function and schedules it to resume later.
     ///
     /// Operands:
     ///
     /// Stack: promise **=>** received
-    Await,
+    Await { value: VaryingOperand },
 
     /// Push the current new target to the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `new.target`
-    NewTarget,
+    NewTarget { dst: VaryingOperand },
 
     /// Push the current `import.meta` to the stack.
     ///
     /// Operands:
     ///
     /// Stack: **=>** `import.meta`
-    ImportMeta,
+    ImportMeta { dst: VaryingOperand },
 
     /// Pushes `true` to the stack if the top stack value is an object, or `false` otherwise.
     ///
     /// Operands:
     ///
     /// Stack: value **=>** is_object
-    IsObject,
+    IsObject { value: VaryingOperand },
 
     /// Lookup if a tagged template object is cached and skip the creation if it is.
     ///
     /// Operands: exit: `u32`, site: `u64`
     ///
     /// Stack: **=>** template (if cached)
-    TemplateLookup { exit: u32, site: u64 },
+    TemplateLookup { exit: u32, site: u64, dst: VaryingOperand },
 
     /// Create a new tagged template object and cache it.
     ///
     /// Operands: count: `VaryingOperand`, site: `u64`
     ///
     /// Stack: count * (cooked_value, raw_value) **=>** template
-    TemplateCreate { count: VaryingOperand, site: u64 },
+    TemplateCreate { site: u64, dst: VaryingOperand, count: VaryingOperand },
 
     /// Push a private environment.
     ///
     /// Operands: count: `u32`, count * name_index: `u32`
     ///
     /// Stack: class **=>** class
-    PushPrivateEnvironment { operand_types: u8, class: VaryingOperand, name_indices: ThinVec<u32> },
+    PushPrivateEnvironment { class: VaryingOperand, name_indices: ThinVec<u32> },
 
     /// Pop a private environment.
     ///
@@ -2136,7 +2117,7 @@ generate_opcodes! {
     /// Operands:
     ///
     /// Stack: **=>** `arguments`
-    CreateMappedArgumentsObject,
+    CreateMappedArgumentsObject { dst: VaryingOperand },
 
     /// Creates an unmapped `arguments` object.
     ///
@@ -2145,7 +2126,7 @@ generate_opcodes! {
     /// [spec]: https://tc39.es/ecma262/#sec-createmappedargumentsobject
     ///
     /// Stack: **=>** `arguments`
-    CreateUnmappedArgumentsObject,
+    CreateUnmappedArgumentsObject { dst: VaryingOperand },
 
     /// Performs [`HasRestrictedGlobalProperty ( N )`][spec]
     ///
@@ -2154,7 +2135,7 @@ generate_opcodes! {
     /// Stack: **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-hasrestrictedglobalproperty
-    HasRestrictedGlobalProperty { index: VaryingOperand },
+    HasRestrictedGlobalProperty { dst: VaryingOperand, index: VaryingOperand },
 
     /// Performs [`CanDeclareGlobalFunction ( N )`][spec]
     ///
@@ -2163,7 +2144,7 @@ generate_opcodes! {
     /// Stack: **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-candeclareglobalfunction
-    CanDeclareGlobalFunction { index: VaryingOperand },
+    CanDeclareGlobalFunction { dst: VaryingOperand, index: VaryingOperand },
 
     /// Performs [`CanDeclareGlobalVar ( N )`][spec]
     ///
@@ -2172,7 +2153,7 @@ generate_opcodes! {
     /// Stack: **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-candeclareglobalvar
-    CanDeclareGlobalVar { index: VaryingOperand },
+    CanDeclareGlobalVar { dst: VaryingOperand, index: VaryingOperand },
 
     /// Performs [`CreateGlobalFunctionBinding ( N, V, D )`][spec]
     ///
@@ -2181,7 +2162,7 @@ generate_opcodes! {
     /// Stack: `function` **=>**
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-createglobalfunctionbinding
-    CreateGlobalFunctionBinding { configurable: bool, index: VaryingOperand },
+    CreateGlobalFunctionBinding { function: VaryingOperand, configurable: bool, index: VaryingOperand },
 
     /// Performs [`CreateGlobalVarBinding ( N, V, D )`][spec]
     ///
@@ -2191,13 +2172,6 @@ generate_opcodes! {
     ///
     /// [spec]: https://tc39.es/ecma262/#sec-createglobalvarbinding
     CreateGlobalVarBinding { configurable: bool, index: VaryingOperand },
-
-    /// No-operation instruction, does nothing.
-    ///
-    /// Operands:
-    ///
-    /// Stack: **=>**
-    Nop,
 
     /// Opcode prefix modifier, makes all [`VaryingOperand`]s of an instruction [`u16`] sized.
     ///
@@ -2307,6 +2281,34 @@ generate_opcodes! {
     Reserved46 => Reserved,
     /// Reserved [`Opcode`].
     Reserved47 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved48 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved49 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved50 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved51 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved52 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved53 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved54 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved55 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved56 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved57 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved58 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved59 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved60 => Reserved,
+    /// Reserved [`Opcode`].
+    Reserved61 => Reserved,
 }
 
 /// Specific opcodes for bindings.

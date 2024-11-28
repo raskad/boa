@@ -88,8 +88,6 @@ unsafe impl Trace for CodeBlockFlags {
 pub(crate) struct Handler {
     pub(crate) start: u32,
     pub(crate) end: u32,
-
-    pub(crate) stack_count: u32,
     pub(crate) environment_count: u32,
 }
 
@@ -395,46 +393,39 @@ impl CodeBlock {
             | Instruction::StrictEq { .. }
             | Instruction::InPrivate { .. }
             | Instruction::Inc { .. }
-            | Instruction::Dec { .. }
-            | Instruction::ToNumeric { .. } => "TODO: fix".to_string(),
-            Instruction::PopIntoRegister { dst } => format!("R{}", dst.value()),
-            Instruction::PushFromRegister { src } => format!("R{}", src.value()),
-            Instruction::Move {
-                operand_types,
-                dst: r1,
-                src: r2,
-            } => {
-                format!(
-                    "dst:reg{}, src:{}",
-                    r1.value(),
-                    r2.to_string::<0>(*operand_types)
-                )
+            | Instruction::Dec { .. } => "TODO: fix".to_string(),
+            Instruction::Move { dst: r1, src: r2 } => {
+                format!("dst:reg{}, src:{}", r1.value(), r2.value())
             }
-            Instruction::SetFunctionName { prefix } => match prefix {
+            Instruction::SetFunctionName { prefix, .. } => match prefix {
                 0 => "prefix: none",
                 1 => "prefix: get",
                 2 => "prefix: set",
                 _ => unreachable!(),
             }
             .to_owned(),
-            Instruction::RotateLeft { n } | Instruction::RotateRight { n } => n.to_string(),
             Instruction::Generator { r#async } => {
                 format!("async: {async}")
             }
-            Instruction::PushInt8 { value } => value.to_string(),
-            Instruction::PushInt16 { value } => value.to_string(),
-            Instruction::PushInt32 { value } => value.to_string(),
-            Instruction::PushFloat { value } => ryu_js::Buffer::new().format(*value).to_string(),
-            Instruction::PushDouble { value } => ryu_js::Buffer::new().format(*value).to_string(),
-            Instruction::PushLiteral { index }
+            Instruction::PushInt8 { value, .. } => value.to_string(),
+            Instruction::PushInt16 { value, .. } => value.to_string(),
+            Instruction::PushInt32 { value, .. } => value.to_string(),
+            Instruction::PushFloat { value, .. } => {
+                ryu_js::Buffer::new().format(*value).to_string()
+            }
+            Instruction::PushDouble { value, .. } => {
+                ryu_js::Buffer::new().format(*value).to_string()
+            }
+            Instruction::PushLiteral { index, .. }
             | Instruction::ThrowNewTypeError { message: index }
             | Instruction::ThrowNewSyntaxError { message: index }
-            | Instruction::HasRestrictedGlobalProperty { index }
-            | Instruction::CanDeclareGlobalFunction { index }
-            | Instruction::CanDeclareGlobalVar { index } => index.value().to_string(),
+            | Instruction::HasRestrictedGlobalProperty { index, .. }
+            | Instruction::CanDeclareGlobalFunction { index, .. }
+            | Instruction::CanDeclareGlobalVar { index, .. } => index.value().to_string(),
             Instruction::PushRegExp {
                 pattern_index: source_index,
                 flags_index: flag_index,
+                ..
             } => {
                 let pattern = self
                     .constant_string(source_index.value() as usize)
@@ -445,28 +436,15 @@ impl CodeBlock {
                 format!("/{pattern}/{flags}")
             }
             Instruction::Jump { address: value }
-            | Instruction::JumpIfTrue { address: value }
-            | Instruction::JumpIfFalse { address: value }
-            | Instruction::JumpIfNotUndefined { address: value }
-            | Instruction::JumpIfNullOrUndefined { address: value }
-            | Instruction::Case { address: value }
-            | Instruction::Default { address: value } => value.to_string(),
-            Instruction::LogicalAnd {
-                exit,
-                lhs,
-                operand_types,
-            }
-            | Instruction::LogicalOr {
-                exit,
-                lhs,
-                operand_types,
-            }
-            | Instruction::Coalesce {
-                exit,
-                lhs,
-                operand_types,
-            } => {
-                format!("lhs:{} exit:{exit}", lhs.to_string::<0>(*operand_types))
+            | Instruction::JumpIfTrue { address: value, .. }
+            | Instruction::JumpIfFalse { address: value, .. }
+            | Instruction::JumpIfNotUndefined { address: value, .. }
+            | Instruction::JumpIfNullOrUndefined { address: value, .. }
+            | Instruction::Case { address: value, .. } => value.to_string(),
+            Instruction::LogicalAnd { exit, lhs }
+            | Instruction::LogicalOr { exit, lhs }
+            | Instruction::Coalesce { exit, lhs } => {
+                format!("lhs:{} exit:{exit}", lhs.value())
             }
             Instruction::CallEval {
                 argument_count: value,
@@ -483,27 +461,33 @@ impl CodeBlock {
             | Instruction::SuperCall {
                 argument_count: value,
             }
-            | Instruction::ConcatToString { value_count: value }
-            | Instruction::GetArgument { index: value } => value.value().to_string(),
+            | Instruction::ConcatToString {
+                value_count: value, ..
+            }
+            | Instruction::GetArgument { index: value, .. } => value.value().to_string(),
             Instruction::PushScope { index } | Instruction::CallEvalSpread { index } => {
                 index.value().to_string()
             }
             Instruction::CopyDataProperties {
                 excluded_key_count: value1,
-                excluded_key_count_computed: value2,
-            } => format!("{}, {}", value1.value(), value2.value()),
+                ..
+            } => format!("{}", value1.value()),
             Instruction::GeneratorDelegateNext {
                 return_method_undefined: value1,
                 throw_method_undefined: value2,
+                ..
             }
             | Instruction::GeneratorDelegateResume {
                 exit: value1,
                 r#return: value2,
+                ..
             } => {
                 format!("{value1}, {value2}")
             }
-            Instruction::TemplateLookup { exit: value, site } => format!("{value}, {site}"),
-            Instruction::TemplateCreate { count, site } => {
+            Instruction::TemplateLookup {
+                exit: value, site, ..
+            } => format!("{value}, {site}"),
+            Instruction::TemplateCreate { count, site, .. } => {
                 format!("{}, {site}", count.value())
             }
             Instruction::GetFunction { dst, index } => {
@@ -516,14 +500,14 @@ impl CodeBlock {
                 )
             }
             Instruction::DefVar { index }
-            | Instruction::DefInitVar { index }
-            | Instruction::PutLexicalValue { index }
-            | Instruction::GetName { index }
+            | Instruction::DefInitVar { index, .. }
+            | Instruction::PutLexicalValue { index, .. }
+            | Instruction::GetName { index, .. }
             | Instruction::GetLocator { index }
-            | Instruction::GetNameAndLocator { index }
-            | Instruction::GetNameOrUndefined { index }
-            | Instruction::SetName { index }
-            | Instruction::DeleteName { index } => {
+            | Instruction::GetNameAndLocator { index, .. }
+            | Instruction::GetNameOrUndefined { index, .. }
+            | Instruction::SetName { index, .. }
+            | Instruction::DeleteName { index, .. } => {
                 format!(
                     "{:04}: '{}'",
                     index.value(),
@@ -532,27 +516,27 @@ impl CodeBlock {
                         .to_std_string_escaped()
                 )
             }
-            Instruction::DefineOwnPropertyByName { index }
-            | Instruction::DefineClassStaticMethodByName { index }
-            | Instruction::DefineClassMethodByName { index }
-            | Instruction::SetPropertyGetterByName { index }
-            | Instruction::DefineClassStaticGetterByName { index }
-            | Instruction::DefineClassGetterByName { index }
-            | Instruction::SetPropertySetterByName { index }
-            | Instruction::DefineClassStaticSetterByName { index }
-            | Instruction::DefineClassSetterByName { index }
+            Instruction::DefineOwnPropertyByName { index, .. }
+            | Instruction::DefineClassStaticMethodByName { index, .. }
+            | Instruction::DefineClassMethodByName { index, .. }
+            | Instruction::SetPropertyGetterByName { index, .. }
+            | Instruction::DefineClassStaticGetterByName { index, .. }
+            | Instruction::DefineClassGetterByName { index, .. }
+            | Instruction::SetPropertySetterByName { index, .. }
+            | Instruction::DefineClassStaticSetterByName { index, .. }
+            | Instruction::DefineClassSetterByName { index, .. }
             | Instruction::ThrowMutateImmutable { index }
-            | Instruction::DeletePropertyByName { index }
-            | Instruction::SetPrivateField { index }
-            | Instruction::DefinePrivateField { index }
-            | Instruction::SetPrivateMethod { index }
-            | Instruction::SetPrivateSetter { index }
-            | Instruction::SetPrivateGetter { index }
-            | Instruction::GetPrivateField { index }
-            | Instruction::PushClassFieldPrivate { index }
-            | Instruction::PushClassPrivateGetter { index }
-            | Instruction::PushClassPrivateSetter { index }
-            | Instruction::PushClassPrivateMethod { index } => {
+            | Instruction::DeletePropertyByName { index, .. }
+            | Instruction::SetPrivateField { index, .. }
+            | Instruction::DefinePrivateField { index, .. }
+            | Instruction::SetPrivateMethod { index, .. }
+            | Instruction::SetPrivateSetter { index, .. }
+            | Instruction::SetPrivateGetter { index, .. }
+            | Instruction::GetPrivateField { index, .. }
+            | Instruction::PushClassFieldPrivate { index, .. }
+            | Instruction::PushClassPrivateGetter { index, .. }
+            | Instruction::PushClassPrivateSetter { index, .. }
+            | Instruction::PushClassPrivateMethod { index, .. } => {
                 format!(
                     "{:04}: '{}'",
                     index.value(),
@@ -561,7 +545,6 @@ impl CodeBlock {
                 )
             }
             Instruction::GetPropertyByName {
-                operand_types,
                 dst,
                 receiver,
                 value,
@@ -572,8 +555,8 @@ impl CodeBlock {
                 format!(
                     "dst:reg{}, receiver:{}, value:{}, {:04}: '{}', Shape: 0x{:x}, Slot: index: {}, attributes {:?}",
                     dst.value(),
-                    receiver.to_string::<0>(*operand_types),
-                    value.to_string::<1>(*operand_types),
+                    receiver.value(),
+                    value.value(),
                     index.value(),
                     ic.name.to_std_string_escaped(),
                     ic.shape.borrow().to_addr_usize(),
@@ -581,7 +564,35 @@ impl CodeBlock {
                     slot.attributes,
                 )
             }
-            Instruction::SetPropertyByName { index } => {
+            Instruction::GetPropertyByValue {
+                dst,
+                key,
+                receiver,
+                object,
+            } => {
+                format!(
+                    "dst:reg{}, key:reg{}, receiver:reg{}, object:reg{}",
+                    dst.value(),
+                    key.value(),
+                    receiver.value(),
+                    object.value(),
+                )
+            }
+            Instruction::GetPropertyByValuePush {
+                dst,
+                key,
+                receiver,
+                object,
+            } => {
+                format!(
+                    "dst:reg{}, key:{}, receiver:{}, object:{}",
+                    dst.value(),
+                    key.value(),
+                    receiver.value(),
+                    object.value(),
+                )
+            }
+            Instruction::SetPropertyByName { index, .. } => {
                 let ic = &self.ic[index.value() as usize];
                 let slot = ic.slot();
                 format!(
@@ -596,12 +607,8 @@ impl CodeBlock {
             Instruction::PushPrivateEnvironment {
                 class,
                 name_indices,
-                operand_types,
             } => {
-                format!(
-                    "class:{}, names:{name_indices:?}",
-                    class.to_string::<0>(*operand_types)
-                )
+                format!("class:{}, names:{name_indices:?}", class.value())
             }
             Instruction::JumpTable { default, addresses } => {
                 let mut operands = format!("#{}: Default: {default:4}", addresses.len());
@@ -610,15 +617,18 @@ impl CodeBlock {
                 }
                 operands
             }
-            Instruction::JumpIfNotResumeKind { exit, resume_kind } => {
+            Instruction::JumpIfNotResumeKind {
+                exit, resume_kind, ..
+            } => {
                 format!("ResumeKind: {resume_kind:?}, exit: {exit}")
             }
-            Instruction::CreateIteratorResult { done } => {
+            Instruction::CreateIteratorResult { done, .. } => {
                 format!("done: {done}")
             }
             Instruction::CreateGlobalFunctionBinding {
                 index,
                 configurable,
+                ..
             }
             | Instruction::CreateGlobalVarBinding {
                 index,
@@ -631,17 +641,19 @@ impl CodeBlock {
             }
             Instruction::PushClassField {
                 is_anonymous_function,
+                ..
             } => {
                 format!("is_anonymous_function: {is_anonymous_function}")
             }
-            Instruction::PopIntoRegister { dst } | Instruction::PopIntoLocal { dst } => {
+            Instruction::PopIntoRegister { dst }
+            | Instruction::PopIntoLocal { dst, .. }
+            | Instruction::RestParameterInit { dst } => {
                 format!("dst:reg{}", dst.value())
             }
-            Instruction::PushFromRegister { src } | Instruction::PushFromLocal { src } => {
+            Instruction::PushFromRegister { src } | Instruction::PushFromLocal { src, .. } => {
                 format!("src:reg{}", src.value())
             }
             Instruction::PushClassPrototype {
-                operand_types,
                 dst,
                 class,
                 superclass,
@@ -649,12 +661,11 @@ impl CodeBlock {
                 format!(
                     "dst:reg{}, class:{}, superclass:{}",
                     dst.value(),
-                    class.to_string::<0>(*operand_types),
-                    superclass.to_string::<1>(*operand_types)
+                    class.value(),
+                    superclass.value(),
                 )
             }
             Instruction::SetClassPrototype {
-                operand_types,
                 dst,
                 prototype,
                 class,
@@ -662,52 +673,46 @@ impl CodeBlock {
                 format!(
                     "dst:reg{}, prototype:{}, class:{}",
                     dst.value(),
-                    prototype.to_string::<0>(*operand_types),
-                    class.to_string::<1>(*operand_types)
+                    prototype.value(),
+                    class.value()
                 )
             }
             Instruction::Pop
-            | Instruction::Dup
-            | Instruction::Swap
-            | Instruction::PushZero
-            | Instruction::PushOne
-            | Instruction::PushNaN
-            | Instruction::PushPositiveInfinity
-            | Instruction::PushNegativeInfinity
-            | Instruction::PushNull
-            | Instruction::PushTrue
-            | Instruction::PushFalse
-            | Instruction::PushUndefined
-            | Instruction::PushEmptyObject
-            | Instruction::SetHomeObject
-            | Instruction::TypeOf
-            | Instruction::Void
+            | Instruction::PushZero { .. }
+            | Instruction::PushOne { .. }
+            | Instruction::PushNaN { .. }
+            | Instruction::PushPositiveInfinity { .. }
+            | Instruction::PushNegativeInfinity { .. }
+            | Instruction::PushNull { .. }
+            | Instruction::PushTrue { .. }
+            | Instruction::PushFalse { .. }
+            | Instruction::PushUndefined { .. }
+            | Instruction::PushEmptyObject { .. }
+            | Instruction::SetHomeObject { .. }
+            | Instruction::TypeOf { .. }
             | Instruction::LogicalNot
             | Instruction::Pos
             | Instruction::Neg
-            | Instruction::GetPropertyByValue
-            | Instruction::GetPropertyByValuePush
-            | Instruction::SetPropertyByValue
-            | Instruction::DefineOwnPropertyByValue
-            | Instruction::DefineClassStaticMethodByValue
-            | Instruction::DefineClassMethodByValue
-            | Instruction::SetPropertyGetterByValue
-            | Instruction::DefineClassStaticGetterByValue
-            | Instruction::DefineClassGetterByValue
-            | Instruction::SetPropertySetterByValue
-            | Instruction::DefineClassStaticSetterByValue
-            | Instruction::DefineClassSetterByValue
-            | Instruction::DeletePropertyByValue
+            | Instruction::SetPropertyByValue { .. }
+            | Instruction::DefineOwnPropertyByValue { .. }
+            | Instruction::DefineClassStaticMethodByValue { .. }
+            | Instruction::DefineClassMethodByValue { .. }
+            | Instruction::SetPropertyGetterByValue { .. }
+            | Instruction::DefineClassStaticGetterByValue { .. }
+            | Instruction::DefineClassGetterByValue { .. }
+            | Instruction::SetPropertySetterByValue { .. }
+            | Instruction::DefineClassStaticSetterByValue { .. }
+            | Instruction::DefineClassSetterByValue { .. }
+            | Instruction::DeletePropertyByValue { .. }
             | Instruction::DeleteSuperThrow
-            | Instruction::ToPropertyKey
-            | Instruction::ToBoolean
-            | Instruction::Throw
+            | Instruction::ToPropertyKey { .. }
+            | Instruction::Throw { .. }
             | Instruction::ReThrow
-            | Instruction::Exception
-            | Instruction::MaybeException
-            | Instruction::This
+            | Instruction::Exception { .. }
+            | Instruction::MaybeException { .. }
+            | Instruction::This { .. }
             | Instruction::ThisForObjectEnvironmentName { .. }
-            | Instruction::Super
+            | Instruction::Super { .. }
             | Instruction::CheckReturn
             | Instruction::Return
             | Instruction::AsyncGeneratorClose
@@ -715,50 +720,42 @@ impl CodeBlock {
             | Instruction::CompletePromiseCapability
             | Instruction::PopEnvironment
             | Instruction::IncrementLoopIteration
-            | Instruction::CreateForInIterator
-            | Instruction::GetIterator
-            | Instruction::GetAsyncIterator
+            | Instruction::CreateForInIterator { .. }
+            | Instruction::GetIterator { .. }
+            | Instruction::GetAsyncIterator { .. }
             | Instruction::IteratorNext
-            | Instruction::IteratorNextWithoutPop
-            | Instruction::IteratorFinishAsyncNext
-            | Instruction::IteratorValue
-            | Instruction::IteratorValueWithoutPop
-            | Instruction::IteratorResult
-            | Instruction::IteratorDone
-            | Instruction::IteratorToArray
-            | Instruction::IteratorReturn
-            | Instruction::IteratorStackEmpty
-            | Instruction::RequireObjectCoercible
-            | Instruction::ValueNotNullOrUndefined
-            | Instruction::RestParameterInit
-            | Instruction::PushValueToArray
-            | Instruction::PushElisionToArray
-            | Instruction::PushIteratorToArray
-            | Instruction::PushNewArray
-            | Instruction::GeneratorYield
-            | Instruction::AsyncGeneratorYield
-            | Instruction::GeneratorNext
+            | Instruction::IteratorFinishAsyncNext { .. }
+            | Instruction::IteratorValue { .. }
+            | Instruction::IteratorResult { .. }
+            | Instruction::IteratorDone { .. }
+            | Instruction::IteratorToArray { .. }
+            | Instruction::IteratorReturn { .. }
+            | Instruction::IteratorStackEmpty { .. }
+            | Instruction::ValueNotNullOrUndefined { .. }
+            | Instruction::PushValueToArray { .. }
+            | Instruction::PushElisionToArray { .. }
+            | Instruction::PushIteratorToArray { .. }
+            | Instruction::PushNewArray { .. }
+            | Instruction::GeneratorYield { .. }
+            | Instruction::AsyncGeneratorYield { .. }
+            | Instruction::GeneratorNext { .. }
             | Instruction::SuperCallDerived
-            | Instruction::Await
-            | Instruction::NewTarget
-            | Instruction::ImportMeta
-            | Instruction::SuperCallPrepare
+            | Instruction::Await { .. }
+            | Instruction::NewTarget { .. }
+            | Instruction::ImportMeta { .. }
+            | Instruction::SuperCallPrepare { .. }
             | Instruction::CallSpread
             | Instruction::NewSpread
             | Instruction::SuperCallSpread
-            | Instruction::SetPrototype
-            | Instruction::PushObjectEnvironment
-            | Instruction::IsObject
-            | Instruction::SetNameByLocator
+            | Instruction::SetPrototype { .. }
+            | Instruction::PushObjectEnvironment { .. }
+            | Instruction::IsObject { .. }
+            | Instruction::SetNameByLocator { .. }
             | Instruction::PopPrivateEnvironment
-            | Instruction::ImportCall
-            | Instruction::GetAccumulator
-            | Instruction::SetAccumulatorFromStack
-            | Instruction::BindThisValue
-            | Instruction::CreateMappedArgumentsObject
-            | Instruction::CreateUnmappedArgumentsObject
-            | Instruction::Nop => String::new(),
-
+            | Instruction::ImportCall { .. }
+            | Instruction::BindThisValue { .. }
+            | Instruction::CreateMappedArgumentsObject { .. }
+            | Instruction::CreateUnmappedArgumentsObject { .. } => String::new(),
             Instruction::U16Operands
             | Instruction::U32Operands
             | Instruction::Reserved1
@@ -807,7 +804,21 @@ impl CodeBlock {
             | Instruction::Reserved44
             | Instruction::Reserved45
             | Instruction::Reserved46
-            | Instruction::Reserved47 => unreachable!("Reserved opcodes are unrechable"),
+            | Instruction::Reserved47
+            | Instruction::Reserved48
+            | Instruction::Reserved49
+            | Instruction::Reserved50
+            | Instruction::Reserved51
+            | Instruction::Reserved52
+            | Instruction::Reserved53
+            | Instruction::Reserved54
+            | Instruction::Reserved55
+            | Instruction::Reserved56
+            | Instruction::Reserved57
+            | Instruction::Reserved58
+            | Instruction::Reserved59
+            | Instruction::Reserved60
+            | Instruction::Reserved61 => unreachable!("Reserved opcodes are unreachable"),
         }
     }
 }
@@ -911,12 +922,12 @@ impl Display for CodeBlock {
             f.write_str("    <empty>\n")?;
         } else {
             for (i, handler) in self.handlers.iter().enumerate() {
-                writeln!(f,
-                    "    {i:04}: Range: [{:04}, {:04}): Handler: {:04}, Stack: {:02}, Environment: {:02}",
+                writeln!(
+                    f,
+                    "    {i:04}: Range: [{:04}, {:04}): Handler: {:04}, Environment: {:02}",
                     handler.start,
                     handler.end,
                     handler.handler(),
-                    handler.stack_count,
                     handler.environment_count,
                 )?;
             }
