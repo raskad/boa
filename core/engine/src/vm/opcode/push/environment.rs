@@ -99,8 +99,8 @@ impl PushPrivateEnvironment {
         registers: &mut Registers,
         context: &mut Context,
     ) -> JsResult<CompletionType> {
-        let class_value = registers.get(class);
-        let class = class_value.as_object().expect("should be a object");
+        let class = registers.get(class);
+        let class = class.as_object().expect("should be a object");
 
         let ptr: *const _ = class.as_ref();
         let environment = Gc::new(PrivateEnvironment::new(ptr.cast::<()>() as usize, names));
