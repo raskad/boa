@@ -1,4 +1,5 @@
-use std::{cell::Cell, rc::Rc};
+use core::cell::Cell;
+use std::rc::Rc;
 
 use super::run_test;
 use crate::{

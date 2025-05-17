@@ -4,7 +4,7 @@ use crate::{
     trace::{Finalize, Trace},
     Tracer,
 };
-use std::{
+use core::{
     cell::{Cell, UnsafeCell},
     cmp::Ordering,
     fmt::{self, Debug, Display},
@@ -293,7 +293,7 @@ impl<'a, T: ?Sized> GcRef<'a, T> {
 
         // We have to tell the compiler not to call the destructor of GcCellRef,
         // because it will update the borrow flags.
-        std::mem::forget(orig);
+        core::mem::forget(orig);
 
         Some(ret)
     }
@@ -317,7 +317,7 @@ impl<'a, T: ?Sized> GcRef<'a, T> {
 
         // We have to tell the compiler not to call the destructor of GcCellRef,
         // because it will update the borrow flags.
-        std::mem::forget(orig);
+        core::mem::forget(orig);
 
         ret
     }
@@ -351,7 +351,7 @@ impl<'a, T: ?Sized> GcRef<'a, T> {
 
         // We have to tell the compiler not to call the destructor of GcCellRef,
         // because it will update the borrow flags.
-        std::mem::forget(orig);
+        core::mem::forget(orig);
 
         ret
     }
@@ -415,7 +415,7 @@ impl<'a, T: ?Sized, U: ?Sized> GcRefMut<'a, T, U> {
 
         // We have to tell the compiler not to call the destructor of GcCellRef,
         // because it will update the borrow flags.
-        std::mem::forget(orig);
+        core::mem::forget(orig);
 
         Some(ret)
     }
@@ -444,7 +444,7 @@ impl<'a, T: ?Sized, U: ?Sized> GcRefMut<'a, T, U> {
 
         // We have to tell the compiler not to call the destructor of GcCellRefMut,
         // because it will update the borrow flags.
-        std::mem::forget(orig);
+        core::mem::forget(orig);
 
         ret
     }

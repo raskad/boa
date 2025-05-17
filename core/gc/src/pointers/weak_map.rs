@@ -7,7 +7,7 @@ use hashbrown::{
 };
 
 use crate::{custom_trace, Allocator, Ephemeron, Finalize, Gc, GcRefCell, Trace};
-use std::{fmt, hash::BuildHasher, marker::PhantomData};
+use core::{fmt, hash::BuildHasher, marker::PhantomData};
 
 /// A map that holds weak references to its keys and is traced by the garbage collector.
 #[derive(Clone, Debug, Default, Finalize)]
@@ -409,16 +409,16 @@ where
     K: Trace + ?Sized + 'static,
     V: Trace + 'static,
 {
-    use std::hash::Hasher;
+    use core::hash::Hasher;
     let mut state = hash_builder.build_hasher();
     // TODO: Is this true for custom hashers? if not, rewrite `key` to be safe.
     // SAFETY: The return value of `key` is only used to hash it, which
     // cannot trigger a garbage collection,
     unsafe {
         if let Some(val) = eph.inner().key() {
-            std::ptr::hash(val, &mut state);
+            core::ptr::hash(val, &mut state);
         } else {
-            std::ptr::hash(eph.inner_ptr().as_ptr(), &mut state);
+            core::ptr::hash(eph.inner_ptr().as_ptr(), &mut state);
         }
     }
     state.finish()
@@ -429,9 +429,9 @@ where
     S: BuildHasher,
     K: Trace + ?Sized + 'static,
 {
-    use std::hash::Hasher;
+    use core::hash::Hasher;
     let mut state = hash_builder.build_hasher();
-    std::ptr::hash(gc.inner_ptr().as_ptr(), &mut state);
+    core::ptr::hash(gc.inner_ptr().as_ptr(), &mut state);
     state.finish()
 }
 
@@ -445,7 +445,7 @@ where
     move |eph| unsafe {
         eph.inner().key().is_some_and(|val| {
             let val: *const _ = val;
-            std::ptr::eq(val, k.inner_ptr().as_ptr())
+            core::ptr::eq(val, k.inner_ptr().as_ptr())
         })
     }
 }

@@ -1,17 +1,19 @@
-use std::{
+use core::{
     any::TypeId,
-    borrow::{Cow, ToOwned},
     cell::{Cell, OnceCell},
-    collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque},
     hash::{BuildHasher, Hash},
     marker::PhantomData,
     num::{
         NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
         NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
     },
+    sync::atomic,
+};
+use std::{
+    borrow::{Cow, ToOwned},
+    collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::atomic,
 };
 
 use crate::GcErasedPointer;

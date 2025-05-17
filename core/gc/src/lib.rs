@@ -24,13 +24,13 @@ mod trace;
 pub(crate) mod internals;
 
 use boa_profiler::Profiler;
-use internals::{EphemeronBox, ErasedEphemeronBox, ErasedWeakMapBox, WeakMapBox};
-use pointers::{NonTraceable, RawWeakMap};
-use std::{
+use core::{
     cell::{Cell, RefCell},
     mem,
     ptr::NonNull,
 };
+use internals::{EphemeronBox, ErasedEphemeronBox, ErasedWeakMapBox, WeakMapBox};
+use pointers::{NonTraceable, RawWeakMap};
 
 pub use crate::trace::{Finalize, Trace, Tracer};
 pub use boa_macros::{Finalize, Trace};

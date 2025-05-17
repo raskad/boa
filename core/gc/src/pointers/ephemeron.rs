@@ -6,9 +6,7 @@ use crate::{
     trace::{Finalize, Trace},
     Allocator, Gc, Tracer,
 };
-use std::ptr::NonNull;
-
-use super::addr_eq;
+use core::ptr::{addr_eq, NonNull};
 
 /// A key-value pair where the value becomes unaccesible when the key is garbage collected.
 ///

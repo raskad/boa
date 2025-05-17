@@ -4,17 +4,15 @@ use crate::{
     trace::{Finalize, Trace},
     Allocator, Ephemeron, GcErasedPointer, Tracer, WeakGc,
 };
-use std::{
+use core::{
     cmp::Ordering,
     fmt::{self, Debug, Display},
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
-    ptr::NonNull,
-    rc::Rc,
+    ptr::{addr_eq, NonNull},
 };
-
-use super::addr_eq;
+use std::rc::Rc;
 
 /// Zero sized struct that is used to ensure that we do not call trace methods,
 /// call its finalization method or drop it.
@@ -109,7 +107,7 @@ impl<T: Trace + ?Sized> Gc<T> {
     #[must_use]
     pub fn into_raw(this: Self) -> NonNull<GcBox<T>> {
         let ptr = this.inner_ptr();
-        std::mem::forget(this);
+        core::mem::forget(this);
         ptr
     }
 
@@ -184,7 +182,7 @@ impl<T: Trace + ?Sized> Clone for Gc<T> {
         let ptr = self.inner_ptr();
         self.inner().inc_ref_count();
         // SAFETY: though `ptr` doesn't come from a `into_raw` call, it essentially does the same,
-        // but it skips the call to `std::mem::forget` since we have a reference instead of an owned
+        // but it skips the call to `core::mem::forget` since we have a reference instead of an owned
         // value.
         unsafe { Self::from_raw(ptr) }
     }

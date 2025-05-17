@@ -1,5 +1,5 @@
 use crate::{trace::Trace, Gc, GcBox, Tracer};
-use std::{cell::UnsafeCell, ptr::NonNull};
+use core::{cell::UnsafeCell, ptr::NonNull};
 
 use super::GcHeader;
 
