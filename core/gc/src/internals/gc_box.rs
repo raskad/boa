@@ -1,6 +1,6 @@
 use crate::Trace;
 
-use super::{vtable_of, DropFn, GcHeader, RunFinalizerFn, TraceFn, TraceNonRootsFn, VTable};
+use super::{vtable_of, DropFn, GcHeader, RunFinalizerFn, TraceFn, VTable};
 
 /// A garbage collected allocation.
 #[derive(Debug)]
@@ -30,45 +30,12 @@ impl<T: Trace + ?Sized> GcBox<T> {
     }
 
     /// Returns `true` if the header is marked.
-    pub(crate) fn is_marked(&self) -> bool {
+    pub fn is_marked(&self) -> bool {
         self.header.is_marked()
     }
 
-    #[inline]
-    pub(crate) fn inc_ref_count(&self) {
-        self.header.inc_ref_count();
-    }
-
-    #[inline]
-    pub(crate) fn dec_ref_count(&self) {
-        self.header.dec_ref_count();
-    }
-
-    #[inline]
-    pub(crate) fn inc_non_root_count(&self) {
-        self.header.inc_non_root_count();
-    }
-
-    pub(crate) fn reset_non_root_count(&self) {
-        self.header.reset_non_root_count();
-    }
-
-    /// Check if the gc object is rooted.
-    ///
-    /// # Note
-    ///
-    /// This only gives valid result if the we have run through the
-    /// tracing non roots phase.
-    pub(crate) fn is_rooted(&self) -> bool {
-        self.header.is_rooted()
-    }
-
-    pub(crate) fn trace_fn(&self) -> TraceFn {
+    pub fn trace_fn(&self) -> TraceFn {
         self.vtable.trace_fn()
-    }
-
-    pub(crate) fn trace_non_roots_fn(&self) -> TraceNonRootsFn {
-        self.vtable.trace_non_roots_fn()
     }
 
     pub(crate) fn run_finalizer_fn(&self) -> RunFinalizerFn {

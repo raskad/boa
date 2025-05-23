@@ -43,12 +43,6 @@ impl<K: Trace + ?Sized, V: Trace + Clone> Ephemeron<K, V> {
         // `inner_ptr`.
         let key_ptr = unsafe { self.inner_ptr.as_ref().key_ptr() }?;
 
-        // SAFETY: Returned pointer is valid, so this is safe.
-        unsafe {
-            key_ptr.as_ref().inc_ref_count();
-        }
-
-        // SAFETY: The gc pointer's reference count has been incremented, so this is safe.
         Some(unsafe { Gc::from_raw(key_ptr) })
     }
 
@@ -99,11 +93,6 @@ impl<K: Trace + ?Sized, V: Trace> Ephemeron<K, V> {
 
 impl<K: Trace + ?Sized, V: Trace> Finalize for Ephemeron<K, V> {
     fn finalize(&self) {
-        // SAFETY: inner_ptr should be alive when calling finalize.
-        // We don't call inner_ptr() to avoid overhead of calling finalizer_safe().
-        unsafe {
-            self.inner_ptr.as_ref().dec_ref_count();
-        }
     }
 }
 
@@ -118,10 +107,6 @@ unsafe impl<K: Trace + ?Sized, V: Trace> Trace for Ephemeron<K, V> {
         }
     }
 
-    unsafe fn trace_non_roots(&self) {
-        self.inner().inc_non_root_count();
-    }
-
     fn run_finalizer(&self) {
         Finalize::finalize(self);
     }
@@ -130,8 +115,6 @@ unsafe impl<K: Trace + ?Sized, V: Trace> Trace for Ephemeron<K, V> {
 impl<K: Trace + ?Sized, V: Trace> Clone for Ephemeron<K, V> {
     fn clone(&self) -> Self {
         let ptr = self.inner_ptr();
-        self.inner().inc_ref_count();
-        // SAFETY: `&self` is a valid Ephemeron pointer.
         unsafe { Self::from_raw(ptr) }
     }
 }

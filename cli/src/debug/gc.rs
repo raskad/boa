@@ -3,8 +3,8 @@ use boa_engine::{
 };
 
 /// Trigger garbage collection.
-fn collect(_: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
-    boa_gc::force_collect();
+fn collect(_: &JsValue, _: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
+    context.force_gc();
     Ok(JsValue::undefined())
 }
 

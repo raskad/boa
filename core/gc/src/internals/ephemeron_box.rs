@@ -97,21 +97,6 @@ impl<K: Trace + ?Sized, V: Trace> EphemeronBox<K, V> {
             });
         }
     }
-
-    #[inline]
-    pub(crate) fn inc_ref_count(&self) {
-        self.header.inc_ref_count();
-    }
-
-    #[inline]
-    pub(crate) fn dec_ref_count(&self) {
-        self.header.dec_ref_count();
-    }
-
-    #[inline]
-    pub(crate) fn inc_non_root_count(&self) {
-        self.header.inc_non_root_count();
-    }
 }
 
 pub(crate) trait ErasedEphemeronBox {
@@ -123,8 +108,6 @@ pub(crate) trait ErasedEphemeronBox {
     /// considers ephemerons that are marked but don't have their value anymore as
     /// "successfully traced".
     unsafe fn trace(&self, tracer: &mut Tracer) -> bool;
-
-    fn trace_non_roots(&self);
 
     /// Runs the finalization logic of the `EphemeronBox`'s held value, if the key is still live,
     /// and clears its contents.
@@ -161,16 +144,6 @@ impl<K: Trace + ?Sized, V: Trace> ErasedEphemeronBox for EphemeronBox<K, V> {
         }
 
         is_key_marked
-    }
-
-    fn trace_non_roots(&self) {
-        // SAFETY: Tracing always executes before collecting, meaning this cannot cause
-        // use after free.
-        unsafe {
-            if let Some(value) = self.value() {
-                value.trace_non_roots();
-            }
-        }
     }
 
     fn finalize_and_clear(&self) {

@@ -21,7 +21,7 @@ use std::rc::Rc;
 /// Panics if any of it's methods are called.
 ///
 /// Note: Accessing the [`crate::internals::GcHeader`] of [`GcErasedPointer`] is fine.
-pub(crate) struct NonTraceable(());
+pub struct NonTraceable(());
 
 impl Finalize for NonTraceable {
     fn finalize(&self) {
@@ -33,9 +33,7 @@ unsafe impl Trace for NonTraceable {
     unsafe fn trace(&self, _tracer: &mut Tracer) {
         unreachable!()
     }
-    unsafe fn trace_non_roots(&self) {
-        unreachable!()
-    }
+
     fn run_finalizer(&self) {
         unreachable!()
     }
@@ -134,7 +132,7 @@ impl<T: Trace + ?Sized> Gc<T> {
         }
     }
 
-    pub(crate) fn as_erased(&self) -> GcErasedPointer {
+    pub fn as_erased(&self) -> GcErasedPointer {
         self.inner_ptr.cast()
     }
 }
@@ -153,23 +151,12 @@ impl<T: Trace + ?Sized> Gc<T> {
 
 impl<T: Trace + ?Sized> Finalize for Gc<T> {
     fn finalize(&self) {
-        // SAFETY: inner_ptr should be alive when calling finalize.
-        // We don't call inner_ptr() to avoid overhead of calling finalizer_safe().
-        unsafe {
-            self.inner_ptr.as_ref().dec_ref_count();
-        }
     }
 }
 
-// SAFETY: `Gc` maintains it's own rootedness and implements all methods of
-// Trace. It is not possible to root an already rooted `Gc` and vice versa.
 unsafe impl<T: Trace + ?Sized> Trace for Gc<T> {
     unsafe fn trace(&self, tracer: &mut Tracer) {
         tracer.enqueue(self.as_erased());
-    }
-
-    unsafe fn trace_non_roots(&self) {
-        self.inner().inc_non_root_count();
     }
 
     fn run_finalizer(&self) {
@@ -177,14 +164,11 @@ unsafe impl<T: Trace + ?Sized> Trace for Gc<T> {
     }
 }
 
+impl<T: Trace + ?Sized> Copy for Gc<T> {}
+
 impl<T: Trace + ?Sized> Clone for Gc<T> {
     fn clone(&self) -> Self {
-        let ptr = self.inner_ptr();
-        self.inner().inc_ref_count();
-        // SAFETY: though `ptr` doesn't come from a `into_raw` call, it essentially does the same,
-        // but it skips the call to `core::mem::forget` since we have a reference instead of an owned
-        // value.
-        unsafe { Self::from_raw(ptr) }
+        *self
     }
 }
 
@@ -193,14 +177,6 @@ impl<T: Trace + ?Sized> Deref for Gc<T> {
 
     fn deref(&self) -> &T {
         self.inner().value()
-    }
-}
-
-impl<T: Trace + ?Sized> Drop for Gc<T> {
-    fn drop(&mut self) {
-        if finalizer_safe() {
-            Finalize::finalize(self);
-        }
     }
 }
 

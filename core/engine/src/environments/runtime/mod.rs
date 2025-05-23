@@ -267,16 +267,25 @@ impl EnvironmentStack {
         binding_index: u32,
         value: JsValue,
     ) {
+        dbg!(binding_index);
         let env = match environment {
             BindingLocatorScope::GlobalObject | BindingLocatorScope::GlobalDeclarative => {
+                dbg!("SET ENV: GLOBAL");
                 self.global()
             }
-            BindingLocatorScope::Stack(index) => self
-                .stack
-                .get(index as usize)
-                .and_then(Environment::as_declarative)
-                .expect("must be declarative environment"),
+            BindingLocatorScope::Stack(index) => {
+                dbg!("SET ENV: Stack", index);
+                self.stack
+                    .get(index as usize)
+                    .and_then(Environment::as_declarative)
+                    .expect("must be declarative environment")
+            }
         };
+        dbg!("SET ENV: ", env.as_erased());
+        if let Some(o) = value.as_object() {
+            dbg!("SET ENV: OBJECT", o.as_erased());
+            dbg!(o.is_marked());
+        }
         env.set(binding_index, value);
     }
 

@@ -42,18 +42,23 @@ impl Tracer {
     ///
     /// All the pointers inside of the queue must point to valid memory.
     pub(crate) unsafe fn trace_until_empty(&mut self) {
+        let mut count = 0;
         while let Some(node) = self.queue.pop_front() {
+            dbg!(node.cast::<GcErasedPointer>());
             let node_ref = unsafe { node.as_ref() };
-            if node_ref.is_marked() {
+            if dbg!(node_ref.is_marked()) {
                 continue;
             }
             node_ref.header.mark();
+            dbg!("node_ref.header.mark() DONE");
             let trace_fn = node_ref.trace_fn();
-
+            dbg!("before_trace fn call");
             // SAFETY: The function pointer is appropriate for this node type because we extract it from it's VTable.
             // Additionally, the node pointer is valid per the caller's guarantee.
             unsafe { trace_fn(node, self) }
+            count += 1;
         }
+        dbg!(count);
     }
 
     pub(crate) fn is_empty(&mut self) -> bool {
@@ -84,13 +89,6 @@ pub unsafe trait Trace: Finalize {
     /// See [`Trace`].
     unsafe fn trace(&self, tracer: &mut Tracer);
 
-    /// Trace handles located in GC heap, and mark them as non root.
-    ///
-    /// # Safety
-    ///
-    /// See [`Trace`].
-    unsafe fn trace_non_roots(&self);
-
     /// Runs [`Finalize::finalize`] on this object and all
     /// contained subobjects.
     fn run_finalizer(&self);
@@ -104,8 +102,7 @@ macro_rules! empty_trace {
     () => {
         #[inline]
         unsafe fn trace(&self, _tracer: &mut $crate::Tracer) {}
-        #[inline]
-        unsafe fn trace_non_roots(&self) {}
+
         #[inline]
         fn run_finalizer(&self) {
             $crate::Finalize::finalize(self)
@@ -136,17 +133,7 @@ macro_rules! custom_trace {
             let $this = self;
             $body
         }
-        #[inline]
-        unsafe fn trace_non_roots(&self) {
-            fn $marker<T: $crate::Trace + ?Sized>(it: &T) {
-                // SAFETY: The implementor must ensure that `trace` is correctly implemented.
-                unsafe {
-                    $crate::Trace::trace_non_roots(it);
-                }
-            }
-            let $this = self;
-            $body
-        }
+
         #[inline]
         fn run_finalizer(&self) {
             fn $marker<T: $crate::Trace + ?Sized>(it: &T) {
@@ -320,13 +307,7 @@ unsafe impl<T: Trace + ?Sized> Trace for Box<T> {
             Trace::trace(&**self, tracer);
         }
     }
-    #[inline]
-    unsafe fn trace_non_roots(&self) {
-        // SAFETY: The implementor must ensure that `trace_non_roots` is correctly implemented.
-        unsafe {
-            Trace::trace_non_roots(&**self);
-        }
-    }
+
     #[inline]
     fn run_finalizer(&self) {
         Finalize::finalize(self);

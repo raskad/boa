@@ -1,9 +1,11 @@
 //! The ECMAScript context.
 
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::{cell::Cell, path::Path, rc::Rc};
 
 use boa_ast::StatementList;
+use boa_gc::{Finalize, Gc, GcErasedPointer, Trace};
 use boa_interner::Interner;
 use boa_parser::source::ReadChar;
 use boa_profiler::Profiler;
@@ -45,6 +47,10 @@ pub mod intrinsics;
 
 thread_local! {
     static CANNOT_BLOCK_COUNTER: Cell<u64> = const { Cell::new(0) };
+}
+
+thread_local! {
+    static DROPPING: Cell<bool> = const { Cell::new(false) };
 }
 
 /// ECMAScript context. It is the primary way to interact with the runtime.
@@ -91,8 +97,11 @@ thread_local! {
 ///
 /// assert_eq!(value.as_number(), Some(12.0))
 /// ```
+#[derive(Trace, Finalize)]
+#[boa_gc(unsafe_no_drop)]
 pub struct Context {
     /// String interner in the context.
+    #[unsafe_ignore_trace]
     interner: Interner,
 
     /// Execute in strict mode,
@@ -109,20 +118,27 @@ pub struct Context {
     can_block: bool,
 
     #[cfg(feature = "temporal")]
+    #[unsafe_ignore_trace]
     tz_provider: FsTzdbProvider,
 
     /// Intl data provider.
     #[cfg(feature = "intl")]
+    #[unsafe_ignore_trace]
     intl_provider: icu::IntlProvider,
 
+    #[unsafe_ignore_trace]
     host_hooks: Rc<dyn HostHooks>,
 
+    #[unsafe_ignore_trace]
     clock: Rc<dyn Clock>,
 
+    #[unsafe_ignore_trace]
     job_executor: Rc<dyn JobExecutor>,
 
+    #[unsafe_ignore_trace]
     module_loader: Rc<dyn ModuleLoader>,
 
+    #[unsafe_ignore_trace]
     optimizer_options: OptimizerOptions,
     root_shape: RootShape,
 
@@ -130,6 +146,23 @@ pub struct Context {
     parser_identifier: u32,
 
     data: HostDefined,
+
+    #[unsafe_ignore_trace]
+    pub(crate) roots: HashSet<GcErasedPointer>,
+}
+
+impl Context {
+    /// Add a Gc<T> root to the dynamic root set.
+    pub fn add_root<T: Trace>(&mut self, gc: &Gc<T>) {
+        let ptr = gc.as_erased();
+        self.roots.insert(ptr);
+    }
+
+    /// Remove a Gc<T> root from the dynamic root set.
+    pub fn remove_root<T: Trace>(&mut self, gc: &Gc<T>) {
+        let ptr = gc.as_erased();
+        self.roots.remove(&ptr);
+    }
 }
 
 impl std::fmt::Debug for Context {
@@ -159,6 +192,11 @@ impl Drop for Context {
         if !self.can_block {
             CANNOT_BLOCK_COUNTER.set(CANNOT_BLOCK_COUNTER.get() - 1);
         }
+        if !DROPPING.get() {
+            DROPPING.set(true);
+            boa_gc::collect_force::<Self>(None, &HashSet::default());
+        }
+        DROPPING.set(false);
     }
 }
 
@@ -177,6 +215,10 @@ impl Context {
     #[must_use]
     pub fn builder() -> ContextBuilder {
         ContextBuilder::default()
+    }
+
+    pub fn force_gc(&self) {
+        boa_gc::collect_force(Some(self), &self.roots);
     }
 
     /// Evaluates the given source by compiling down to bytecode, then interpreting the
@@ -199,7 +241,7 @@ impl Context {
     #[allow(clippy::unit_arg, dropping_copy_types)]
     pub fn eval<R: ReadChar>(&mut self, src: Source<'_, R>) -> JsResult<JsValue> {
         let main_timer = Profiler::global().start_event("Script evaluation", "Main");
-
+        self.set_trace(true);
         let result = Script::parse(src, None, self)?.evaluate(self);
 
         // The main_timer needs to be dropped before the Profiler is.
@@ -1175,6 +1217,7 @@ impl ContextBuilder {
             parser_identifier: 0,
             can_block: self.can_block,
             data: HostDefined::default(),
+            roots: HashSet::default(),
         };
 
         builtins::set_default_global_bindings(&mut context)?;

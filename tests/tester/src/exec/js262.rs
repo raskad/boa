@@ -14,6 +14,7 @@ use boa_engine::{
     property::Attribute,
     Context, JsArgs, JsNativeError, JsResult, JsValue, Source,
 };
+use boa_gc::Gc;
 use bus::BusReader;
 
 use crate::START;
@@ -119,10 +120,11 @@ pub(super) fn register_js262(handles: WorkerHandles, context: &mut Context) -> J
 /// Creates a new ECMAScript Realm, defines this API on the new realm's global object, and
 /// returns the `$262` property of the new realm's global object.
 #[allow(clippy::unnecessary_wraps)]
-fn create_realm(_: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
-    let context = &mut Context::default();
+fn create_realm(_: &JsValue, _: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
+    let mut ctx = Context::default();
 
-    let js262 = register_js262(WorkerHandles::new(), context);
+    let js262 = register_js262(WorkerHandles::new(), &mut ctx);
+    context.add_root(&Gc::new(ctx));
 
     Ok(JsValue::new(js262))
 }
@@ -174,8 +176,8 @@ fn eval_script(_this: &JsValue, args: &[JsValue], context: &mut Context) -> JsRe
 /// Must throw an exception if no capability exists. This is necessary for testing the
 /// semantics of any feature that relies on garbage collection, e.g. the `WeakRef` API.
 #[allow(clippy::unnecessary_wraps)]
-fn gc(_this: &JsValue, _: &[JsValue], _context: &mut Context) -> JsResult<JsValue> {
-    boa_gc::force_collect();
+fn gc(_this: &JsValue, _: &[JsValue], context: &mut Context) -> JsResult<JsValue> {
+    context.force_gc();
     Ok(JsValue::undefined())
 }
 

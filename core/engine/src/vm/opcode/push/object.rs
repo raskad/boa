@@ -22,7 +22,17 @@ impl PushEmptyObject {
             .templates()
             .ordinary_object()
             .create(OrdinaryObject, Vec::default());
+        
+        dbg!("Pushed empty object");
+        dbg!("Pushed empty object: ", o.as_erased());
+        dbg!(o.is_marked());
         registers.set(dst.into(), o.into());
+        context.force_gc();
+        let value = registers.get(dst.into());
+        if let Some(o) = value.as_object() {
+            dbg!("Pushed empty object AFTER GC", o.as_erased());
+            dbg!(o.is_marked());
+        }
     }
 }
 

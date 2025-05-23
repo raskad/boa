@@ -24,7 +24,7 @@ use crate::{
     value::PreferredType,
     Context, JsResult, JsString, JsValue,
 };
-use boa_gc::{self, Finalize, Gc, GcBox, GcRefCell, Trace};
+use boa_gc::{self, Finalize, Gc, GcBox, GcErasedPointer, GcRefCell, Trace};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -81,6 +81,15 @@ impl Default for JsObject {
 }
 
 impl JsObject {
+    pub fn as_erased(&self) -> GcErasedPointer {
+        self.inner.as_erased()
+    }
+
+    pub fn is_marked(&self) -> bool {
+        unsafe { self.inner.as_erased().as_ref().trace_fn() };
+        unsafe { self.inner.as_erased().as_ref().is_marked() }
+    }
+
     /// Creates a new `JsObject` from its inner object and its vtable.
     pub(crate) fn from_object_and_vtable<T: NativeObject>(
         object: Object<T>,

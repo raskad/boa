@@ -272,9 +272,19 @@ impl Test {
             );
         }
 
+        dbg!("yes");
+        let mut context = Context::builder()
+            .build()
+            .expect("cannot fail with default global object");
+        let _ = match context.eval(source) {
+            Ok(v) => v,
+            Err(err) => panic!("Uncaught panic in test262:TESTSET"),
+        };
+        panic!("Uncaught panic in test262:AAA");
+
         let result = std::panic::catch_unwind(|| match self.expected_outcome {
             Outcome::Positive => {
-                let (ref mut context, async_result, mut handles) =
+                let (mut context, async_result, mut handles) =
                     match self.create_context(harness, optimizer_options, console) {
                         Ok(r) => r,
                         Err(e) => return (false, e),
@@ -282,12 +292,12 @@ impl Test {
 
                 // TODO: timeout
                 let value = if self.is_module() {
-                    let module = match parse_module_and_register(source, &self.path, context) {
+                    let module = match parse_module_and_register(source, &self.path, &mut context) {
                         Ok(module) => module,
                         Err(err) => return (false, format!("Uncaught {err}")),
                     };
 
-                    let promise = module.load_link_evaluate(context);
+                    let promise = module.load_link_evaluate(&mut context);
 
                     if let Err(err) = context.run_jobs() {
                         return (false, format!("Uncaught {err}"));
@@ -300,7 +310,7 @@ impl Test {
                         PromiseState::Fulfilled(v) => v,
                         PromiseState::Rejected(err) => {
                             let output = JsError::from_opaque(err.clone())
-                                .try_native(context)
+                                .try_native(&mut context)
                                 .map_or_else(
                                     |_| format!("Uncaught {}", err.display()),
                                     |err| {
@@ -323,6 +333,8 @@ impl Test {
                         Err(err) => return (false, format!("Uncaught {err}")),
                     }
                 };
+
+                let v = value.display().to_string();
 
                 if let Err(err) = context.run_jobs() {
                     return (false, format!("Uncaught {err}"));
@@ -347,7 +359,7 @@ impl Test {
                     }
                 }
 
-                (true, value.display().to_string())
+                (true, v)
             }
             Outcome::Negative {
                 phase: Phase::Parse,

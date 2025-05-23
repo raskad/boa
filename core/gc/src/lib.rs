@@ -31,6 +31,8 @@ use core::{
 };
 use internals::{EphemeronBox, ErasedEphemeronBox, ErasedWeakMapBox, WeakMapBox};
 use pointers::{NonTraceable, RawWeakMap};
+use std::{collections::HashSet, hash::Hash};
+use std::sync::Mutex;
 
 pub use crate::trace::{Finalize, Trace, Tracer};
 pub use boa_macros::{Finalize, Trace};
@@ -38,7 +40,7 @@ pub use cell::{GcRef, GcRefCell, GcRefMut};
 pub use internals::GcBox;
 pub use pointers::{Ephemeron, Gc, WeakGc, WeakMap};
 
-type GcErasedPointer = NonNull<GcBox<NonTraceable>>;
+pub type GcErasedPointer = NonNull<GcBox<NonTraceable>>;
 type EphemeronPointer = NonNull<dyn ErasedEphemeronBox>;
 type ErasedWeakMapBoxPointer = NonNull<dyn ErasedWeakMapBox>;
 
@@ -134,15 +136,10 @@ impl Allocator {
         let element_size = size_of_val::<GcBox<T>>(&value);
         BOA_GC.with(|st| {
             let mut gc = st.borrow_mut();
-
-            Self::manage_state(&mut gc);
-            // Safety: value cannot be a null pointer, since `Box` cannot return null pointers.
             let ptr = unsafe { NonNull::new_unchecked(Box::into_raw(Box::new(value))) };
             let erased: NonNull<GcBox<NonTraceable>> = ptr.cast();
-
             gc.strongs.push(erased);
             gc.runtime.bytes_allocated += element_size;
-
             ptr
         })
     }
@@ -154,8 +151,6 @@ impl Allocator {
         let element_size = size_of_val::<EphemeronBox<K, V>>(&value);
         BOA_GC.with(|st| {
             let mut gc = st.borrow_mut();
-
-            Self::manage_state(&mut gc);
             // Safety: value cannot be a null pointer, since `Box` cannot return null pointers.
             let ptr = unsafe { NonNull::new_unchecked(Box::into_raw(Box::new(value))) };
             let erased: NonNull<dyn ErasedEphemeronBox> = ptr;
@@ -189,21 +184,6 @@ impl Allocator {
             weak_map
         })
     }
-
-    fn manage_state(gc: &mut BoaGc) {
-        if gc.runtime.bytes_allocated > gc.config.threshold {
-            Collector::collect(gc);
-
-            // Post collection check
-            // If the allocated bytes are still above the threshold, increase the threshold.
-            if gc.runtime.bytes_allocated
-                > gc.config.threshold / 100 * gc.config.used_space_percentage
-            {
-                gc.config.threshold =
-                    gc.runtime.bytes_allocated / gc.config.used_space_percentage * 100;
-            }
-        }
-    }
 }
 
 struct Unreachables {
@@ -226,81 +206,59 @@ struct Unreachables {
 struct Collector;
 
 impl Collector {
-    /// Run a collection on the full heap.
-    fn collect(gc: &mut BoaGc) {
-        let _timer = Profiler::global().start_event("Gc Full Collection", "gc");
+    /// Run a collection from a list of roots provided by the runtime.
+    fn collect_from_roots<T: Trace>(t: Option<&T>, gc: &mut BoaGc, roots: &HashSet<GcErasedPointer>) {
+        let _timer = Profiler::global().start_event("Gc Explicit Collection", "gc");
         gc.runtime.collections += 1;
-
-        Self::trace_non_roots(gc);
-
         let mut tracer = Tracer::new();
-
-        let unreachables = Self::mark_heap(&mut tracer, &gc.strongs, &gc.weaks, &gc.weak_maps);
-
+        for root in roots.iter() {
+            // SAFETY: The caller must ensure all pointers inside `gc.roots` are valid.
+            unsafe { tracer.enqueue(*root) };
+        }
+        dbg!("tracer.enqueue(*root) DONE");
+        if let Some(t) = t {
+            unsafe { t.trace(&mut tracer) };
+        }
+        dbg!("t.trace DONE");
+        unsafe { tracer.trace_until_empty() };
+        dbg!("TRACE UNTIL EMPTY DONE");
+        let weaks = gc.weaks.clone();
+        let weak_maps = gc.weak_maps.clone();
+        let unreachables = Self::mark_heap(&mut tracer, &gc.strongs, &weaks, &weak_maps);
+        dbg!("Self::mark_heap DONE");
         assert!(tracer.is_empty(), "The queue should be empty");
-
-        // Only finalize if there are any unreachable nodes.
         if !unreachables.strong.is_empty() || !unreachables.weak.is_empty() {
-            // Finalize all the unreachable nodes.
-            // SAFETY: All passed pointers are valid, since we won't deallocate until `Self::sweep`.
             unsafe { Self::finalize(unreachables) };
-
-            // Reuse the tracer's already allocated capacity.
-            let _final_unreachables =
-                Self::mark_heap(&mut tracer, &gc.strongs, &gc.weaks, &gc.weak_maps);
+            let _final_unreachables = Self::mark_heap(&mut tracer, &gc.strongs, &weaks, &weak_maps);
+            dbg!("Self::mark_heap _final_unreachables DONE");
         }
-
-        // SAFETY: The head of our linked list is always valid per the invariants of our GC.
+        // Extract fields for sweep to avoid double mutable borrow
+        let mut strongs = mem::take(&mut gc.strongs);
+        let mut weaks = mem::take(&mut gc.weaks);
+        let bytes_allocated = &mut gc.runtime.bytes_allocated;
         unsafe {
-            Self::sweep(
-                &mut gc.strongs,
-                &mut gc.weaks,
-                &mut gc.runtime.bytes_allocated,
-            );
+            Self::sweep(&mut strongs, &mut weaks, bytes_allocated);
         }
-
-        // Weak maps have to be cleared after the sweep, since the process dereferences GcBoxes.
+        dbg!("Self::sweep DONE");
+        gc.strongs = strongs;
+        gc.weaks = weaks;
         gc.weak_maps.retain(|w| {
-            // SAFETY: The caller must ensure the validity of every node of `heap_start`.
             let node_ref = unsafe { w.as_ref() };
-
             if node_ref.is_live() {
                 node_ref.clear_dead_entries();
-
                 true
             } else {
-                // SAFETY:
-                // The `Allocator` must always ensure its start node is a valid, non-null pointer that
-                // was allocated by `Box::from_raw(Box::new(..))`.
                 let _unmarked_node = unsafe { Box::from_raw(w.as_ptr()) };
-
                 false
             }
         });
-
-        gc.strongs.shrink_to(gc.strongs.len() >> 2);
-        gc.weaks.shrink_to(gc.weaks.len() >> 2);
-        gc.weak_maps.shrink_to(gc.weak_maps.len() >> 2);
-    }
-
-    fn trace_non_roots(gc: &BoaGc) {
-        // Count all the handles located in GC heap.
-        // Then, we can find whether there is a reference from other places, and they are the roots.
-        for node in &gc.strongs {
-            // SAFETY: node must be valid as this phase cannot drop any node.
-            let trace_non_roots_fn = unsafe { node.as_ref() }.trace_non_roots_fn();
-
-            // SAFETY: The function pointer is appropriate for this node type because we extract it from it's VTable.
-            unsafe {
-                trace_non_roots_fn(*node);
-            }
-        }
-
-        for eph in &gc.weaks {
-            // SAFETY: node must be valid as this phase cannot drop any node.
-            let eph_ref = unsafe { eph.as_ref() };
-            eph_ref.trace_non_roots();
-        }
+        dbg!("gc.weak_maps.retain DONE");
+        let strongs_len = gc.strongs.len();
+        let weaks_len = gc.weaks.len();
+        let weak_maps_len = gc.weak_maps.len();
+        gc.strongs.shrink_to(strongs_len >> 2);
+        gc.weaks.shrink_to(weaks_len >> 2);
+        gc.weak_maps.shrink_to(weak_maps_len >> 2);
     }
 
     /// Walk the heap and mark any nodes deemed reachable
@@ -322,14 +280,14 @@ impl Collector {
         for node in strongs {
             // SAFETY: node must be valid as this phase cannot drop any node.
             let node_ref = unsafe { node.as_ref() };
-            if node_ref.is_rooted() {
+            if node_ref.is_marked() {
                 tracer.enqueue(*node);
 
                 // SAFETY: all nodes must be valid as this phase cannot drop any node.
                 unsafe {
                     tracer.trace_until_empty();
                 }
-            } else if !node_ref.is_marked() {
+            } else {
                 strong_dead.push(*node);
             }
         }
@@ -356,7 +314,7 @@ impl Collector {
             // SAFETY: node must be valid as this phase cannot drop any node.
             let eph_ref = unsafe { eph.as_ref() };
             let header = eph_ref.header();
-            if header.is_rooted() {
+            if header.is_marked() {
                 header.mark();
             }
             // SAFETY: the garbage collector ensures `eph_ref` always points to valid data.
@@ -465,7 +423,6 @@ impl Collector {
             let node_ref = unsafe { node.as_ref() };
             if node_ref.is_marked() {
                 node_ref.header.unmark();
-                node_ref.reset_non_root_count();
 
                 true
             } else {
@@ -490,7 +447,6 @@ impl Collector {
             let header = eph_ref.header();
             if header.is_marked() {
                 header.unmark();
-                header.reset_non_root_count();
 
                 true
             } else {
@@ -541,26 +497,35 @@ impl Collector {
 }
 
 /// Forcefully runs a garbage collection of all unaccessible nodes.
-pub fn force_collect() {
-    BOA_GC.with(|current| {
-        let mut gc = current.borrow_mut();
+pub fn force_collect() {}
 
-        if gc.runtime.bytes_allocated > 0 {
-            Collector::collect(&mut gc);
-        }
+pub fn collect_force<T: Trace>(root: Option<&T>, roots: &HashSet<GcErasedPointer>) {
+    BOA_GC.with(|gc| {
+        let mut gc = gc.borrow_mut();
+        println!("Running GC {}", gc.runtime.bytes_allocated);
+        Collector::collect_from_roots(root, &mut gc, roots);
+        println!("Ran GC {}", gc.runtime.bytes_allocated);
     });
 }
 
-#[cfg(test)]
-mod test;
+pub fn collect<T: Trace>(root: Option<&T>, roots: &HashSet<GcErasedPointer>) {
+    BOA_GC.with(|gc| {
+        
+        let mut gc = gc.borrow_mut();
+        if gc.runtime.bytes_allocated > gc.config.threshold {
+            println!("Running GC {}", gc.runtime.bytes_allocated);
+            Collector::collect_from_roots(root, &mut gc, roots);
 
-/// Returns `true` is any weak maps are currently allocated.
-#[cfg(test)]
-#[must_use]
-pub fn has_weak_maps() -> bool {
-    BOA_GC.with(|current| {
-        let gc = current.borrow();
+            println!("Ran GC {}", gc.runtime.bytes_allocated);
 
-        !gc.weak_maps.is_empty()
-    })
+            // Post collection check
+            // If the allocated bytes are still above the threshold, increase the threshold.
+            if gc.runtime.bytes_allocated
+                > gc.config.threshold / 100 * gc.config.used_space_percentage
+            {
+                gc.config.threshold =
+                    gc.runtime.bytes_allocated / gc.config.used_space_percentage * 100;
+            }
+        }
+    });
 }

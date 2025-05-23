@@ -51,7 +51,7 @@ pub mod flowgraph;
 mod tests;
 
 /// Virtual Machine.
-#[derive(Debug)]
+#[derive(Debug, Finalize, Trace)]
 pub struct Vm {
     /// The current call frame.
     ///
@@ -78,6 +78,8 @@ pub struct Vm {
     /// This is also used to eliminates [`crate::JsNativeError`] to opaque conversion if not needed.
     pub(crate) pending_exception: Option<JsError>,
     pub(crate) environments: EnvironmentStack,
+
+    #[unsafe_ignore_trace]
     pub(crate) runtime_limits: RuntimeLimits,
 
     /// This is used to assign a native (rust) function as the active function,
@@ -406,6 +408,8 @@ impl Context {
             }
             self.instructions_remaining -= 1;
         }
+
+        boa_gc::collect_force(Some(self),  &self.roots);
 
         #[cfg(feature = "trace")]
         if self.vm.trace || self.vm.frame().code_block.traceable() {

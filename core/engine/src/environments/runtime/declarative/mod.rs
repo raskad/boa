@@ -9,7 +9,7 @@ pub(crate) use lexical::LexicalEnvironment;
 pub(crate) use module::ModuleEnvironment;
 
 use crate::{JsResult, JsValue};
-use boa_gc::{Finalize, GcRefCell, Trace};
+use boa_gc::{custom_trace, Finalize, GcRefCell, Trace};
 use std::cell::Cell;
 
 /// A declarative environment holds binding values at runtime.
@@ -32,9 +32,38 @@ use std::cell::Cell;
 /// If bindings where added at runtime, the current environment and all inner environments
 /// are marked as poisoned.
 /// All poisoned environments have to be checked for added bindings.
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug, Finalize)]
 pub(crate) struct DeclarativeEnvironment {
     kind: DeclarativeEnvironmentKind,
+}
+
+// SAFETY: lel
+unsafe impl Trace for DeclarativeEnvironment {
+    custom_trace!(this, mark, {
+        match &this.kind {
+            DeclarativeEnvironmentKind::Lexical(env) => mark(env),
+            DeclarativeEnvironmentKind::Global(env) => {
+                dbg!("MARK ENV: GLOBAL");
+                if let Some(val) = env.get(0) {
+                    if let Some(o) = val.as_object() {
+                        dbg!("MARK ENV: GLOBAL: OBJECT 0.0");
+                        dbg!(o.as_erased());
+                        dbg!(o.is_marked());
+                    }
+                }
+                mark(env);
+                if let Some(val) = env.get(0) {
+                    if let Some(o) = val.as_object() {
+                        dbg!("MARK ENV: GLOBAL: OBJECT 0.1");
+                        dbg!(o.as_erased());
+                        dbg!(o.is_marked());
+                    }
+                }
+            }
+            DeclarativeEnvironmentKind::Function(env) => mark(env),
+            DeclarativeEnvironmentKind::Module(env) => mark(env),
+        }
+    });
 }
 
 impl DeclarativeEnvironment {
