@@ -334,7 +334,7 @@ impl<T: ?Sized> Object<T> {
     }
 }
 
-impl Object<dyn NativeObject> {
+impl Object<ErasedObjectData> {
     /// Return `true` if it is a native object and the native type is `T`.
     #[must_use]
     pub fn is<T: NativeObject>(&self) -> bool {

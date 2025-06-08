@@ -16,13 +16,7 @@ use crate::{
         array::ARRAY_EXOTIC_INTERNAL_METHODS,
         array_buffer::{ArrayBuffer, BufferObject, SharedArrayBuffer},
         object::OrdinaryObject,
-    },
-    context::intrinsics::Intrinsics,
-    error::JsNativeError,
-    js_string,
-    property::{PropertyDescriptor, PropertyKey},
-    value::PreferredType,
-    Context, JsResult, JsString, JsValue,
+    }, context::intrinsics::Intrinsics, error::JsNativeError, js_string, property::{PropertyDescriptor, PropertyKey}, value::PreferredType, Context, JsData, JsResult, JsString, JsValue
 };
 use boa_gc::{self, Finalize, Gc, GcBox, GcRefCell, Trace};
 use std::{
@@ -47,10 +41,19 @@ pub type ErasedObject = Object<dyn NativeObject>;
 
 pub(crate) type ErasedVTableObject = VTableObject<dyn NativeObject>;
 
+type ErasedVTableObject1 = VTableObject<ErasedObjectData>;
+
+type ErasedObject1 = Object<ErasedObjectData>;
+
+#[derive(Debug, Clone, Trace, Finalize)]
+pub(crate) struct ErasedObjectData {}
+
+impl JsData for ErasedObjectData {}
+
 /// Garbage collected `Object`.
 #[derive(Trace, Finalize)]
 #[boa_gc(unsafe_no_drop)]
-pub struct JsObject<T: NativeObject + ?Sized = dyn NativeObject> {
+pub struct JsObject<T: NativeObject + ?Sized = ErasedObjectData> {
     inner: Gc<VTableObject<T>>,
 }
 
@@ -70,6 +73,8 @@ impl<T: NativeObject + ?Sized> Clone for JsObject<T> {
 #[derive(Trace, Finalize)]
 pub(crate) struct VTableObject<T: NativeObject + ?Sized> {
     #[unsafe_ignore_trace]
+    type_id: core::any::TypeId,
+    #[unsafe_ignore_trace]
     vtable: &'static InternalObjectMethods,
     object: GcRefCell<Object<T>>,
 }
@@ -87,12 +92,13 @@ impl JsObject {
         vtable: &'static InternalObjectMethods,
     ) -> Self {
         let gc = Gc::new(VTableObject {
+            type_id: core::any::TypeId::of::<T>(),
             object: GcRefCell::new(object),
             vtable,
         });
 
         Self {
-            inner: coerce_gc(gc),
+            inner: gc.cast::<ErasedVTableObject1>(),
         }
     }
 
@@ -136,6 +142,7 @@ impl JsObject {
     ) -> Self {
         let internal_methods = data.internal_methods();
         let gc = Gc::new(VTableObject {
+            type_id: core::any::TypeId::of::<T>(),
             object: GcRefCell::new(Object {
                 data,
                 properties: PropertyMap::from_prototype_unique_shape(prototype.into()),
@@ -146,7 +153,7 @@ impl JsObject {
         });
 
         Self {
-            inner: coerce_gc(gc),
+            inner: gc.cast::<ErasedVTableObject1>(),
         }
     }
 
@@ -164,6 +171,7 @@ impl JsObject {
     ) -> Self {
         let internal_methods = data.internal_methods();
         let gc = Gc::new(VTableObject {
+            type_id: core::any::TypeId::of::<T>(),
             object: GcRefCell::new(Object {
                 data,
                 properties: PropertyMap::from_prototype_with_shared_shape(
@@ -177,7 +185,7 @@ impl JsObject {
         });
 
         Self {
-            inner: coerce_gc(gc),
+            inner: gc.cast::<ErasedVTableObject1>(),
         }
     }
 
@@ -579,6 +587,7 @@ impl<T: NativeObject + ?Sized> JsObject<T> {
     {
         let internal_methods = data.internal_methods();
         let inner = Gc::new(VTableObject {
+            type_id: core::any::TypeId::of::<T>(),
             object: GcRefCell::new(Object {
                 data,
                 properties: PropertyMap::from_prototype_with_shared_shape(
@@ -604,6 +613,7 @@ impl<T: NativeObject + ?Sized> JsObject<T> {
     {
         let internal_methods = data.internal_methods();
         let inner = Gc::new(VTableObject {
+            type_id: core::any::TypeId::of::<T>(),
             object: GcRefCell::new(Object {
                 data,
                 properties: PropertyMap::from_prototype_unique_shape(prototype.into()),
@@ -624,7 +634,7 @@ impl<T: NativeObject + ?Sized> JsObject<T> {
         T: Sized,
     {
         JsObject {
-            inner: coerce_gc(self.inner),
+            inner: self.inner.cast::<ErasedVTableObject1>(),
         }
     }
 

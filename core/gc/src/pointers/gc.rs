@@ -56,6 +56,20 @@ pub struct Gc<T: Trace + ?Sized + 'static> {
 }
 
 impl<T: Trace + ?Sized> Gc<T> {
+    /// Casts to a [`Gc`] of another type.
+    #[inline]
+    #[must_use]
+    pub fn cast<U: Trace>(self) -> Gc<U>
+    where
+        T: Sized,
+    {
+        let inner_ptr = self.inner_ptr.cast::<GcBox<U>>();
+        Gc {
+            inner_ptr,
+            marker: PhantomData,
+        }
+    }
+
     /// Constructs a new `Gc<T>` with the given value.
     #[must_use]
     pub fn new(value: T) -> Self

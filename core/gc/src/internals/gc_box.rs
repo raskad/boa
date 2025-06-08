@@ -25,7 +25,7 @@ impl<T: Trace> GcBox<T> {
 
 impl<T: Trace + ?Sized> GcBox<T> {
     /// Returns a reference to the `GcBox`'s value.
-    pub(crate) const fn value(&self) -> &T {
+    pub const fn value(&self) -> &T {
         &self.value
     }
 
