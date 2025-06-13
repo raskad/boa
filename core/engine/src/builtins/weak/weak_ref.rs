@@ -5,7 +5,7 @@ use crate::{
     builtins::{BuiltInBuilder, BuiltInConstructor, BuiltInObject, IntrinsicObject},
     context::intrinsics::{Intrinsics, StandardConstructor, StandardConstructors},
     js_string,
-    object::{internal_methods::get_prototype_from_constructor, ErasedVTableObject, JsObject},
+    object::{internal_methods::get_prototype_from_constructor, ErasedVTableObject, ErasedVTableObject1, JsObject},
     property::Attribute,
     realm::Realm,
     string::StaticJsStrings,
@@ -112,7 +112,7 @@ impl WeakRef {
         // 2. Perform ? RequireInternalSlot(weakRef, [[WeakRefTarget]]).
         let weak_ref = this
             .as_object()
-            .and_then(JsObject::downcast_ref::<WeakGc<ErasedVTableObject>>)
+            .and_then(JsObject::downcast_ref::<WeakGc<ErasedVTableObject1>>)
             .ok_or_else(|| {
                 JsNativeError::typ().with_message(
                     "WeakRef.prototype.deref: expected `this` to be a `WeakRef` object",

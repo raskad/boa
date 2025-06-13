@@ -204,10 +204,10 @@ impl BuiltInConstructor for Locale {
 
         let mut tag = if let Some(tag) = tag
             .as_object()
-            .and_then(|obj| obj.borrow().downcast_ref::<icu_locid::Locale>().cloned())
+            .and_then(|obj| obj.downcast_ref::<icu_locid::Locale>())
         {
             // a. Let tag be tag.[[Locale]].
-            tag
+            tag.clone()
         }
         // 9. Else,
         else {
@@ -398,16 +398,12 @@ impl Locale {
     ) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ().with_message("`maximize` can only be called on a `Locale` object")
-        })?;
-        let mut loc = loc
-            .downcast_ref::<icu_locid::Locale>()
+        let mut loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
             .ok_or_else(|| {
                 JsNativeError::typ()
                     .with_message("`maximize` can only be called on a `Locale` object")
-            })?
-            .clone();
+            })?.clone();
 
         // 3. Let maximal be the result of the Add Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set maximal to loc.[[Locale]].
         context
@@ -437,16 +433,12 @@ impl Locale {
     ) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ().with_message("`minimize` can only be called on a `Locale` object")
-        })?;
-        let mut loc = loc
-            .downcast_ref::<icu_locid::Locale>()
+        let mut loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
             .ok_or_else(|| {
                 JsNativeError::typ()
                     .with_message("`minimize` can only be called on a `Locale` object")
-            })?
-            .clone();
+            })?.clone();
 
         // 3. Let minimal be the result of the Remove Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set minimal to loc.[[Locale]].
         context
@@ -472,12 +464,12 @@ impl Locale {
     pub(crate) fn to_string(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ().with_message("`toString` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ().with_message("`toString` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`toString` can only be called on a `Locale` object")
+            })?;
 
         // 3. Return loc.[[Locale]].
         Ok(js_string!(loc.to_string()).into())
@@ -493,14 +485,12 @@ impl Locale {
     pub(crate) fn base_name(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get baseName` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get baseName` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get baseName` can only be called on a `Locale` object")
+            })?;
 
         // 3. Let locale be loc.[[Locale]].
         // 4. Return the substring of locale corresponding to the unicode_language_id production.
@@ -517,14 +507,12 @@ impl Locale {
     pub(crate) fn calendar(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get calendar` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get calendar` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get calendar` can only be called on a `Locale` object")
+            })?;
 
         // 3. Return loc.[[Calendar]].
         Ok(loc
@@ -546,14 +534,12 @@ impl Locale {
     pub(crate) fn case_first(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get caseFirst` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get caseFirst` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get caseFirst` can only be called on a `Locale` object")
+            })?;
 
         // 3. Return loc.[[CaseFirst]].
         Ok(loc
@@ -575,14 +561,12 @@ impl Locale {
     pub(crate) fn collation(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get collation` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get collation` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get collation` can only be called on a `Locale` object")
+            })?;
 
         // 3. Return loc.[[Collation]].
         Ok(loc
@@ -604,14 +588,12 @@ impl Locale {
     pub(crate) fn hour_cycle(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get hourCycle` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get hourCycle` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get hourCycle` can only be called on a `Locale` object")
+            })?;
 
         // 3. Return loc.[[HourCycle]].
         Ok(loc
@@ -633,14 +615,12 @@ impl Locale {
     pub(crate) fn numeric(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get numeric` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get numeric` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get numeric` can only be called on a `Locale` object")
+            })?;
 
         // 3. Return loc.[[Numeric]].
         let kn = loc
@@ -670,14 +650,12 @@ impl Locale {
     ) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get numberingSystem` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get numberingSystem` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get numberingSystem` can only be called on a `Locale` object")
+            })?;
 
         // 3. Return loc.[[NumberingSystem]].
         Ok(loc
@@ -699,14 +677,12 @@ impl Locale {
     pub(crate) fn language(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get language` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get language` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get language` can only be called on a `Locale` object")
+            })?;
 
         // 3. Let locale be loc.[[Locale]].
         // 4. Assert: locale matches the unicode_locale_id production.
@@ -724,14 +700,12 @@ impl Locale {
     pub(crate) fn script(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get script` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get script` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get script` can only be called on a `Locale` object")
+            })?;
 
         // 3. Let locale be loc.[[Locale]].
         // 4. Assert: locale matches the unicode_locale_id production.
@@ -754,14 +728,12 @@ impl Locale {
     pub(crate) fn region(this: &JsValue, _: &[JsValue], _: &mut Context) -> JsResult<JsValue> {
         // 1. Let loc be the this value.
         // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-        let loc = this.as_object().map(JsObject::borrow).ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get region` can only be called on a `Locale` object")
-        })?;
-        let loc = loc.downcast_ref::<icu_locid::Locale>().ok_or_else(|| {
-            JsNativeError::typ()
-                .with_message("`get region` can only be called on a `Locale` object")
-        })?;
+        let loc = this.as_object()
+            .and_then(|o| o.downcast_ref::<icu_locid::Locale>())
+            .ok_or_else(|| {
+                JsNativeError::typ()
+                    .with_message("`get region` can only be called on a `Locale` object")
+            })?;
 
         // 3. Let locale be loc.[[Locale]].
         // 4. Assert: locale matches the unicode_locale_id production.

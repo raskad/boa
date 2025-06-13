@@ -11,7 +11,7 @@ use crate::{
     builtins::{BuiltInBuilder, BuiltInConstructor, BuiltInObject, IntrinsicObject},
     context::intrinsics::{Intrinsics, StandardConstructor, StandardConstructors},
     js_string,
-    object::{internal_methods::get_prototype_from_constructor, ErasedVTableObject, JsObject},
+    object::{internal_methods::get_prototype_from_constructor, ErasedVTableObject, ErasedVTableObject1, JsObject},
     property::Attribute,
     realm::Realm,
     string::StaticJsStrings,
@@ -23,7 +23,7 @@ use boa_profiler::Profiler;
 
 use super::iterable::IteratorHint;
 
-type NativeWeakSet = boa_gc::WeakMap<ErasedVTableObject, ()>;
+type NativeWeakSet = boa_gc::WeakMap<ErasedVTableObject1, ()>;
 
 #[derive(Debug, Trace, Finalize)]
 pub(crate) struct WeakSet;
@@ -177,7 +177,7 @@ impl WeakSet {
 
     /// `WeakSet.prototype.delete( value )`
     ///
-    /// The `delete()` method removes the specified element from a `WeakSet` object.  
+    /// The `delete()` method removes the specified element from a `WeakSet` object.
     ///
     /// More information:
     ///  - [ECMAScript reference][spec]

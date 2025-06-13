@@ -16,6 +16,7 @@
 use super::{
     error::Error, Array, BuiltInBuilder, BuiltInConstructor, Date, IntrinsicObject, RegExp,
 };
+use crate::builtins::function::arguments::{MappedArguments, UnmappedArguments};
 use crate::value::JsVariant;
 use crate::{
     builtins::{iterable::IteratorHint, map, BuiltInObject},
@@ -842,9 +843,7 @@ impl OrdinaryObject {
         let builtin_tag = if o.is_array_abstract()? {
             js_str!("Array")
         } else {
-            let o_borrow = o.borrow();
-
-            if o_borrow.is_arguments() {
+            if o.is::<UnmappedArguments>() || o.is::<MappedArguments>() {
                 // 6. Else if O has a [[ParameterMap]] internal slot, let builtinTag be "Arguments".
                 js_str!("Arguments")
             } else if o.is_callable() {

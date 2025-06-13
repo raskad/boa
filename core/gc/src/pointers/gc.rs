@@ -64,6 +64,7 @@ impl<T: Trace + ?Sized> Gc<T> {
         T: Sized,
     {
         let inner_ptr = self.inner_ptr.cast::<GcBox<U>>();
+        core::mem::forget(self);
         Gc {
             inner_ptr,
             marker: PhantomData,

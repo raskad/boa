@@ -1155,9 +1155,9 @@ impl Set {
     pub(crate) fn get_size(set: &JsValue) -> JsResult<usize> {
         set.as_object()
             .and_then(|obj| {
-                obj.borrow()
+                obj
                     .downcast_ref::<OrderedSet>()
-                    .map(OrderedSet::len)
+                    .map(|o| o.len())
             })
             .ok_or_else(|| {
                 JsNativeError::typ()
@@ -1170,9 +1170,9 @@ impl Set {
     pub(crate) fn get_size_full(set: &JsValue) -> JsResult<usize> {
         set.as_object()
             .and_then(|obj| {
-                obj.borrow()
+                obj
                     .downcast_ref::<OrderedSet>()
-                    .map(OrderedSet::full_len)
+                    .map(|o| o.full_len())
             })
             .ok_or_else(|| {
                 JsNativeError::typ()

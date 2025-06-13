@@ -41,12 +41,12 @@ pub type ErasedObject = Object<dyn NativeObject>;
 
 pub(crate) type ErasedVTableObject = VTableObject<dyn NativeObject>;
 
-type ErasedVTableObject1 = VTableObject<ErasedObjectData>;
+pub(crate) type ErasedVTableObject1 = VTableObject<ErasedObjectData>;
 
-type ErasedObject1 = Object<ErasedObjectData>;
+pub(crate) type ErasedObject1 = Object<ErasedObjectData>;
 
 #[derive(Debug, Clone, Trace, Finalize)]
-pub(crate) struct ErasedObjectData {}
+pub struct ErasedObjectData {}
 
 impl JsData for ErasedObjectData {}
 
@@ -195,8 +195,8 @@ impl JsObject {
     ///
     /// Panics if the object is currently mutably borrowed.
     pub fn downcast<T: NativeObject>(self) -> Result<JsObject<T>, Self> {
-        if self.borrow().is::<T>() {
-            let ptr: NonNull<GcBox<VTableObject<dyn NativeObject>>> = Gc::into_raw(self.inner);
+        if self.is::<T>() {
+            let ptr: NonNull<GcBox<VTableObject<ErasedObjectData>>> = Gc::into_raw(self.inner);
 
             // SAFETY: the rooted `Gc` ensures we can read the inner `GcBox` in a sound way.
             #[cfg(debug_assertions)]
@@ -248,7 +248,17 @@ impl JsObject {
     #[must_use]
     #[track_caller]
     pub fn downcast_ref<T: NativeObject>(&self) -> Option<Ref<'_, T>> {
-        Ref::try_map(self.borrow(), ErasedObject::downcast_ref)
+        if self.is::<T>() {
+            let b = self.borrow();
+            return Some(unsafe {b.cast::<T>() })
+            // Ref::try_map(self.borrow(), |o| {
+            //     let ptr: *const ErasedObjectData = &o.data;
+                // SAFETY: caller guarantees that T is the correct type
+            //     Some(unsafe { &*ptr.cast::<T>() })
+            // })
+        } else {
+            None
+        }
     }
 
     /// Downcasts a mutable reference to the object,
@@ -259,8 +269,18 @@ impl JsObject {
     /// Panics if the object is currently borrowed.
     #[must_use]
     #[track_caller]
-    pub fn downcast_mut<T: NativeObject>(&self) -> Option<RefMut<'_, ErasedObject, T>> {
-        RefMut::try_map(self.borrow_mut(), ErasedObject::downcast_mut)
+    pub fn downcast_mut<T: NativeObject>(&self) -> Option<RefMut<'_, ErasedObject1, T>> {
+        if self.is::<T>() {
+            let b = self.borrow_mut();
+            return Some(unsafe {b.cast::<T>() })
+            //RefMut::try_map(self.borrow_mut(), |o| {
+            //    let ptr: *mut ErasedObjectData = &mut o.data;
+            //    // SAFETY: caller guarantees that T is the correct type
+            //    Some(unsafe { &mut *ptr.cast::<T>() })
+            //})
+        } else {
+            None
+        }
     }
 
     /// Checks if this object is an instance of a certain `NativeObject`.
@@ -272,7 +292,7 @@ impl JsObject {
     #[must_use]
     #[track_caller]
     pub fn is<T: NativeObject>(&self) -> bool {
-        self.borrow().is::<T>()
+        self.inner.type_id == core::any::TypeId::of::<T>()
     }
 
     /// Checks if it's an ordinary object.
@@ -554,23 +574,18 @@ Cannot both specify accessors and a value or writable attribute",
     /// Casts to a `BufferObject` if the object is an `ArrayBuffer` or a `SharedArrayBuffer`.
     #[inline]
     pub(crate) fn into_buffer_object(self) -> Result<BufferObject, JsObject> {
-        let obj = self.borrow();
-
-        if obj.is::<ArrayBuffer>() {
-            drop(obj);
+        if self.is::<ArrayBuffer>() {
             // SAFETY: We have verified that the inner data of `self` is of type `ArrayBuffer`.
             return Ok(BufferObject::Buffer(unsafe {
                 self.downcast_unchecked::<ArrayBuffer>()
             }));
         }
-        if obj.is::<SharedArrayBuffer>() {
-            drop(obj);
+        if self.is::<SharedArrayBuffer>() {
             // SAFETY: We have verified that the inner data of `self` is of type `SharedArrayBuffer`.
             return Ok(BufferObject::SharedBuffer(unsafe {
                 self.downcast_unchecked::<SharedArrayBuffer>()
             }));
         }
-        drop(obj);
 
         Err(self)
     }

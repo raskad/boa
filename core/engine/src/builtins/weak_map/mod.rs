@@ -14,7 +14,7 @@ use crate::{
     },
     context::intrinsics::{Intrinsics, StandardConstructor, StandardConstructors},
     js_string,
-    object::{internal_methods::get_prototype_from_constructor, ErasedVTableObject, JsObject},
+    object::{internal_methods::get_prototype_from_constructor, ErasedVTableObject, ErasedVTableObject1, JsObject},
     property::Attribute,
     realm::Realm,
     string::StaticJsStrings,
@@ -24,7 +24,7 @@ use crate::{
 use boa_gc::{Finalize, Trace};
 use boa_profiler::Profiler;
 
-type NativeWeakMap = boa_gc::WeakMap<ErasedVTableObject, JsValue>;
+type NativeWeakMap = boa_gc::WeakMap<ErasedVTableObject1, JsValue>;
 
 #[derive(Debug, Trace, Finalize)]
 pub(crate) struct WeakMap;

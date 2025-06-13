@@ -74,7 +74,7 @@ pub(crate) fn canonicalize_locale_list(
     let o = if locales.is_string()
         || locales
             .as_object()
-            .is_some_and(|o| o.borrow().is::<Locale>())
+            .is_some_and(|o| o.is::<Locale>())
     {
         // a. Let O be CreateArrayFromList(« locales »).
         Array::create_array_from_list([locales.clone()], context)
@@ -104,10 +104,10 @@ pub(crate) fn canonicalize_locale_list(
             // iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]] internal slot, then
             let mut tag = if let Some(tag) = k_value
                 .as_object()
-                .and_then(|obj| obj.borrow().downcast_ref::<Locale>().cloned())
+                .and_then(|obj| obj.downcast_ref::<Locale>())
             {
                 // 1. Let tag be kValue.[[Locale]].
-                tag
+                tag.clone()
             }
             // iv. Else,
             else {

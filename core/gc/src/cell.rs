@@ -255,6 +255,12 @@ pub struct GcRef<'a, T: ?Sized + 'static> {
 }
 
 impl<'a, T: ?Sized> GcRef<'a, T> {
+    pub unsafe fn cast<U>(self) -> GcRef<'a, U> {
+        let n = GcRef { flags: self.flags, value: &*(self.value as *const T as *const U) };
+        core::mem::forget(self);
+        n
+    }
+
     /// Copies a `GcCellRef`.
     ///
     /// The `GcCell` is already immutably borrowed, so this cannot fail.
@@ -391,6 +397,23 @@ pub struct GcRefMut<'a, T: ?Sized + 'static, U: ?Sized = T> {
 }
 
 impl<'a, T: ?Sized, U: ?Sized> GcRefMut<'a, T, U> {
+    pub unsafe fn cast<V>(self) -> GcRefMut<'a, T, V> {
+        #[allow(trivial_casts)]
+        // SAFETY: This is safe as `GcCellRefMut` is already borrowed, so the value is rooted.
+        let value = unsafe { &mut *(ptr::from_mut::<U>(self.value) as *mut V) };
+
+        let ret = GcRefMut {
+            gc_cell: self.gc_cell,
+            value,
+        };
+
+        // We have to tell the compiler not to call the destructor of GcCellRef,
+        // because it will update the borrow flags.
+        std::mem::forget(self);
+
+        ret
+    }
+
     /// Tries to make a new `GcCellRefMut` for a component of the borrowed data, returning `None`
     /// if the mapping function returns `None`.
     ///

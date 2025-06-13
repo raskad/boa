@@ -125,9 +125,7 @@ impl SegmentIterator {
         // 6. Let endIndex be ! FindBoundary(segmenter, string, startIndex, after).
         let Some((end, is_word_like)) = iter.string.get(start..).and_then(|string| {
             // 3. Let segmenter be iterator.[[IteratingSegmenter]].
-            let segmenter = iter.segmenter.borrow();
-            let segmenter = segmenter
-                .downcast_ref::<Segmenter>()
+            let segmenter = iter.segmenter.downcast_ref::<Segmenter>()
                 .expect("segment iterator object should contain a segmenter");
             let mut segments = segmenter.native.segment(string);
             // the first elem is always 0.
